@@ -1,0 +1,14 @@
+{
+  "name": "booking-frontend",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "clean": "git clean -xdf node_modules .next"
+  },
+  "devDependencies": {
+    "turbo": "^2.11.5"
+  },
+  "packageManager": "pnpm@12.6.0"
+}
