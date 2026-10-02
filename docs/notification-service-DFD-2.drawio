@@ -1,0 +1,50 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Trang-1" id="NJaL-fzybcX-6lvhtX6M">
+    <mxGraphModel dx="558" dy="498" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="dtf3DZpGe4KOyvBWkMdH-1" edge="1" parent="1" source="input" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="p21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dtf3DZpGe4KOyvBWkMdH-2" connectable="0" parent="dtf3DZpGe4KOyvBWkMdH-1" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Notification data&amp;nbsp;&lt;div&gt;+ template key&lt;/div&gt;" vertex="1">
+          <mxGeometry relative="1" x="-0.1716" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="input" parent="1" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;" value="1.0 Receive Notification Request / Event" vertex="1">
+          <mxGeometry height="140" width="150" x="30" y="115" as="geometry" />
+        </mxCell>
+        <mxCell id="p21" parent="1" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;" value="2.1 Query Template" vertex="1">
+          <mxGeometry height="70" width="140" x="370" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="d1" parent="1" style="shape=partialRectangle;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=none;" value="D1 Notification_Templates" vertex="1">
+          <mxGeometry height="55" width="220" x="330" y="320" as="geometry" />
+        </mxCell>
+        <mxCell id="p22" parent="1" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;" value="2.2 Render Template" vertex="1">
+          <mxGeometry height="70" width="190" x="690" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="p23" parent="1" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;" value="2.3 Validate &amp; Package Notification" vertex="1">
+          <mxGeometry height="70" width="230" x="920" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="output" parent="1" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;" value="3.0 Send &amp; Save History" vertex="1">
+          <mxGeometry height="70" width="220" x="925" y="470" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="d1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" target="p21" value="Matching template">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="p21" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" target="p22" value="Template&amp;nbsp;&lt;div&gt;+notification data&lt;/div&gt;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="p22" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" target="p23" value="Rendered subject / body / SMS content">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="p23" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" target="output" value="Validated &amp;amp; packaged notification&amp;nbsp;&lt;div&gt;+ recipient + channel&lt;/div&gt;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
