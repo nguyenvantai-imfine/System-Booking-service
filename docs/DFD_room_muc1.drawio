@@ -1,0 +1,92 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net">
+  <diagram id="diagram_1" name="Trang-1">
+    <mxGraphModel dx="1000" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="partner" value="PARTNER" style="shape=rectangle;whiteSpace=wrap;html=1;rounded=0;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="100" y="150" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="booking" value="BOOKING SERVICE" style="shape=rectangle;whiteSpace=wrap;html=1;rounded=0;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="100" y="350" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="client" value="CLIENT" style="shape=rectangle;whiteSpace=wrap;html=1;rounded=0;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="100" y="550" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="p1" value="1.0 Manage&#10;Room Catalog &amp; Price" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="400" y="145" width="170" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="p2" value="2.0 Manage Room&#10;Inventory &amp; Status" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="400" y="345" width="170" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="p3" value="3.0 Lookup &amp; View&#10;Room Information" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="400" y="545" width="170" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="db" value="D2 Room_DB" style="shape=partialRectangle;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=none;left=0;right=0;" vertex="1" parent="1">
+          <mxGeometry x="750" y="350" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_0" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=0;entryY=0.25;exitX=1;exitY=0.25;" edge="1" parent="1" source="partner" target="p1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_0_label" value="Configure Room Type &amp; Price" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="edge_0">
+          <mxGeometry x="0" y="0" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_1" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=1;entryY=0.75;exitX=0;exitY=0.75;" edge="1" parent="1" source="p1" target="partner">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_1_label" value="Result" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="edge_1">
+          <mxGeometry x="0" y="0" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_2" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=0.5;entryY=0;exitX=1;exitY=0.5;" edge="1" parent="1" source="p1" target="db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_2_label" value="Save Room Data" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="edge_2">
+          <mxGeometry x="0" y="0" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_3" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=0;entryY=0.25;exitX=1;exitY=0.25;" edge="1" parent="1" source="booking" target="p2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_3_label" value="Check/Lock/Release" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="edge_3">
+          <mxGeometry x="0" y="0" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_4" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=1;entryY=0.75;exitX=0;exitY=0.75;" edge="1" parent="1" source="p2" target="booking">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_4_label" value="Processing Status" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="edge_4">
+          <mxGeometry x="0" y="0" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_5" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=1;entryY=0.25;exitX=0;exitY=0.25;" edge="1" parent="1" source="db" target="p2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_5_label" value="Available Inventory" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="edge_5">
+          <mxGeometry x="0" y="0" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_6" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=0;entryY=0.75;exitX=1;exitY=0.75;" edge="1" parent="1" source="p2" target="db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_6_label" value="Deduct/Add Inventory" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="edge_6">
+          <mxGeometry x="0" y="0" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_7" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=0;entryY=0.25;exitX=1;exitY=0.25;" edge="1" parent="1" source="client" target="p3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_7_label" value="Lookup Rooms by Hotel_ID" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="edge_7">
+          <mxGeometry x="0" y="0" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_8" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=1;entryY=0.75;exitX=0;exitY=0.75;" edge="1" parent="1" source="p3" target="client">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_8_label" value="Available Rooms &amp; Prices" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="edge_8">
+          <mxGeometry x="0" y="0" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_9" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=0.5;entryY=1;exitX=0.5;exitY=1;" edge="1" parent="1" source="db" target="p3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_9_label" value="Room Data" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="edge_9">
+          <mxGeometry x="0" y="0" relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

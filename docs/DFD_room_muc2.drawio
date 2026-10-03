@@ -1,0 +1,80 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net">
+  <diagram id="diagram_1" name="Trang-1">
+    <mxGraphModel dx="1000" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="booking" value="BOOKING SERVICE" style="shape=rectangle;whiteSpace=wrap;html=1;rounded=0;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="50" y="250" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="p21" value="2.1 Check&#10;Room Availability" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="350" y="50" width="160" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="p22" value="2.2 Hold/Lock&#10;Room" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="350" y="250" width="160" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="p23" value="2.3 Release&#10;Room" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="350" y="450" width="160" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="db" value="D2 Room_DB" style="shape=partialRectangle;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=none;left=0;right=0;" vertex="1" parent="1">
+          <mxGeometry x="700" y="250" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_0" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=0;entryY=0.5;exitX=0.5;exitY=0;" edge="1" parent="1" source="booking" target="p21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_0_label" value="Check-in/out dates, Room Type" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="edge_0">
+          <mxGeometry x="0" y="0" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_1" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=0.25;entryY=0;exitX=0;exitY=0.75;" edge="1" parent="1" source="p21" target="booking">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_1_label" value="Available/Not Available" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="edge_1">
+          <mxGeometry x="0" y="0" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_2" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=1;entryY=0.5;exitX=0.5;exitY=0;" edge="1" parent="1" source="db" target="p21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_2_label" value="Query Inventory" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="edge_2">
+          <mxGeometry x="0" y="0" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_3" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=0;entryY=0.25;exitX=1;exitY=0.25;" edge="1" parent="1" source="booking" target="p22">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_3_label" value="Lock Command" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="edge_3">
+          <mxGeometry x="0" y="0" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_4" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=1;entryY=0.75;exitX=0;exitY=0.75;" edge="1" parent="1" source="p22" target="booking">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_4_label" value="Lock Result" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="edge_4">
+          <mxGeometry x="0" y="0" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_5" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=0;entryY=0.5;exitX=1;exitY=0.5;" edge="1" parent="1" source="p22" target="db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_5_label" value="Deduct Inventory" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="edge_5">
+          <mxGeometry x="0" y="0" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_6" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=0;entryY=0.5;exitX=0.5;exitY=1;" edge="1" parent="1" source="booking" target="p23">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_6_label" value="Cancel/Expire Lock Command" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="edge_6">
+          <mxGeometry x="0" y="0" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_7" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=0.75;entryY=1;exitX=0;exitY=0.75;" edge="1" parent="1" source="p23" target="booking">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_7_label" value="Release Result" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="edge_7">
+          <mxGeometry x="0" y="0" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_8" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=0.5;entryY=1;exitX=1;exitY=0.5;" edge="1" parent="1" source="p23" target="db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge_8_label" value="Add back Inventory" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="edge_8">
+          <mxGeometry x="0" y="0" relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
