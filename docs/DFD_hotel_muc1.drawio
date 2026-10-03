@@ -1,84 +1,105 @@
-<?xml version='1.0' encoding='utf-8'?>
 <mxfile host="app.diagrams.net">
-  <diagram id="diagram_1" name="Trang-1">
-    <mxGraphModel dx="1000" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+  <diagram name="Page-1" id="G50nwRUD1_7VE17-onTk">
+    <mxGraphModel dx="1030" dy="527" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="partner" value="PARTNER" style="shape=rectangle;whiteSpace=wrap;html=1;rounded=0;align=center;verticalAlign=middle;" vertex="1" parent="1">
-          <mxGeometry x="100" y="150" width="120" height="60" as="geometry" />
+        <mxCell id="partner" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1" value="Partner" vertex="1">
+          <mxGeometry height="60" width="150" x="20" y="70" as="geometry" />
         </mxCell>
-        <mxCell id="admin" value="ADMIN" style="shape=rectangle;whiteSpace=wrap;html=1;rounded=0;align=center;verticalAlign=middle;" vertex="1" parent="1">
-          <mxGeometry x="100" y="350" width="120" height="60" as="geometry" />
+        <mxCell id="admin" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1" value="System Admin" vertex="1">
+          <mxGeometry height="60" width="150" x="20" y="500" as="geometry" />
         </mxCell>
-        <mxCell id="client" value="CLIENT" style="shape=rectangle;whiteSpace=wrap;html=1;rounded=0;align=center;verticalAlign=middle;" vertex="1" parent="1">
-          <mxGeometry x="100" y="550" width="120" height="60" as="geometry" />
+        <mxCell id="client" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1" value="Client / Customer" vertex="1">
+          <mxGeometry height="60" width="150" x="900" y="140" as="geometry" />
         </mxCell>
-        <mxCell id="p1" value="1.0 Manage&#10;Hotel Profile" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
-          <mxGeometry x="400" y="150" width="140" height="70" as="geometry" />
+        <mxCell id="other" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1" value="Other Services&lt;br&gt;(Booking, Room...)" vertex="1">
+          <mxGeometry height="60" width="150" x="900" y="420" as="geometry" />
         </mxCell>
-        <mxCell id="p2" value="2.0 Approve &amp;&#10;Verify Hotel" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
-          <mxGeometry x="400" y="345" width="140" height="70" as="geometry" />
+        <mxCell id="p1_1" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.1&lt;br&gt;&lt;b&gt;Hotel Profile&lt;br&gt;&amp;amp; Info Management&lt;/b&gt;" vertex="1">
+          <mxGeometry height="130" width="130" x="350" y="35" as="geometry" />
         </mxCell>
-        <mxCell id="p3" value="3.0 Search&#10;&amp; Filter Hotel" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
-          <mxGeometry x="400" y="545" width="140" height="70" as="geometry" />
+        <mxCell id="p1_2" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.2&lt;br&gt;&lt;b&gt;Search &amp;amp;&lt;br&gt;Lookup&lt;/b&gt;" vertex="1">
+          <mxGeometry height="130" width="130" x="620" y="240" as="geometry" />
         </mxCell>
-        <mxCell id="db" value="D1 Hotel_DB" style="shape=partialRectangle;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=none;left=0;right=0;" vertex="1" parent="1">
-          <mxGeometry x="750" y="350" width="120" height="60" as="geometry" />
+        <mxCell id="p1_3" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.3&lt;br&gt;&lt;b&gt;Status&lt;br&gt;Management&lt;/b&gt;" vertex="1">
+          <mxGeometry height="130" width="130" x="350" y="465" as="geometry" />
         </mxCell>
-        <mxCell id="edge_0" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;entryX=0;entryY=0.25;exitX=1;exitY=0.25;" edge="1" parent="1" source="partner" target="p1">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="d1" parent="1" style="shape=partialRectangle;whiteSpace=wrap;html=1;left=0;right=0;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1" value="D1&amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; Hotel DB" vertex="1">
+          <mxGeometry height="50" width="160" x="335" y="280" as="geometry" />
         </mxCell>
-        <mxCell id="edge_0_label" value="Add/Edit Hotel Request" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="edge_0">
-          <mxGeometry x="0" y="0" relative="1" as="geometry" />
+        <mxCell id="e_partner_p11_in" edge="1" parent="1" source="partner" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.25;entryX=0;entryY=0.25;labelBackgroundColor=#ffffff;" target="p1_1" value="Create/Update Request,&lt;br&gt;Images, Amenities">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
         </mxCell>
-        <mxCell id="edge_1" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;entryX=1;entryY=0.75;exitX=0;exitY=0.75;" edge="1" parent="1" source="p1" target="partner">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="e_partner_p11_out" edge="1" parent="1" source="p1_1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.75;entryX=1;entryY=0.75;labelBackgroundColor=#ffffff;" target="partner" value="Hotel Profile,&lt;br&gt;Status">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
         </mxCell>
-        <mxCell id="edge_1_label" value="Result" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="edge_1">
-          <mxGeometry x="0" y="0" relative="1" as="geometry" />
+        <mxCell id="e_admin_p13_in" edge="1" parent="1" source="admin" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.25;entryX=0;entryY=0.25;labelBackgroundColor=#ffffff;" target="p1_3" value="Deactivate Command,&lt;br&gt;Update Status">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
         </mxCell>
-        <mxCell id="edge_2" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;entryX=0.5;entryY=0;exitX=1;exitY=0.5;" edge="1" parent="1" source="p1" target="db">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="e_admin_p13_out" edge="1" parent="1" source="p1_3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.75;entryX=1;entryY=0.75;labelBackgroundColor=#ffffff;" target="admin" value="Action Result">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
         </mxCell>
-        <mxCell id="edge_2_label" value="Save Hotel (Pending)" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="edge_2">
-          <mxGeometry x="0" y="0" relative="1" as="geometry" />
+        <mxCell id="e_p11_d1_in" edge="1" parent="1" source="p1_1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.25;exitY=1;entryX=0.25;entryY=0;labelBackgroundColor=#ffffff;" target="d1" value="Save New/Updated&lt;br&gt;Hotel Profile">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
         </mxCell>
-        <mxCell id="edge_3" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;entryX=0;entryY=0.5;exitX=1;exitY=0.5;" edge="1" parent="1" source="admin" target="p2">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="e_p11_d1_out" edge="1" parent="1" source="d1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.75;exitY=0;entryX=0.75;entryY=1;labelBackgroundColor=#ffffff;" target="p1_1" value="Save Confirmation">
+          <mxGeometry relative="1" x="-0.0977" y="-35" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="455" y="158.3" />
+            </Array>
+          </mxGeometry>
         </mxCell>
-        <mxCell id="edge_3_label" value="Approve Hotel" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="edge_3">
-          <mxGeometry x="0" y="0" relative="1" as="geometry" />
+        <mxCell id="e_p13_d1_in" edge="1" parent="1" source="p1_3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.25;exitY=0;entryX=0.25;entryY=1;labelBackgroundColor=#ffffff;" target="d1" value="Update Status&lt;br&gt;(Active/Inactive)">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
         </mxCell>
-        <mxCell id="edge_4" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;entryX=0;entryY=0.5;exitX=1;exitY=0.5;" edge="1" parent="1" source="p2" target="db">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="e_p13_d1_out" edge="1" parent="1" source="d1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.75;exitY=1;entryX=0.75;entryY=0;labelBackgroundColor=#ffffff;" target="p1_3" value="Current Status">
+          <mxGeometry relative="1" x="-0.1176" y="-15" as="geometry">
+            <mxPoint x="30" y="1" as="offset" />
+          </mxGeometry>
         </mxCell>
-        <mxCell id="edge_4_label" value="Update Status=Active" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="edge_4">
-          <mxGeometry x="0" y="0" relative="1" as="geometry" />
+        <mxCell id="e_p12_d1_in" edge="1" parent="1" source="p1_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.25;entryX=1;entryY=0.25;labelBackgroundColor=#ffffff;" target="d1" value="Query Data">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
         </mxCell>
-        <mxCell id="edge_5" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;entryX=0.75;entryY=0;exitX=0;exitY=0;" edge="1" parent="1" source="db" target="p2">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="e_p12_d1_out" edge="1" parent="1" source="d1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.75;entryX=0;entryY=0.75;labelBackgroundColor=#ffffff;" target="p1_2" value="Hotel Data Result">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
         </mxCell>
-        <mxCell id="edge_5_label" value="Get Pending Hotels" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="edge_5">
-          <mxGeometry x="0" y="0" relative="1" as="geometry" />
+        <mxCell id="e_client_p12_in" edge="1" parent="1" source="client" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.75;entryX=0.75;entryY=0;labelBackgroundColor=#ffffff;" target="p1_2" value="Filter Criteria,&lt;br&gt;Detail Request">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
         </mxCell>
-        <mxCell id="edge_6" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;entryX=0;entryY=0.25;exitX=1;exitY=0.25;" edge="1" parent="1" source="client" target="p3">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="e_client_p12_out" edge="1" parent="1" source="p1_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0;entryX=0;entryY=0.25;labelBackgroundColor=#ffffff;" target="client" value="Hotel List,&lt;br&gt;Hotel Details">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
         </mxCell>
-        <mxCell id="edge_6_label" value="Search Criteria" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="edge_6">
-          <mxGeometry x="0" y="0" relative="1" as="geometry" />
+        <mxCell id="e_other_p12_in" edge="1" parent="1" source="other" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.25;entryX=0.75;entryY=1;labelBackgroundColor=#ffffff;" target="p1_2" value="Data Extraction Request">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
         </mxCell>
-        <mxCell id="edge_7" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;entryX=1;entryY=0.75;exitX=0;exitY=0.75;" edge="1" parent="1" source="p3" target="client">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="edge_7_label" value="Hotel List" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="edge_7">
-          <mxGeometry x="0" y="0" relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="edge_8" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;entryX=1;entryY=0.5;exitX=0.5;exitY=1;" edge="1" parent="1" source="db" target="p3">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="edge_8_label" value="Hotel Data" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="edge_8">
-          <mxGeometry x="0" y="0" relative="1" as="geometry" />
+        <mxCell id="e_other_p12_out" edge="1" parent="1" source="p1_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=1;entryX=0;entryY=0.75;labelBackgroundColor=#ffffff;" target="other" value="Basic Hotel Data">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
         </mxCell>
       </root>
     </mxGraphModel>
