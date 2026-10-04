@@ -4,76 +4,82 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="partner" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1" value="Partner" vertex="1">
+        <mxCell id="partner" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1" value="Đối tác" vertex="1">
           <mxGeometry height="60" width="150" x="20" y="85" as="geometry" />
         </mxCell>
-        <mxCell id="client" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1" value="Client / Customer" vertex="1">
+        <mxCell id="client" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1" value="Khách hàng" vertex="1">
           <mxGeometry height="60" width="150" x="950" y="140" as="geometry" />
         </mxCell>
-        <mxCell id="booking_service" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1" value="Booking Service" vertex="1">
+        <mxCell id="booking_service" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1" value="Dịch vụ Đặt phòng" vertex="1">
           <mxGeometry height="60" width="150" x="950" y="485" as="geometry" />
         </mxCell>
-        <mxCell id="p1_1" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.1&lt;br&gt;&lt;b&gt;Room Inventory&lt;br&gt;Management&lt;/b&gt;" vertex="1">
+        <mxCell id="p1_1" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.1&lt;br&gt;&lt;b&gt;Quản lý&lt;br&gt;Kho phòng&lt;/b&gt;" vertex="1">
           <mxGeometry height="130" width="130" x="350" y="50" as="geometry" />
         </mxCell>
-        <mxCell id="p1_2" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.2&lt;br&gt;&lt;b&gt;Availability&lt;br&gt;&amp;amp; Search&lt;/b&gt;" vertex="1">
+        <mxCell id="p1_2" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.2&lt;br&gt;&lt;b&gt;Tìm kiếm &amp;amp;&lt;br&gt;Trạng thái phòng&lt;/b&gt;" vertex="1">
           <mxGeometry height="130" width="130" x="650" y="240" as="geometry" />
         </mxCell>
-        <mxCell id="p1_3" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.3&lt;br&gt;&lt;b&gt;Room Hold&lt;br&gt;Management&lt;/b&gt;" vertex="1">
+        <mxCell id="p1_3" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.3&lt;br&gt;&lt;b&gt;Quản lý&lt;br&gt;Giữ phòng&lt;/b&gt;" vertex="1">
           <mxGeometry height="130" width="130" x="350" y="450" as="geometry" />
         </mxCell>
-        <mxCell id="d2" parent="1" style="shape=partialRectangle;whiteSpace=wrap;html=1;left=0;right=0;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1" value="D2&amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; Room DB" vertex="1">
+        <mxCell id="d2" parent="1" style="shape=partialRectangle;whiteSpace=wrap;html=1;left=0;right=0;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1" value="D2&amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; CSDL Phòng" vertex="1">
           <mxGeometry height="50" width="160" x="335" y="280" as="geometry" />
         </mxCell>
-        <mxCell id="e_pa_11" edge="1" parent="1" source="partner" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.25;entryX=0;entryY=0.25;labelBackgroundColor=#ffffff;" target="p1_1" value="Room Data, Price, Type">
+        <mxCell id="e_pa_11" edge="1" parent="1" source="partner" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.25;entryX=0;entryY=0.25;labelBackgroundColor=#ffffff;" target="p1_1" value="Dữ liệu phòng, Giá, Loại phòng">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_11_pa" edge="1" parent="1" source="p1_1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.75;entryX=1;entryY=0.75;labelBackgroundColor=#ffffff;" target="partner" value="Action Status">
+        <mxCell id="e_11_pa" edge="1" parent="1" source="p1_1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.75;entryX=1;entryY=0.75;labelBackgroundColor=#ffffff;" target="partner" value="Trạng thái xử lý">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_11_d2" edge="1" parent="1" source="p1_1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.25;exitY=1;entryX=0.25;entryY=0;labelBackgroundColor=#ffffff;" target="d2" value="Save Room Info">
+        <mxCell id="e_11_d2" edge="1" parent="1" source="p1_1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.25;exitY=1;entryX=0.25;entryY=0;labelBackgroundColor=#ffffff;" target="d2" value="Lưu thông tin phòng">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_d2_11" edge="1" parent="1" source="d2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.75;exitY=0;entryX=0.75;entryY=1;labelBackgroundColor=#ffffff;" target="p1_1" value="Save Confirm">
+        <mxCell id="e_d2_11" edge="1" parent="1" source="d2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.75;exitY=0;entryX=0.75;entryY=1;labelBackgroundColor=#ffffff;" target="p1_1" value="Xác nhận lưu">
           <mxGeometry relative="1" x="-0.1524" y="-25" as="geometry">
             <mxPoint x="25" y="25" as="offset" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="e_cl_12" edge="1" parent="1" source="client" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.25;entryX=0.75;entryY=0;labelBackgroundColor=#ffffff;" target="p1_2" value="Search Criteria (Dates)">
+        <mxCell id="e_cl_12" edge="1" parent="1" source="client" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.25;entryX=0.75;entryY=0;labelBackgroundColor=#ffffff;" target="p1_2" value="Tiêu chí tìm kiếm (Ngày)">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_12_cl" edge="1" parent="1" source="p1_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0;entryX=0;entryY=0.75;labelBackgroundColor=#ffffff;" target="client" value="Available Rooms">
+        <mxCell id="e_12_cl" edge="1" parent="1" source="p1_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0;entryX=0;entryY=0.75;labelBackgroundColor=#ffffff;" target="client" value="Phòng trống">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_bk_12" edge="1" parent="1" source="booking_service" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.25;entryX=0.75;entryY=1;labelBackgroundColor=#ffffff;" target="p1_2" value="Room Info Request">
+        <mxCell id="e_bk_12" edge="1" parent="1" source="booking_service" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.25;entryX=0.75;entryY=1;labelBackgroundColor=#ffffff;" target="p1_2" value="Yêu cầu thông tin phòng">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_12_bk" edge="1" parent="1" source="p1_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=1;entryX=0;entryY=0.75;labelBackgroundColor=#ffffff;" target="booking_service" value="Room Details">
+        <mxCell id="e_12_bk" edge="1" parent="1" source="p1_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=1;entryX=0;entryY=0.75;labelBackgroundColor=#ffffff;" target="booking_service" value="Chi tiết phòng">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_12_d2" edge="1" parent="1" source="p1_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.25;entryX=1;entryY=0.25;labelBackgroundColor=#ffffff;" target="d2" value="Query Availability">
+        <mxCell id="e_12_d2" edge="1" parent="1" source="p1_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.25;entryX=1;entryY=0.25;labelBackgroundColor=#ffffff;" target="d2" value="Truy vấn phòng trống">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_d2_12" edge="1" parent="1" source="d2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.75;entryX=0;entryY=0.75;labelBackgroundColor=#ffffff;" target="p1_2" value="Room Data">
+        <mxCell id="e_d2_12" edge="1" parent="1" source="d2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.75;entryX=0;entryY=0.75;labelBackgroundColor=#ffffff;" target="p1_2" value="Dữ liệu phòng">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_bk_13" edge="1" parent="1" source="booking_service" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.25;entryX=1;entryY=0.25;labelBackgroundColor=#ffffff;" target="p1_3" value="Hold / Release Request">
+        <mxCell id="e_bk_13" edge="1" parent="1" source="booking_service" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.25;entryX=1;entryY=0.25;labelBackgroundColor=#ffffff;" target="p1_3" value="Yêu cầu Giữ / Hủy giữ phòng">
           <mxGeometry relative="1" x="0.2386" as="geometry">
             <mxPoint as="offset" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="e_13_bk" edge="1" parent="1" source="p1_3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.75;entryX=0;entryY=0.75;labelBackgroundColor=#ffffff;" target="booking_service" value="Lock / Release Status">
+        <mxCell id="e_13_bk" edge="1" parent="1" source="p1_3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.75;entryX=0;entryY=0.75;labelBackgroundColor=#ffffff;" target="booking_service" value="Trạng thái Giữ / Hủy giữ">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_13_d2" edge="1" parent="1" source="p1_3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.25;exitY=0;entryX=0.25;entryY=1;labelBackgroundColor=#ffffff;" target="d2" value="Update Availability Flag">
+        <mxCell id="e_13_d2" edge="1" parent="1" source="p1_3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.25;exitY=0;entryX=0.25;entryY=1;labelBackgroundColor=#ffffff;" target="d2" value="Cập nhật cờ phòng trống">
           <mxGeometry relative="1" x="0.1303" y="25" as="geometry">
             <mxPoint as="offset" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="e_d2_13" edge="1" parent="1" source="d2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.75;exitY=1;entryX=0.75;entryY=0;labelBackgroundColor=#ffffff;" target="p1_3" value="Current Status">
+        <mxCell id="e_d2_13" edge="1" parent="1" source="d2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.75;exitY=1;entryX=0.75;entryY=0;labelBackgroundColor=#ffffff;" target="p1_3" value="Trạng thái hiện tại">
           <mxGeometry relative="1" x="-0.1303" y="-25" as="geometry">
             <mxPoint x="25" y="25" as="offset" />
           </mxGeometry>
+        </mxCell>
+        <mxCell id="notification" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1" value="Dịch vụ Thông báo" vertex="1">
+          <mxGeometry height="60" width="150" x="20" y="485" as="geometry" />
+        </mxCell>
+        <mxCell id="e_p13_notif" edge="1" parent="1" source="p1_3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;labelBackgroundColor=#ffffff;" target="notification" value="Yêu cầu thông báo">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>

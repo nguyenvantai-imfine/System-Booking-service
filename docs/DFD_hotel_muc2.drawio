@@ -4,145 +4,172 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="title1" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=18;fontColor=#333333;" value="Level 2 DFD - Process 1.1: Hotel Profile &amp; Info Management" vertex="1">
+        <mxCell id="title1" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=18;fontColor=#333333;" value="Sơ đồ DFD Mức 2 - Tiến trình 1.1: Quản lý thông tin &amp; Hồ sơ khách sạn" vertex="1">
           <mxGeometry height="40" width="600" x="20" y="20" as="geometry" />
         </mxCell>
-        <mxCell id="partner" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1" value="Partner" vertex="1">
+        <mxCell id="partner" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1" value="Đối tác" vertex="1">
           <mxGeometry height="60" width="150" x="20" y="275" as="geometry" />
         </mxCell>
-        <mxCell id="p111" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.1.1&lt;br&gt;&lt;b&gt;Create Profile&lt;/b&gt;" vertex="1">
+        <mxCell id="p111" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.1.1&lt;br&gt;&lt;b&gt;Tạo hồ sơ&lt;/b&gt;" vertex="1">
           <mxGeometry height="130" width="130" x="350" y="80" as="geometry" />
         </mxCell>
-        <mxCell id="p112" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.1.2&lt;br&gt;&lt;b&gt;Update Info&lt;/b&gt;" vertex="1">
+        <mxCell id="p112" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.1.2&lt;br&gt;&lt;b&gt;Cập nhật thông tin&lt;/b&gt;" vertex="1">
           <mxGeometry height="130" width="130" x="350" y="240" as="geometry" />
         </mxCell>
-        <mxCell id="p113" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.1.3&lt;br&gt;&lt;b&gt;Manage Assets&lt;/b&gt;" vertex="1">
+        <mxCell id="p113" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.1.3&lt;br&gt;&lt;b&gt;Quản lý hình ảnh/tiện nghi&lt;/b&gt;" vertex="1">
           <mxGeometry height="130" width="130" x="350" y="400" as="geometry" />
         </mxCell>
-        <mxCell id="d1_1" parent="1" style="shape=partialRectangle;whiteSpace=wrap;html=1;left=0;right=0;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1" value="D1&amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; Hotel DB" vertex="1">
+        <mxCell id="d1_1" parent="1" style="shape=partialRectangle;whiteSpace=wrap;html=1;left=0;right=0;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1" value="D1&amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; CSDL Khách sạn" vertex="1">
           <mxGeometry height="50" width="160" x="750" y="280" as="geometry" />
         </mxCell>
-        <mxCell id="e_pa_111" edge="1" parent="1" source="partner" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.75;exitY=0;entryX=0;entryY=0.5;labelBackgroundColor=#ffffff;" target="p111" value="Create Request">
+        <mxCell id="e_pa_111" edge="1" parent="1" source="partner" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.75;exitY=0;entryX=0;entryY=0.5;labelBackgroundColor=#ffffff;" target="p111" value="Yêu cầu tạo">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_111_pa" edge="1" parent="1" source="p111" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.25;exitY=1;entryX=0.5;entryY=0;labelBackgroundColor=#ffffff;" target="partner" value="Creation Status">
+        <mxCell id="e_111_pa" edge="1" parent="1" source="p111" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.25;exitY=1;entryX=0.5;entryY=0;labelBackgroundColor=#ffffff;" target="partner" value="Trạng thái tạo">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_111_d1" edge="1" parent="1" source="p111" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=0.25;entryY=0;labelBackgroundColor=#ffffff;" target="d1_1" value="Insert New Record">
+        <mxCell id="e_111_d1" edge="1" parent="1" source="p111" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=0.25;entryY=0;labelBackgroundColor=#ffffff;" target="d1_1" value="Thêm bản ghi mới">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_pa_112" edge="1" parent="1" source="partner" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.25;entryX=0;entryY=0.25;labelBackgroundColor=#ffffff;" target="p112" value="Update Data">
+        <mxCell id="e_pa_112" edge="1" parent="1" source="partner" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.25;entryX=0;entryY=0.25;labelBackgroundColor=#ffffff;" target="p112" value="Dữ liệu cập nhật">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_112_pa" edge="1" parent="1" source="p112" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.75;entryX=1;entryY=0.75;labelBackgroundColor=#ffffff;" target="partner" value="Update Status">
+        <mxCell id="e_112_pa" edge="1" parent="1" source="p112" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.75;entryX=1;entryY=0.75;labelBackgroundColor=#ffffff;" target="partner" value="Trạng thái cập nhật">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_112_d1" edge="1" parent="1" source="p112" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.25;entryX=0;entryY=0.25;labelBackgroundColor=#ffffff;" target="d1_1" value="Update Record">
+        <mxCell id="e_112_d1" edge="1" parent="1" source="p112" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.25;entryX=0;entryY=0.25;labelBackgroundColor=#ffffff;" target="d1_1" value="Cập nhật bản ghi">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_d1_112" edge="1" parent="1" source="d1_1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.75;entryX=1;entryY=0.75;labelBackgroundColor=#ffffff;" target="p112" value="Ack">
+        <mxCell id="e_d1_112" edge="1" parent="1" source="d1_1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.75;entryX=1;entryY=0.75;labelBackgroundColor=#ffffff;" target="p112" value="Xác nhận">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_pa_113" edge="1" parent="1" source="partner" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.75;exitY=1;entryX=0;entryY=0.5;labelBackgroundColor=#ffffff;" target="p113" value="Images, Amenities">
+        <mxCell id="e_pa_113" edge="1" parent="1" source="partner" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.75;exitY=1;entryX=0;entryY=0.5;labelBackgroundColor=#ffffff;" target="p113" value="Hình ảnh, Tiện nghi">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_113_pa" edge="1" parent="1" source="p113" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.25;exitY=0;entryX=0.5;entryY=1;labelBackgroundColor=#ffffff;" target="partner" value="Upload Status">
+        <mxCell id="e_113_pa" edge="1" parent="1" source="p113" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.25;exitY=0;entryX=0.5;entryY=1;labelBackgroundColor=#ffffff;" target="partner" value="Trạng thái tải lên">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_113_d1" edge="1" parent="1" source="p113" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=0.25;entryY=1;labelBackgroundColor=#ffffff;" target="d1_1" value="Save Assets Info">
+        <mxCell id="e_113_d1" edge="1" parent="1" source="p113" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=0.25;entryY=1;labelBackgroundColor=#ffffff;" target="d1_1" value="Lưu thông tin tài sản">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="title2" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=18;fontColor=#333333;" value="Level 2 DFD - Process 1.2: Search &amp; Lookup" vertex="1">
+        <mxCell id="title2" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=18;fontColor=#333333;" value="Sơ đồ DFD Mức 2 - Tiến trình 1.2: Tìm kiếm &amp; Tra cứu" vertex="1">
           <mxGeometry height="40" width="600" x="20" y="600" as="geometry" />
         </mxCell>
-        <mxCell id="client" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1" value="Client / Customer" vertex="1">
+        <mxCell id="client" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1" value="Khách hàng" vertex="1">
           <mxGeometry height="60" width="150" x="20" y="755" as="geometry" />
         </mxCell>
-        <mxCell id="other" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1" value="Other Services" vertex="1">
+        <mxCell id="other" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1" value="Dịch vụ Phòng &amp;amp; Đặt phòng" vertex="1">
           <mxGeometry height="60" width="150" x="20" y="955" as="geometry" />
         </mxCell>
-        <mxCell id="p121" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.2.1&lt;br&gt;&lt;b&gt;Filter &amp;amp; Search&lt;/b&gt;" vertex="1">
+        <mxCell id="p121" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.2.1&lt;br&gt;&lt;b&gt;Lọc &amp;amp; Tìm kiếm&lt;/b&gt;" vertex="1">
           <mxGeometry height="130" width="130" x="350" y="660" as="geometry" />
         </mxCell>
-        <mxCell id="p122" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.2.2&lt;br&gt;&lt;b&gt;View Details&lt;/b&gt;" vertex="1">
+        <mxCell id="p122" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.2.2&lt;br&gt;&lt;b&gt;Xem chi tiết&lt;/b&gt;" vertex="1">
           <mxGeometry height="130" width="130" x="350" y="820" as="geometry" />
         </mxCell>
-        <mxCell id="p123" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.2.3&lt;br&gt;&lt;b&gt;Extract Data&lt;/b&gt;" vertex="1">
+        <mxCell id="p123" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.2.3&lt;br&gt;&lt;b&gt;Trích xuất dữ liệu&lt;/b&gt;" vertex="1">
           <mxGeometry height="130" width="130" x="350" y="980" as="geometry" />
         </mxCell>
-        <mxCell id="d1_2" parent="1" style="shape=partialRectangle;whiteSpace=wrap;html=1;left=0;right=0;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1" value="D1&amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; Hotel DB" vertex="1">
+        <mxCell id="d1_2" parent="1" style="shape=partialRectangle;whiteSpace=wrap;html=1;left=0;right=0;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1" value="D1&amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; CSDL Khách sạn" vertex="1">
           <mxGeometry height="50" width="160" x="750" y="860" as="geometry" />
         </mxCell>
-        <mxCell id="e_cl_121" edge="1" parent="1" source="client" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.75;exitY=0;entryX=0;entryY=0.5;labelBackgroundColor=#ffffff;" target="p121" value="Search Criteria">
+        <mxCell id="e_cl_121" edge="1" parent="1" source="client" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.75;exitY=0;entryX=0;entryY=0.5;labelBackgroundColor=#ffffff;" target="p121" value="Tiêu chí tìm kiếm">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_121_cl" edge="1" parent="1" source="p121" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.25;exitY=1;entryX=0.5;entryY=0;labelBackgroundColor=#ffffff;" target="client" value="Hotel List">
+        <mxCell id="e_121_cl" edge="1" parent="1" source="p121" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.25;exitY=1;entryX=0.5;entryY=0;labelBackgroundColor=#ffffff;" target="client" value="Danh sách khách sạn">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_121_d1" edge="1" parent="1" source="p121" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.25;entryX=0.25;entryY=0;labelBackgroundColor=#ffffff;" target="d1_2" value="Query List">
+        <mxCell id="e_121_d1" edge="1" parent="1" source="p121" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.25;entryX=0.25;entryY=0;labelBackgroundColor=#ffffff;" target="d1_2" value="Truy vấn danh sách">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_d1_121" edge="1" parent="1" source="d1_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=0;entryX=1;entryY=0.75;labelBackgroundColor=#ffffff;" target="p121" value="Results">
+        <mxCell id="e_d1_121" edge="1" parent="1" source="d1_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=0;entryX=1;entryY=0.75;labelBackgroundColor=#ffffff;" target="p121" value="Kết quả">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_cl_122" edge="1" parent="1" source="client" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.75;exitY=1;entryX=0;entryY=0.25;labelBackgroundColor=#ffffff;" target="p122" value="Detail Request">
+        <mxCell id="e_cl_122" edge="1" parent="1" source="client" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.75;exitY=1;entryX=0;entryY=0.25;labelBackgroundColor=#ffffff;" target="p122" value="Yêu cầu chi tiết">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_122_cl" edge="1" parent="1" source="p122" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.75;entryX=1;entryY=1;labelBackgroundColor=#ffffff;" target="client" value="Hotel Details">
+        <mxCell id="e_122_cl" edge="1" parent="1" source="p122" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.75;entryX=1;entryY=1;labelBackgroundColor=#ffffff;" target="client" value="Chi tiết khách sạn">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_122_d1" edge="1" parent="1" source="p122" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.25;entryX=0;entryY=0.25;labelBackgroundColor=#ffffff;" target="d1_2" value="Query Detail">
+        <mxCell id="e_122_d1" edge="1" parent="1" source="p122" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.25;entryX=0;entryY=0.25;labelBackgroundColor=#ffffff;" target="d1_2" value="Truy vấn chi tiết">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_d1_122" edge="1" parent="1" source="d1_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.75;entryX=1;entryY=0.75;labelBackgroundColor=#ffffff;" target="p122" value="Full Data">
+        <mxCell id="e_d1_122" edge="1" parent="1" source="d1_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.75;entryX=1;entryY=0.75;labelBackgroundColor=#ffffff;" target="p122" value="Dữ liệu đầy đủ">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_ot_123" edge="1" parent="1" source="other" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.25;entryX=0;entryY=0.25;labelBackgroundColor=#ffffff;" target="p123" value="Extraction Request">
+        <mxCell id="e_ot_123" edge="1" parent="1" source="other" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.25;entryX=0;entryY=0.25;labelBackgroundColor=#ffffff;" target="p123" value="Yêu cầu trích xuất">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_123_ot" edge="1" parent="1" source="p123" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.75;entryX=1;entryY=0.75;labelBackgroundColor=#ffffff;" target="other" value="Basic Data">
+        <mxCell id="e_123_ot" edge="1" parent="1" source="p123" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.75;entryX=1;entryY=0.75;labelBackgroundColor=#ffffff;" target="other" value="Dữ liệu cơ bản">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_123_d1" edge="1" parent="1" source="p123" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=0.25;entryY=1;labelBackgroundColor=#ffffff;" target="d1_2" value="Query Basic Info">
+        <mxCell id="e_123_d1" edge="1" parent="1" source="p123" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=0.25;entryY=1;labelBackgroundColor=#ffffff;" target="d1_2" value="Truy vấn thông tin cơ bản">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_d1_123" edge="1" parent="1" source="d1_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;entryX=1;entryY=0.75;labelBackgroundColor=#ffffff;" target="p123" value="Basic Data">
+        <mxCell id="e_d1_123" edge="1" parent="1" source="d1_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;entryX=1;entryY=0.75;labelBackgroundColor=#ffffff;" target="p123" value="Dữ liệu cơ bản">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="title3" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=18;fontColor=#333333;" value="Level 2 DFD - Process 1.3: Status Management" vertex="1">
+        <mxCell id="title3" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=18;fontColor=#333333;" value="Sơ đồ DFD Mức 2 - Tiến trình 1.3: Quản lý trạng thái" vertex="1">
           <mxGeometry height="40" width="600" x="20" y="1180" as="geometry" />
         </mxCell>
-        <mxCell id="admin" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1" value="System Admin" vertex="1">
+        <mxCell id="admin" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1" value="Quản trị viên" vertex="1">
           <mxGeometry height="60" width="150" x="20" y="1335" as="geometry" />
         </mxCell>
-        <mxCell id="p131" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.3.1&lt;br&gt;&lt;b&gt;Change Status&lt;/b&gt;" vertex="1">
+        <mxCell id="p131" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.3.1&lt;br&gt;&lt;b&gt;Thay đổi trạng thái&lt;/b&gt;" vertex="1">
           <mxGeometry height="130" width="130" x="350" y="1260" as="geometry" />
         </mxCell>
-        <mxCell id="p132" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.3.2&lt;br&gt;&lt;b&gt;Monitor Status&lt;/b&gt;" vertex="1">
+        <mxCell id="p132" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.3.2&lt;br&gt;&lt;b&gt;Theo dõi trạng thái&lt;/b&gt;" vertex="1">
           <mxGeometry height="130" width="130" x="350" y="1420" as="geometry" />
         </mxCell>
-        <mxCell id="d1_3" parent="1" style="shape=partialRectangle;whiteSpace=wrap;html=1;left=0;right=0;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1" value="D1&amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; Hotel DB" vertex="1">
+        <mxCell id="d1_3" parent="1" style="shape=partialRectangle;whiteSpace=wrap;html=1;left=0;right=0;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1" value="D1&amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; CSDL Khách sạn" vertex="1">
           <mxGeometry height="50" width="160" x="750" y="1380" as="geometry" />
         </mxCell>
-        <mxCell id="e_ad_131" edge="1" parent="1" source="admin" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.75;exitY=0;entryX=0;entryY=0.5;labelBackgroundColor=#ffffff;" target="p131" value="Status Command">
+        <mxCell id="e_ad_131" edge="1" parent="1" source="admin" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.75;exitY=0;entryX=0;entryY=0.5;labelBackgroundColor=#ffffff;" target="p131" value="Lệnh trạng thái">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_131_ad" edge="1" parent="1" source="p131" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.25;exitY=1;entryX=0.5;entryY=0;labelBackgroundColor=#ffffff;" target="admin" value="Action Result">
+        <mxCell id="e_131_ad" edge="1" parent="1" source="p131" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.25;exitY=1;entryX=0.5;entryY=0;labelBackgroundColor=#ffffff;" target="admin" value="Kết quả xử lý">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_131_d1" edge="1" parent="1" source="p131" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=0.25;entryY=0;labelBackgroundColor=#ffffff;" target="d1_3" value="Update Flag">
+        <mxCell id="e_131_d1" edge="1" parent="1" source="p131" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=0.25;entryY=0;labelBackgroundColor=#ffffff;" target="d1_3" value="Cập nhật cờ trạng thái">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_ad_132" edge="1" parent="1" source="admin" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.75;exitY=1;entryX=0;entryY=0.5;labelBackgroundColor=#ffffff;" target="p132" value="View List Request">
+        <mxCell id="e_ad_132" edge="1" parent="1" source="admin" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.75;exitY=1;entryX=0;entryY=0.5;labelBackgroundColor=#ffffff;" target="p132" value="Yêu cầu xem danh sách">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_132_ad" edge="1" parent="1" source="p132" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.25;exitY=0;entryX=0.5;entryY=1;labelBackgroundColor=#ffffff;" target="admin" value="Status List">
+        <mxCell id="e_132_ad" edge="1" parent="1" source="p132" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.25;exitY=0;entryX=0.5;entryY=1;labelBackgroundColor=#ffffff;" target="admin" value="Danh sách trạng thái">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_132_d1" edge="1" parent="1" source="p132" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.25;entryX=0.25;entryY=1;labelBackgroundColor=#ffffff;" target="d1_3" value="Query Status">
+        <mxCell id="e_132_d1" edge="1" parent="1" source="p132" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.25;entryX=0.25;entryY=1;labelBackgroundColor=#ffffff;" target="d1_3" value="Truy vấn trạng thái">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_d1_132" edge="1" parent="1" source="d1_3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.75;exitY=1;entryX=1;entryY=0.75;labelBackgroundColor=#ffffff;" target="p132" value="Current Flags">
+        <mxCell id="e_d1_132" edge="1" parent="1" source="d1_3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.75;exitY=1;entryX=1;entryY=0.75;labelBackgroundColor=#ffffff;" target="p132" value="Cờ trạng thái hiện tại">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p114" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.1.4&lt;br&gt;&lt;b&gt;Phê duyệt hồ sơ&lt;/b&gt;" vertex="1">
+          <mxGeometry height="130" width="130" x="550" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="admin1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1" value="Quản trị viên" vertex="1">
+          <mxGeometry height="60" width="150" x="750" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="e_ad_114" edge="1" parent="1" source="admin1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;labelBackgroundColor=#ffffff;" target="p114" value="Quyết định duyệt">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_114_d1" edge="1" parent="1" source="p114" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;labelBackgroundColor=#ffffff;" target="d1_1" value="Cập nhật trạng thái duyệt">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="notif1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1" value="Dịch vụ Thông báo" vertex="1">
+          <mxGeometry height="60" width="150" x="550" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="e_114_notif1" edge="1" parent="1" source="p114" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.25;exitY=1;entryX=0.5;entryY=0;labelBackgroundColor=#ffffff;" target="notif1" value="Yêu cầu thông báo">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p133" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.3.3&lt;br&gt;&lt;b&gt;Ghi log/Lịch sử&lt;/b&gt;" vertex="1">
+          <mxGeometry height="130" width="130" x="550" y="1260" as="geometry" />
+        </mxCell>
+        <mxCell id="e_131_133" edge="1" parent="1" source="p131" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.25;entryX=0;entryY=0.5;labelBackgroundColor=#ffffff;" target="p133" value="Chi tiết thay đổi">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_133_d1" edge="1" parent="1" source="p133" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=0.5;entryY=0;labelBackgroundColor=#ffffff;" target="d1_3" value="Lưu lịch sử">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
       </root>
