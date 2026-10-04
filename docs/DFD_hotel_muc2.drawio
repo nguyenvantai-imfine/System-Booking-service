@@ -1,6 +1,6 @@
 <mxfile host="app.diagrams.net">
   <diagram name="Page-1" id="G50nwRUD1_7VE17-onTk">
-    <mxGraphModel dx="1030" dy="527" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+    <mxGraphModel dx="1212" dy="620" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -12,9 +12,6 @@
         </mxCell>
         <mxCell id="p111" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.1.1&lt;br&gt;&lt;b&gt;Tạo hồ sơ&lt;/b&gt;" vertex="1">
           <mxGeometry height="130" width="130" x="350" y="80" as="geometry" />
-        </mxCell>
-        <mxCell id="p112" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.1.2&lt;br&gt;&lt;b&gt;Cập nhật thông tin&lt;/b&gt;" vertex="1">
-          <mxGeometry height="130" width="130" x="350" y="240" as="geometry" />
         </mxCell>
         <mxCell id="p113" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.1.3&lt;br&gt;&lt;b&gt;Quản lý hình ảnh/tiện nghi&lt;/b&gt;" vertex="1">
           <mxGeometry height="130" width="130" x="350" y="400" as="geometry" />
@@ -29,7 +26,9 @@
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="e_111_d1" edge="1" parent="1" source="p111" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=0.25;entryY=0;labelBackgroundColor=#ffffff;" target="d1_1" value="Thêm bản ghi mới">
-          <mxGeometry relative="1" as="geometry" />
+          <mxGeometry relative="1" x="0.1236" y="-15" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
         </mxCell>
         <mxCell id="e_pa_112" edge="1" parent="1" source="partner" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.25;entryX=0;entryY=0.25;labelBackgroundColor=#ffffff;" target="p112" value="Dữ liệu cập nhật">
           <mxGeometry relative="1" as="geometry" />
@@ -38,7 +37,9 @@
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="e_112_d1" edge="1" parent="1" source="p112" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.25;entryX=0;entryY=0.25;labelBackgroundColor=#ffffff;" target="d1_1" value="Cập nhật bản ghi">
-          <mxGeometry relative="1" as="geometry" />
+          <mxGeometry relative="1" x="-0.359" y="6" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
         </mxCell>
         <mxCell id="e_d1_112" edge="1" parent="1" source="d1_1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.75;entryX=1;entryY=0.75;labelBackgroundColor=#ffffff;" target="p112" value="Xác nhận">
           <mxGeometry relative="1" as="geometry" />
@@ -50,7 +51,9 @@
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="e_113_d1" edge="1" parent="1" source="p113" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=0.25;entryY=1;labelBackgroundColor=#ffffff;" target="d1_1" value="Lưu thông tin tài sản">
-          <mxGeometry relative="1" as="geometry" />
+          <mxGeometry relative="1" x="0.1236" y="15" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
         </mxCell>
         <mxCell id="title2" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=18;fontColor=#333333;" value="Sơ đồ DFD Mức 2 - Tiến trình 1.2: Tìm kiếm &amp; Tra cứu" vertex="1">
           <mxGeometry height="40" width="600" x="20" y="600" as="geometry" />
@@ -66,9 +69,6 @@
         </mxCell>
         <mxCell id="p122" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.2.2&lt;br&gt;&lt;b&gt;Xem chi tiết&lt;/b&gt;" vertex="1">
           <mxGeometry height="130" width="130" x="350" y="820" as="geometry" />
-        </mxCell>
-        <mxCell id="p123" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.2.3&lt;br&gt;&lt;b&gt;Trích xuất dữ liệu&lt;/b&gt;" vertex="1">
-          <mxGeometry height="130" width="130" x="350" y="980" as="geometry" />
         </mxCell>
         <mxCell id="d1_2" parent="1" style="shape=partialRectangle;whiteSpace=wrap;html=1;left=0;right=0;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1" value="D1&amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; CSDL Khách sạn" vertex="1">
           <mxGeometry height="50" width="160" x="750" y="860" as="geometry" />
@@ -106,8 +106,14 @@
         <mxCell id="e_123_d1" edge="1" parent="1" source="p123" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=0.25;entryY=1;labelBackgroundColor=#ffffff;" target="d1_2" value="Truy vấn thông tin cơ bản">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_d1_123" edge="1" parent="1" source="d1_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;entryX=1;entryY=0.75;labelBackgroundColor=#ffffff;" target="p123" value="Dữ liệu cơ bản">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="e_d1_123" edge="1" parent="1" source="d1_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;labelBackgroundColor=#ffffff;" value="Dữ liệu cơ bản">
+          <mxGeometry relative="1" x="0.1386" as="geometry">
+            <Array as="points">
+              <mxPoint x="830" y="945" />
+              <mxPoint x="473.3" y="945" />
+            </Array>
+            <mxPoint x="473.32" y="1010" as="targetPoint" />
+          </mxGeometry>
         </mxCell>
         <mxCell id="title3" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=18;fontColor=#333333;" value="Sơ đồ DFD Mức 2 - Tiến trình 1.3: Quản lý trạng thái" vertex="1">
           <mxGeometry height="40" width="600" x="20" y="1180" as="geometry" />
@@ -125,10 +131,14 @@
           <mxGeometry height="50" width="160" x="750" y="1380" as="geometry" />
         </mxCell>
         <mxCell id="e_ad_131" edge="1" parent="1" source="admin" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.75;exitY=0;entryX=0;entryY=0.5;labelBackgroundColor=#ffffff;" target="p131" value="Lệnh trạng thái">
-          <mxGeometry relative="1" as="geometry" />
+          <mxGeometry relative="1" x="0.033" y="15" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
         </mxCell>
         <mxCell id="e_131_ad" edge="1" parent="1" source="p131" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.25;exitY=1;entryX=0.5;entryY=0;labelBackgroundColor=#ffffff;" target="admin" value="Kết quả xử lý">
-          <mxGeometry relative="1" as="geometry" />
+          <mxGeometry relative="1" x="-0.168" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
         </mxCell>
         <mxCell id="e_131_d1" edge="1" parent="1" source="p131" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=0.25;entryY=0;labelBackgroundColor=#ffffff;" target="d1_3" value="Cập nhật cờ trạng thái">
           <mxGeometry relative="1" as="geometry" />
@@ -146,19 +156,18 @@
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="p114" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.1.4&lt;br&gt;&lt;b&gt;Phê duyệt hồ sơ&lt;/b&gt;" vertex="1">
-          <mxGeometry height="130" width="130" x="550" y="80" as="geometry" />
+          <mxGeometry height="130" width="130" x="520" y="80" as="geometry" />
         </mxCell>
         <mxCell id="admin1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1" value="Quản trị viên" vertex="1">
           <mxGeometry height="60" width="150" x="750" y="80" as="geometry" />
         </mxCell>
         <mxCell id="e_ad_114" edge="1" parent="1" source="admin1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;labelBackgroundColor=#ffffff;" target="p114" value="Quyết định duyệt">
-          <mxGeometry relative="1" as="geometry" />
+          <mxGeometry relative="1" x="-0.2593" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
         </mxCell>
         <mxCell id="e_114_d1" edge="1" parent="1" source="p114" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;labelBackgroundColor=#ffffff;" target="d1_1" value="Cập nhật trạng thái duyệt">
           <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="notif1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1" value="Dịch vụ Thông báo" vertex="1">
-          <mxGeometry height="60" width="150" x="550" y="280" as="geometry" />
         </mxCell>
         <mxCell id="e_114_notif1" edge="1" parent="1" source="p114" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.25;exitY=1;entryX=0.5;entryY=0;labelBackgroundColor=#ffffff;" target="notif1" value="Yêu cầu thông báo">
           <mxGeometry relative="1" as="geometry" />
@@ -171,6 +180,68 @@
         </mxCell>
         <mxCell id="e_133_d1" edge="1" parent="1" source="p133" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=0.5;entryY=0;labelBackgroundColor=#ffffff;" target="d1_3" value="Lưu lịch sử">
           <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p115" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.1.5&lt;br&gt;&lt;b&gt;Quản lý chính sách&lt;/b&gt;" vertex="1">
+          <mxGeometry height="130" width="130" x="550" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="e_pa_115" edge="1" parent="1" source="partner" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;labelBackgroundColor=#ffffff;" target="p115" value="Thiết lập chính sách">
+          <mxGeometry relative="1" x="0.1852" y="5" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_115_d1" edge="1" parent="1" source="p115" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;labelBackgroundColor=#ffffff;" target="d1_1" value="Lưu chính sách">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="title4" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=18;fontColor=#333333;" value="Sơ đồ DFD Mức 2 - Tiến trình 1.4: Quản lý Đánh giá" vertex="1">
+          <mxGeometry height="40" width="600" x="20" y="1600" as="geometry" />
+        </mxCell>
+        <mxCell id="client4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1" value="Khách hàng" vertex="1">
+          <mxGeometry height="60" width="150" x="20" y="1700" as="geometry" />
+        </mxCell>
+        <mxCell id="partner4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1" value="Đối tác" vertex="1">
+          <mxGeometry height="60" width="150" x="20" y="1850" as="geometry" />
+        </mxCell>
+        <mxCell id="admin4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1" value="Quản trị viên" vertex="1">
+          <mxGeometry height="60" width="150" x="20" y="2000" as="geometry" />
+        </mxCell>
+        <mxCell id="p141" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.4.1&lt;br&gt;&lt;b&gt;Gửi đánh giá&lt;/b&gt;" vertex="1">
+          <mxGeometry height="130" width="130" x="350" y="1665" as="geometry" />
+        </mxCell>
+        <mxCell id="p142" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.4.2&lt;br&gt;&lt;b&gt;Phản hồi&lt;/b&gt;" vertex="1">
+          <mxGeometry height="130" width="130" x="350" y="1815" as="geometry" />
+        </mxCell>
+        <mxCell id="p143" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.4.3&lt;br&gt;&lt;b&gt;Kiểm duyệt&lt;/b&gt;" vertex="1">
+          <mxGeometry height="130" width="130" x="350" y="1965" as="geometry" />
+        </mxCell>
+        <mxCell id="d1_4" parent="1" style="shape=partialRectangle;whiteSpace=wrap;html=1;left=0;right=0;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1" value="D1        CSDL Khách sạn" vertex="1">
+          <mxGeometry height="50" width="160" x="750" y="1815" as="geometry" />
+        </mxCell>
+        <mxCell id="e_cl_141" edge="1" parent="1" source="client4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;labelBackgroundColor=#ffffff;" target="p141" value="Đánh giá &amp; sao">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_141_d1" edge="1" parent="1" source="p141" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;labelBackgroundColor=#ffffff;" target="d1_4" value="Lưu đánh giá">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_pa_142" edge="1" parent="1" source="partner4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;labelBackgroundColor=#ffffff;" target="p142" value="Nội dung phản hồi">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_142_d1" edge="1" parent="1" source="p142" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;labelBackgroundColor=#ffffff;" target="d1_4" value="Lưu phản hồi">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_ad_143" edge="1" parent="1" source="admin4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;labelBackgroundColor=#ffffff;" target="p143" value="Lệnh xóa/ẩn">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_143_d1" edge="1" parent="1" source="p143" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;labelBackgroundColor=#ffffff;" target="d1_4" value="Cập nhật trạng thái ĐG">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p123" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.2.3&lt;br&gt;&lt;b&gt;Trích xuất dữ liệu&lt;/b&gt;" vertex="1">
+          <mxGeometry height="130" width="130" x="350" y="980" as="geometry" />
+        </mxCell>
+        <mxCell id="notif1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1" value="Dịch vụ Thông báo" vertex="1">
+          <mxGeometry height="60" width="150" x="550" y="290" as="geometry" />
+        </mxCell>
+        <mxCell id="p112" parent="1" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#f8cecc;strokeColor=#b85450;" value="1.1.2&lt;br&gt;&lt;b&gt;Cập nhật thông tin&lt;/b&gt;" vertex="1">
+          <mxGeometry height="130" width="130" x="310" y="240" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
