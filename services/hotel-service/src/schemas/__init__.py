@@ -1,4 +1,9 @@
 from src.schemas.hotel_schema import (
+    PaginatedResponse,
+    HinhAnhBase,
+    HinhAnhCreate,
+    HinhAnhUpdate,
+    HinhAnhResponse,
     ChiTietTienNghiBase,
     ChiTietTienNghiCreate,
     ChiTietTienNghiUpdate,
@@ -18,10 +23,22 @@ from src.schemas.hotel_schema import (
     KhachSanBase,
     KhachSanCreate,
     KhachSanUpdate,
+    KhachSanStatusUpdate,
+    KhachSanBriefResponse,
+    KhachSanDetailResponse,
     KhachSanResponse,
+    TrangThaiKhachSan,
+    LoaiChinhSach,
 )
 
 __all__ = [
+    "TrangThaiKhachSan",
+    "LoaiChinhSach",
+    "PaginatedResponse",
+    "HinhAnhBase",
+    "HinhAnhCreate",
+    "HinhAnhUpdate",
+    "HinhAnhResponse",
     "ChiTietTienNghiBase",
     "ChiTietTienNghiCreate",
     "ChiTietTienNghiUpdate",
@@ -41,5 +58,8 @@ __all__ = [
     "KhachSanBase",
     "KhachSanCreate",
     "KhachSanUpdate",
+    "KhachSanStatusUpdate",
+    "KhachSanBriefResponse",
+    "KhachSanDetailResponse",
     "KhachSanResponse",
 ]
