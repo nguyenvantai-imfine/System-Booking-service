@@ -1,0 +1,52 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Trang-1" id="W-InUV6EyPBkIhm5vD5Z">
+    <mxGraphModel dx="1140" dy="587" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="user" parent="1" style="shape=rectangle;whiteSpace=wrap;html=1;rounded=0;align=center;verticalAlign=middle;" value="DỊCH VỤ NGƯỜI DÙNG" vertex="1">
+          <mxGeometry height="50" width="180" x="20" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="booking" parent="1" style="shape=rectangle;whiteSpace=wrap;html=1;rounded=0;align=center;verticalAlign=middle;" value="DỊCH VỤ ĐẶT PHÒNG" vertex="1">
+          <mxGeometry height="50" width="180" x="20" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="payment" parent="1" style="shape=rectangle;whiteSpace=wrap;html=1;rounded=0;align=center;verticalAlign=middle;" value="DỊCH VỤ THANH TOÁN" vertex="1">
+          <mxGeometry height="50" width="180" x="20" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="p11" parent="1" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;" value="1.1 Tiếp nhận dữ liệu sự kiện" vertex="1">
+          <mxGeometry height="60" width="160" x="340" y="215" as="geometry" />
+        </mxCell>
+        <mxCell id="p12" parent="1" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;" value="1.2 Kiểm tra dữ liệu sự kiện" vertex="1">
+          <mxGeometry height="65" width="160" x="630" y="212.5" as="geometry" />
+        </mxCell>
+        <mxCell id="p13" parent="1" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;" value="1.3 Điều hướng yêu cầu" vertex="1">
+          <mxGeometry height="60" width="200" x="930" y="217.5" as="geometry" />
+        </mxCell>
+        <mxCell id="p20" parent="1" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;" value="2.0 Xử lý mẫu &amp; Nội dung" vertex="1">
+          <mxGeometry height="86" width="240" x="910" y="384" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="user" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" target="p11" value="Yêu cầu OTP / Xác thực">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="booking" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" target="p11" value="Sự kiện đặt phòng">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="payment" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" target="p11" value="Sự kiện thanh toán">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="p11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" target="p12" value="Dữ liệu sự kiện thô">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="p12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" target="p13" value="Dữ liệu sự kiện hợp lệ">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="p13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;" target="p20" value="Dữ liệu điều hướng + Mã mẫu">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="2Sy-M36mIbhV1KVgjdaj-1" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;1.0- RECEIVE REQUEST- NOTIFICATION SERVICE&lt;/font&gt;" vertex="1">
+          <mxGeometry height="65" width="470" x="350" y="10" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
