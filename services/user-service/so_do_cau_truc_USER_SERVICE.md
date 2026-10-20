@@ -142,7 +142,9 @@ Cổng dịch vụ: **`http://localhost:8001`** (hoặc gọi qua API Gateway: *
 | | `POST` | `/api/v1/auth/refresh` | Public | Cấp mới Access Token bằng Refresh Token mà không cần đăng nhập lại |
 | **Quản lý Hồ sơ cá nhân** | `GET` | `/api/v1/users/me` | Đăng nhập | Lấy thông tin tài khoản và profile của người đang đăng nhập |
 | | `PUT` | `/api/v1/users/me` | Đăng nhập | Cập nhật hồ sơ cá nhân: Họ tên, ngày sinh, SĐT, địa chỉ, CCCD |
-| **Quản trị hệ thống (Admin)** | `GET` | `/api/v1/admin/users` | `ADMIN` | Xem danh sách tất cả tài khoản, tìm kiếm từ khóa, phân trang, lọc theo role |
+| | `GET` | `/api/v1/users/{user_id}` | Đăng nhập | Tra cứu thông tin hồ sơ của một người dùng theo ID |
+| **Quản trị hệ thống (Admin)** | `GET` | `/api/v1/admin/users` | `ADMIN` | Xem danh sách tất cả tài khoản, tìm kiếm theo ID hoặc từ khóa, lọc theo role |
+| | `GET` | `/api/v1/admin/users/{user_id}` | `ADMIN` | Tra cứu chi tiết tài khoản và toàn bộ hồ sơ của người dùng theo ID |
 | | `PATCH` | `/api/v1/admin/users/{id}/status` | `ADMIN` | Khóa tài khoản vi phạm (`LOCKED`) hoặc Mở khóa lại (`ACTIVE`) |
 | **Giám sát trạng thái** | `GET` | `/` | Public | Health check trạng thái hoạt động của User Service |
 

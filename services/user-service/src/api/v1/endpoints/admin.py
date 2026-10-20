@@ -46,3 +46,16 @@ def change_user_status(
     db: Session = Depends(get_db),
 ):
     return UserService.change_user_status(db, user_id, body.trang_thai)
+
+@router.get(
+    "/users/{user_id}",
+    response_model=TaiKhoanResponse,
+    summary="[Admin] Tìm kiếm chi tiết 1 người dùng theo ID",
+    description="Tra cứu thông tin tài khoản và hồ sơ người dùng dựa vào id_tai_khoan.",
+)
+def get_user_by_id_admin(
+    user_id: int,
+    admin_user: TaiKhoanModel = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    return UserService.get_me(db, user_id)

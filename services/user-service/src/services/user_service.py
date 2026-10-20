@@ -105,16 +105,18 @@ class UserService:
         if status_val:
             query = query.filter(TaiKhoanModel.trang_thai == status_val)
         if keyword:
-            kw = f"%{keyword.strip()}%"
-            query = query.join(TaiKhoanModel.nguoi_dung, isouter=True).filter(
-                or_(
-                    TaiKhoanModel.ten_dang_nhap.ilike(kw),
-                    TaiKhoanModel.email.ilike(kw),
-                    TaiKhoanModel.sdt.ilike(kw),
-                    NguoiDungModel.ho.ilike(kw),
-                    NguoiDungModel.ten.ilike(kw),
-                )
-            )
+            kw_clean = keyword.strip()
+            kw = f"%{kw_clean}%"
+            conditions = [
+                TaiKhoanModel.ten_dang_nhap.ilike(kw),
+                TaiKhoanModel.email.ilike(kw),
+                TaiKhoanModel.sdt.ilike(kw),
+                NguoiDungModel.ho.ilike(kw),
+                NguoiDungModel.ten.ilike(kw),
+            ]
+            if kw_clean.isdigit():
+                conditions.append(TaiKhoanModel.id_tai_khoan == int(kw_clean))
+            query = query.join(TaiKhoanModel.nguoi_dung, isouter=True).filter(or_(*conditions))
 
         total = query.count()
         # Lưu ý: MSSQL bắt buộc order_by trước khi offset/limit

@@ -32,3 +32,16 @@ def update_my_profile(
     db: Session = Depends(get_db),
 ):
     return UserService.update_profile(db, current_user.id_tai_khoan, req)
+
+@router.get(
+    "/{user_id}",
+    response_model=TaiKhoanResponse,
+    summary="Tìm kiếm thông tin người dùng theo ID",
+    description="Lấy thông tin tài khoản và profile cơ bản theo id_tai_khoan.",
+)
+def get_user_by_id(
+    user_id: int,
+    current_user: TaiKhoanModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return UserService.get_me(db, user_id)
