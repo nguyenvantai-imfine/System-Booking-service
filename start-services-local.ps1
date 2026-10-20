@@ -36,8 +36,8 @@ $services = @(
     @{ Name = "Payment Service";      Port = 8004; Dir = "services\payment-service";      Type = "python"; Args = "-m uvicorn src.main:app --port 8004"; Log = "payment-service" },
     @{ Name = "Notification Service"; Port = 8005; Dir = "services\notification-service"; Type = "python"; Args = "-m uvicorn src.main:app --port 8005"; Log = "notification-service" },
     @{ Name = "API Gateway";          Port = 8080; Dir = "gateway";                      Type = "python"; Args = "-m uvicorn src.main:app --port 8080"; Log = "gateway" },
-    @{ Name = "Admin Dashboard";      Port = 3000; Dir = "front-end\apps\admin-dashboard"; Type = "cmd";    Args = "/c npx next dev -p 3000";              Log = "admin-dashboard" },
-    @{ Name = "Customer Web App";     Port = 3001; Dir = "front-end\apps\customer-web";    Type = "cmd";    Args = "/c npx next dev -p 3001";              Log = "customer-web" }
+    @{ Name = "Admin Dashboard";      Port = 3000; Dir = "front-end\apps\admin-dashboard"; Type = "node";   Args = "node_modules\next\dist\bin\next dev -p 3000"; Log = "admin-dashboard" },
+    @{ Name = "Customer Web App";     Port = 3001; Dir = "front-end\apps\customer-web";    Type = "node";   Args = "node_modules\next\dist\bin\next dev -p 3001"; Log = "customer-web" }
 )
 
 $startedList = @()
@@ -56,6 +56,12 @@ foreach ($svc in $services) {
             -WindowStyle Hidden `
             -RedirectStandardOutput $outLog `
             -RedirectStandardError $errLog `
+            -PassThru
+    } elseif ($svc.Type -eq "node") {
+        $proc = Start-Process -FilePath "node" `
+            -ArgumentList $svc.Args `
+            -WorkingDirectory $workDir `
+            -WindowStyle Hidden `
             -PassThru
     } else {
         $proc = Start-Process -FilePath "cmd.exe" `
