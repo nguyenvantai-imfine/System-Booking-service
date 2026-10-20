@@ -1,0 +1,198 @@
+import os
+import sys
+from contextlib import asynccontextmanager
+from typing import Dict
+import httpx
+from fastapi import FastAPI, Request, Response, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from pydantic_settings import BaseSettings
+
+class GatewaySettings(BaseSettings):
+    APP_NAME: str = "API Gateway"
+    PORT: int = 8080
+
+    # Backend Microservices
+    HOTEL_SERVICE_URL: str = "http://127.0.0.1:8000"
+    USER_SERVICE_URL: str = "http://127.0.0.1:8001"
+    ROOM_SERVICE_URL: str = "http://127.0.0.1:8002"
+    BOOKING_SERVICE_URL: str = "http://127.0.0.1:8003"
+    PAYMENT_SERVICE_URL: str = "http://127.0.0.1:8004"
+    NOTIFICATION_SERVICE_URL: str = "http://127.0.0.1:8005"
+
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+        extra = "ignore"
+
+settings = GatewaySettings()
+
+# HTTP Client dùng chung cho toàn bộ Gateway proxy
+http_client: httpx.AsyncClient = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global http_client
+    http_client = httpx.AsyncClient(timeout=30.0, follow_redirects=True)
+    print(f">>> [API GATEWAY] Ready on port {settings.PORT}!")
+    print(f"    - Hotel Service:        {settings.HOTEL_SERVICE_URL}")
+    print(f"    - User Service:         {settings.USER_SERVICE_URL}")
+    print(f"    - Room Service:         {settings.ROOM_SERVICE_URL}")
+    print(f"    - Booking Service:      {settings.BOOKING_SERVICE_URL}")
+    print(f"    - Payment Service:      {settings.PAYMENT_SERVICE_URL}")
+    print(f"    - Notification Service: {settings.NOTIFICATION_SERVICE_URL}")
+    yield
+    await http_client.aclose()
+
+app = FastAPI(
+    title=settings.APP_NAME,
+    version="1.0.0",
+    description="Cổng API Gateway tập trung cho Hệ thống Đặt phòng Khách sạn",
+    lifespan=lifespan,
+)
+
+# Cấu hình CORS Header tập trung
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+)
+
+# Bản đồ định tuyến theo tiền tố URL
+def resolve_target_url(full_path: str) -> str:
+    path = full_path.lstrip("/")
+    parts = path.split("/")
+
+    # path dạng: api/v1/<service>/...
+    if len(parts) >= 3 and parts[0] == "api" and parts[1] == "v1":
+        service = parts[2].lower()
+        if service in ("auth", "users", "profiles", "admin"):
+            return f"{settings.USER_SERVICE_URL}/{path}"
+        elif service == "hotels":
+            return f"{settings.HOTEL_SERVICE_URL}/{path}"
+        elif service == "rooms":
+            return f"{settings.ROOM_SERVICE_URL}/{path}"
+        elif service == "bookings":
+            return f"{settings.BOOKING_SERVICE_URL}/{path}"
+        elif service == "payments":
+            return f"{settings.PAYMENT_SERVICE_URL}/{path}"
+        elif service == "notifications":
+            return f"{settings.NOTIFICATION_SERVICE_URL}/{path}"
+
+    return None
+
+HOP_BY_HOP_HEADERS = {
+    "host", "content-length", "transfer-encoding", "connection",
+    "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailers", "upgrade"
+}
+
+@app.api_route(
+    "/api/v1/{path:path}",
+    methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"],
+    include_in_schema=False,
+)
+async def proxy_api_v1(request: Request, path: str):
+    """Định tuyến ngược động tất cả các request /api/v1/** về đúng microservice đích"""
+    full_path = f"/api/v1/{path}"
+    target_base = resolve_target_url(full_path)
+
+    if not target_base:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"detail": f"API Gateway: Tuyến đường không hợp lệ '{full_path}'"},
+        )
+
+    # Thêm query parameters nếu có
+    query_str = request.url.query
+    target_url = f"{target_base}?{query_str}" if query_str else target_base
+
+    # Lọc header
+    forward_headers = {
+        k: v for k, v in request.headers.items()
+        if k.lower() not in HOP_BY_HOP_HEADERS
+    }
+
+    body = await request.body()
+
+    try:
+        resp = await http_client.request(
+            method=request.method,
+            url=target_url,
+            headers=forward_headers,
+            content=body,
+        )
+
+        response_headers = {
+            k: v for k, v in resp.headers.items()
+            if k.lower() not in HOP_BY_HOP_HEADERS
+        }
+
+        return Response(
+            content=resp.content,
+            status_code=resp.status_code,
+            headers=response_headers,
+            media_type=resp.headers.get("content-type"),
+        )
+    except httpx.ConnectError:
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={"detail": f"API Gateway: Không thể kết nối tới dịch vụ đích tại {target_url}"},
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"detail": f"API Gateway Proxy Error: {str(e)}"},
+        )
+
+@app.get("/", tags=["Gateway"])
+def gateway_info():
+    return {
+        "service": settings.APP_NAME,
+        "status": "online",
+        "port": settings.PORT,
+        "description": "Cổng API Gateway duy nhất cho toàn bộ hệ thống đặt phòng khách sạn",
+        "routes": {
+            "/api/v1/auth/**": settings.USER_SERVICE_URL,
+            "/api/v1/users/**": settings.USER_SERVICE_URL,
+            "/api/v1/hotels/**": settings.HOTEL_SERVICE_URL,
+            "/api/v1/rooms/**": settings.ROOM_SERVICE_URL,
+            "/api/v1/bookings/**": settings.BOOKING_SERVICE_URL,
+            "/api/v1/payments/**": settings.PAYMENT_SERVICE_URL,
+            "/api/v1/notifications/**": settings.NOTIFICATION_SERVICE_URL,
+        },
+    }
+
+@app.get("/health", tags=["Gateway"])
+async def gateway_health():
+    services = {
+        "hotel-service": settings.HOTEL_SERVICE_URL,
+        "user-service": settings.USER_SERVICE_URL,
+        "room-service": settings.ROOM_SERVICE_URL,
+        "booking-service": settings.BOOKING_SERVICE_URL,
+        "payment-service": settings.PAYMENT_SERVICE_URL,
+        "notification-service": settings.NOTIFICATION_SERVICE_URL,
+    }
+
+    health_report = {}
+    for name, base_url in services.items():
+        try:
+            r = await http_client.get(f"{base_url}/health", timeout=2.0)
+            if r.status_code == 200:
+                health_report[name] = "UP"
+            else:
+                r2 = await http_client.get(f"{base_url}/", timeout=2.0)
+                health_report[name] = "UP" if r2.status_code == 200 else f"STATUS_{r.status_code}"
+        except Exception:
+            health_report[name] = "DOWN"
+
+    return {
+        "gateway": "UP",
+        "services": health_report,
+    }
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("src.main:app", host="0.0.0.0", port=settings.PORT, reload=True)

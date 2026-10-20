@@ -29,13 +29,14 @@ class HotelRepository:
     # 2. Lấy toàn bộ danh sách khách sạn (có phân trang)
     @staticmethod
     def get_all(db: Session, skip: int = 0, limit: int = 100) -> List[KhachSanModel]:
-        return HotelRepository._base_query(db).offset(skip).limit(limit).all()
+        return HotelRepository._base_query(db).order_by(KhachSanModel.id_khach_san.desc()).offset(skip).limit(limit).all()
 
     # 3. Lấy danh sách khách sạn theo Partner ID (id_tai_khoan)
     @staticmethod
     def get_by_partner_id(db: Session, id_tai_khoan: int, skip: int = 0, limit: int = 100) -> List[KhachSanModel]:
         return HotelRepository._base_query(db)\
                  .filter(KhachSanModel.id_tai_khoan == id_tai_khoan)\
+                 .order_by(KhachSanModel.id_khach_san.desc())\
                  .offset(skip)\
                  .limit(limit)\
                  .all()
@@ -62,7 +63,7 @@ class HotelRepository:
                 )
             )
 
-        return query.offset(skip).limit(limit).all()
+        return query.order_by(KhachSanModel.id_khach_san.desc()).offset(skip).limit(limit).all()
 
     # 5. Thêm mới khách sạn (bao gồm hỗ trợ tạo kèm dữ liệu con)
     @staticmethod

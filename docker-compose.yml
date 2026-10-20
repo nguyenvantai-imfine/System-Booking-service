@@ -1,0 +1,253 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sqlserver
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "${SA_PASSWORD:-Password123!}"
+      MSSQL_PID: "Developer"
+    ports:
+      - "${MSSQL_PORT:-1433}:1433"
+    volumes:
+      - mssql_data:/var/opt/mssql
+      - ./services/hotel-service/database_update.sql:/usr/config/database_update.sql:ro
+      - ./services/user-service/database_init.sql:/usr/config/user_database_init.sql:ro
+      - ./services/room-service/database_init.sql:/usr/config/room_database_init.sql:ro
+      - ./services/booking-service/database_init.sql:/usr/config/booking_database_init.sql:ro
+      - ./services/payment-service/database_init.sql:/usr/config/payment_database_init.sql:ro
+      - ./services/notification-service/database_init.sql:/usr/config/notification_database_init.sql:ro
+      - ./infrastructure/sqlserver/init-db.sh:/usr/config/init-db.sh:ro
+      - ./infrastructure/sqlserver/entrypoint.sh:/usr/config/entrypoint.sh:ro
+    entrypoint:
+      - /bin/bash
+      - -c
+      - "sed -i 's/\\r$$//' /usr/config/*.sh && chmod +x /usr/config/*.sh && /usr/config/entrypoint.sh"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P '${SA_PASSWORD:-Password123!}' -C -Q 'SELECT 1' > /dev/null 2>&1 || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  hotel-service:
+    build:
+      context: ./services/hotel-service
+      dockerfile: Dockerfile
+    container_name: hotel-service
+    restart: unless-stopped
+    ports:
+      - "${HOTEL_SERVICE_PORT:-8000}:8000"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      - DB_SERVER=sqlserver
+      - DB_PORT=1433
+      - DB_NAME=${DB_NAME:-hotel_service}
+      - DB_USER=sa
+      - DB_PASSWORD=${SA_PASSWORD:-Password123!}
+      - DB_DRIVER=ODBC Driver 18 for SQL Server
+      - DB_TRUSTED_CONNECTION=False
+      - APP_NAME=${APP_NAME:-Hotel Service}
+      - API_V1_STR=${API_V1_STR:-/api/v1}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-booking_super_secret_jwt_key_2026_xyz!@#}
+      - JWT_ALGORITHM=HS256
+
+  user-service:
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile
+    container_name: user-service
+    restart: unless-stopped
+    ports:
+      - "${USER_SERVICE_PORT:-8001}:8001"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      - DB_SERVER=sqlserver
+      - DB_PORT=1433
+      - DB_NAME=${USER_DB_NAME:-user_service}
+      - DB_USER=sa
+      - DB_PASSWORD=${SA_PASSWORD:-Password123!}
+      - DB_DRIVER=ODBC Driver 18 for SQL Server
+      - DB_TRUSTED_CONNECTION=False
+      - APP_NAME=User Service
+      - API_V1_STR=/api/v1
+      - PORT=8001
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-booking_super_secret_jwt_key_2026_xyz!@#}
+      - JWT_ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=60
+      - REFRESH_TOKEN_EXPIRE_DAYS=7
+
+  room-service:
+    build:
+      context: ./services/room-service
+      dockerfile: Dockerfile
+    container_name: room-service
+    restart: unless-stopped
+    ports:
+      - "${ROOM_SERVICE_PORT:-8002}:8002"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      - DB_SERVER=sqlserver
+      - DB_PORT=1433
+      - DB_NAME=${ROOM_DB_NAME:-room_service}
+      - DB_USER=sa
+      - DB_PASSWORD=${SA_PASSWORD:-Password123!}
+      - DB_DRIVER=ODBC Driver 18 for SQL Server
+      - DB_TRUSTED_CONNECTION=False
+      - APP_NAME=Room Service
+      - API_V1_STR=/api/v1
+      - PORT=8002
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-booking_super_secret_jwt_key_2026_xyz!@#}
+      - JWT_ALGORITHM=HS256
+
+  booking-service:
+    build:
+      context: ./services/booking-service
+      dockerfile: Dockerfile
+    container_name: booking-service
+    restart: unless-stopped
+    ports:
+      - "${BOOKING_SERVICE_PORT:-8003}:8003"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - DB_SERVER=sqlserver
+      - DB_PORT=1433
+      - DB_NAME=${BOOKING_DB_NAME:-booking_service}
+      - DB_USER=sa
+      - DB_PASSWORD=${SA_PASSWORD:-Password123!}
+      - DB_DRIVER=ODBC Driver 18 for SQL Server
+      - DB_TRUSTED_CONNECTION=False
+      - APP_NAME=Booking Service
+      - API_V1_STR=/api/v1
+      - PORT=8003
+      - HOLD_EXPIRE_MINUTES=15
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - ROOM_SERVICE_URL=http://room-service:8002/api/v1
+      - HOTEL_SERVICE_URL=http://hotel-service:8000/api/v1
+      - NOTIFICATION_SERVICE_URL=http://notification-service:8005/api/v1
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-booking_super_secret_jwt_key_2026_xyz!@#}
+      - JWT_ALGORITHM=HS256
+
+  payment-service:
+    build:
+      context: ./services/payment-service
+      dockerfile: Dockerfile
+    container_name: payment-service
+    restart: unless-stopped
+    ports:
+      - "${PAYMENT_SERVICE_PORT:-8004}:8004"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - DB_SERVER=sqlserver
+      - DB_PORT=1433
+      - DB_NAME=${PAYMENT_DB_NAME:-payment_service}
+      - DB_USER=sa
+      - DB_PASSWORD=${SA_PASSWORD:-Password123!}
+      - DB_DRIVER=ODBC Driver 18 for SQL Server
+      - DB_TRUSTED_CONNECTION=False
+      - APP_NAME=Payment Service
+      - API_V1_STR=/api/v1
+      - PORT=8004
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - BOOKING_SERVICE_URL=http://booking-service:8003/api/v1
+      - NOTIFICATION_SERVICE_URL=http://notification-service:8005/api/v1
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-booking_super_secret_jwt_key_2026_xyz!@#}
+      - JWT_ALGORITHM=HS256
+
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    container_name: notification-service
+    restart: unless-stopped
+    ports:
+      - "${NOTIFICATION_SERVICE_PORT:-8005}:8005"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - DB_SERVER=sqlserver
+      - DB_PORT=1433
+      - DB_NAME=${NOTIFICATION_DB_NAME:-notification_service}
+      - DB_USER=sa
+      - DB_PASSWORD=${SA_PASSWORD:-Password123!}
+      - DB_DRIVER=ODBC Driver 18 for SQL Server
+      - DB_TRUSTED_CONNECTION=False
+      - APP_NAME=Notification Service
+      - API_V1_STR=/api/v1
+      - PORT=8005
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=guest
+      - RABBITMQ_PASSWORD=guest
+      - RABBITMQ_ENABLED=True
+      - MOCK_EMAIL_SEND=True
+
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    restart: unless-stopped
+    ports:
+      - "${GATEWAY_PORT:-8080}:8080"
+    depends_on:
+      - hotel-service
+      - user-service
+      - room-service
+      - booking-service
+      - payment-service
+      - notification-service
+    environment:
+      - PORT=8080
+      - HOTEL_SERVICE_URL=http://hotel-service:8000
+      - USER_SERVICE_URL=http://user-service:8001
+      - ROOM_SERVICE_URL=http://room-service:8002
+      - BOOKING_SERVICE_URL=http://booking-service:8003
+      - PAYMENT_SERVICE_URL=http://payment-service:8004
+      - NOTIFICATION_SERVICE_URL=http://notification-service:8005
+
+volumes:
+  mssql_data:
+    driver: local
+
+networks:
+  default:
+    name: booking-network

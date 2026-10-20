@@ -146,7 +146,7 @@ class KhachSanStatusUpdate(BaseModel):
 
 
 class KhachSanBase(BaseModel):
-    id_tai_khoan: int = Field(..., description="ID tài khoản Partner sở hữu khách sạn")
+    id_tai_khoan: Optional[int] = Field(None, description="ID tài khoản Partner sở hữu khách sạn (tự động trích xuất từ JWT)")
     ten_khach_san: str = Field(..., min_length=2, max_length=255, description="Tên khách sạn")
     email_khach_san: Optional[EmailStr] = Field(None, description="Email liên hệ khách sạn")
     sdt_khach_san: Optional[str] = Field(None, max_length=20, description="SĐT bàn hoặc hotline")
@@ -173,9 +173,9 @@ class KhachSanBase(BaseModel):
         if not v:
             return v
         v_clean = str(v).strip().replace(" ", "").replace(".", "").replace("-", "")
-        # Cho phép định dạng điện thoại VN: 10 chữ số (bắt đầu bằng 0) hoặc đầu số quốc tế +84
-        if not re.match(r"^(0|\+84)[0-9]{9}$", v_clean):
-            raise ValueError("Số điện thoại không hợp lệ (yêu cầu 10 chữ số, ví dụ: 0912345678 hoặc +84912345678)")
+        # Cho phép định dạng số điện thoại linh hoạt: từ 6 đến 15 chữ số (hỗ trợ số bàn, hotline, di động, quốc tế)
+        if not re.match(r"^(\+?[0-9]{6,15})$", v_clean):
+            raise ValueError("Số điện thoại không hợp lệ (yêu cầu từ 6 đến 15 chữ số)")
         return v_clean
 
 
@@ -213,8 +213,9 @@ class KhachSanUpdate(BaseModel):
         if not v:
             return v
         v_clean = str(v).strip().replace(" ", "").replace(".", "").replace("-", "")
-        if not re.match(r"^(0|\+84)[0-9]{9}$", v_clean):
-            raise ValueError("Số điện thoại không hợp lệ (yêu cầu 10 chữ số, ví dụ: 0912345678 hoặc +84912345678)")
+        # Cho phép định dạng số điện thoại linh hoạt: từ 6 đến 15 chữ số
+        if not re.match(r"^(\+?[0-9]{6,15})$", v_clean):
+            raise ValueError("Số điện thoại không hợp lệ (yêu cầu từ 6 đến 15 chữ số)")
         return v_clean
 
 

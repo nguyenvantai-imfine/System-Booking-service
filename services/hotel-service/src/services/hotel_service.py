@@ -73,12 +73,13 @@ async def _get_hotel_or_404(db: Session, id_khach_san: int) -> KhachSanModel:
 
 
 def _check_ownership(hotel: KhachSanModel, partner_id: int) -> None:
-    """Kiểm tra quyền sở hữu. Raise 403 nếu partner_id không khớp."""
-    if hotel.id_tai_khoan != partner_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Bạn không có quyền thực hiện thao tác này với khách sạn.",
-        )
+    """Kiểm tra quyền sở hữu. Cho phép Admin (partner_id == 1) hoặc chính chủ sở hữu."""
+    if partner_id == 1 or hotel.id_tai_khoan == partner_id:
+        return
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Bạn không có quyền thực hiện thao tác này với khách sạn.",
+    )
 
 
 # ==============================================================================
@@ -192,7 +193,12 @@ class HotelService:
             )
         )
         total = await run_in_threadpool(query.count)
-        items = await run_in_threadpool(lambda: query.offset((page - 1) * page_size).limit(page_size).all())
+        items = await run_in_threadpool(
+            lambda: query.order_by(KhachSanModel.id_khach_san.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+            .all()
+        )
         return {
             "items": items,
             "total": total,
@@ -393,7 +399,12 @@ class SearchService:
             )
 
         total = await run_in_threadpool(query.count)
-        items = await run_in_threadpool(lambda: query.offset((page - 1) * page_size).limit(page_size).all())
+        items = await run_in_threadpool(
+            lambda: query.order_by(KhachSanModel.id_khach_san.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+            .all()
+        )
 
         return {
             "items": items,

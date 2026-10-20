@@ -12,13 +12,32 @@ class Settings(BaseSettings):
     DB_USER: str = "sa"                  # Tài khoản SQL Server
     DB_PASSWORD: str = "12345678" # Mật khẩu SQL Server
     DB_DRIVER: str = "ODBC Driver 18 for SQL Server" # Driver ODBC đã cài trên máy
+    DB_TRUSTED_CONNECTION: bool = False  # Bật True nếu dùng Windows Authentication (SQLEXPRESS)
+
+    # Cấu hình JWT Auth (đồng bộ với user-service)
+    JWT_SECRET_KEY: str = "booking_super_secret_jwt_key_2026_xyz!@#"
+    JWT_ALGORITHM: str = "HS256"
 
     @property
     def DATABASE_URL(self) -> str:
         # Chuỗi kết nối SQLAlchemy cho SQL Server qua pyodbc
+        server_str = self.DB_SERVER
+        if self.DB_PORT and self.DB_PORT != 0 and "\\" not in self.DB_SERVER:
+            server_str = f"{self.DB_SERVER}:{self.DB_PORT}"
+
+        if self.DB_TRUSTED_CONNECTION:
+            return (
+                f"mssql+pyodbc://@{server_str}/{self.DB_NAME}"
+                f"?driver={self.DB_DRIVER.replace(' ', '+')}"
+                f"&trusted_connection=yes"
+                f"&TrustServerCertificate=yes"
+            )
+
+        import urllib.parse
+        encoded_password = urllib.parse.quote_plus(self.DB_PASSWORD)
         return (
-            f"mssql+pyodbc://{self.DB_USER}:{self.DB_PASSWORD}"
-            f"@{self.DB_SERVER}:{self.DB_PORT}/{self.DB_NAME}"
+            f"mssql+pyodbc://{self.DB_USER}:{encoded_password}"
+            f"@{server_str}/{self.DB_NAME}"
             f"?driver={self.DB_DRIVER.replace(' ', '+')}"
             f"&TrustServerCertificate=yes"
         )

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@repo/ui/button";
+import { apiClient } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -17,17 +18,34 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      // Giả lập kiểm tra đăng nhập (Sau này sẽ gọi @repo/api-client)
-      if (email === "admin@hotel.com" && password === "123456") {
-        // Đăng nhập thành công -> Chuyển hướng về trang chủ Dashboard
-        router.push("/");
-      } else {
+      const res = await apiClient.login({
+        ten_dang_nhap_hoac_email: email.trim(),
+        mat_khau: password,
+      });
+
+      // Kiểm tra quyền hạn: Chỉ Admin mới có quyền truy cập Admin Dashboard
+      if (res.user.vai_tro !== "ADMIN") {
         setError(
-          "Email hoặc mật khẩu không đúng! (Gợi ý: admin@hotel.com / 123456)",
+          "Tài khoản này không có quyền truy cập trang Quản trị (Admin Dashboard). Chỉ Quản trị viên mới được phép đăng nhập."
         );
+        return;
       }
-    } catch (err) {
-      setError("Đã xảy ra lỗi, vui lòng thử lại sau.");
+
+      // Lưu trữ JWT tokens và thông tin tài khoản
+      localStorage.setItem("auth_token", res.access_token);
+      localStorage.setItem("refresh_token", res.refresh_token);
+      localStorage.setItem("auth_user", JSON.stringify(res.user));
+      document.cookie = `auth_token=${res.access_token}; path=/; max-age=86400; SameSite=Lax`;
+
+      // Chuyển hướng về trang chủ Admin Dashboard
+      router.push("/");
+    } catch (err: any) {
+      const detail = err?.data?.detail;
+      if (typeof detail === "string") {
+        setError(detail);
+      } else {
+        setError("Email / Tên đăng nhập hoặc mật khẩu không chính xác.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -40,7 +58,7 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-slate-800">Đăng Nhập Admin</h1>
           <p className="text-sm text-slate-500 mt-2">
-            Hệ thống quản lý đặt phòng khách sạn
+            Hệ thống quản lý đặt phòng khách sạn & người dùng
           </p>
         </div>
 
@@ -55,10 +73,10 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
-              Email
+              Email hoặc Tên đăng nhập
             </label>
             <input
-              type="email"
+              type="text"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -85,13 +103,14 @@ export default function LoginPage() {
             <label className="flex items-center gap-2 cursor-pointer text-slate-600">
               <input
                 type="checkbox"
+                defaultChecked
                 className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
               />
               Ghi nhớ đăng nhập
             </label>
-            <a href="#" className="text-blue-600 hover:underline font-medium">
-              Quên mật khẩu?
-            </a>
+            <span className="text-xs text-slate-400">
+              (Mặc định: admin@hotel.com / 123456)
+            </span>
           </div>
 
           <Button
@@ -100,7 +119,7 @@ export default function LoginPage() {
             className="w-full py-2.5 text-center flex justify-center"
             disabled={isLoading}
           >
-            {isLoading ? "Đang xử lý..." : "Đăng Nhập"}
+            {isLoading ? "Đang xác thực..." : "Đăng Nhập"}
           </Button>
         </form>
       </div>

@@ -1,0 +1,59 @@
+from pydantic_settings import BaseSettings
+
+class Settings(BaseSettings):
+    APP_NAME: str = "Payment Service"
+    PORT: int = 8004
+    API_V1_STR: str = "/api/v1"
+
+    # Database
+    DB_SERVER: str = "localhost\\SQLEXPRESS"
+    DB_PORT: int = 0
+    DB_NAME: str = "payment_service"
+    DB_USER: str = "sa"
+    DB_PASSWORD: str = "12345678"
+    DB_DRIVER: str = "ODBC Driver 18 for SQL Server"
+    DB_TRUSTED_CONNECTION: bool = True
+
+    # JWT
+    JWT_SECRET_KEY: str = "booking_super_secret_jwt_key_2026_xyz!@#"
+    JWT_ALGORITHM: str = "HS256"
+
+    # RabbitMQ Message Broker
+    RABBITMQ_HOST: str = "localhost"
+    RABBITMQ_PORT: int = 5672
+    RABBITMQ_USER: str = "guest"
+    RABBITMQ_PASSWORD: str = "guest"
+
+    # Microservice URLs
+    BOOKING_SERVICE_URL: str = "http://127.0.0.1:8003/api/v1"
+    NOTIFICATION_SERVICE_URL: str = "http://127.0.0.1:8005/api/v1"
+
+    @property
+    def DATABASE_URL(self) -> str:
+        server_str = self.DB_SERVER
+        if self.DB_PORT and self.DB_PORT != 0 and "\\" not in self.DB_SERVER:
+            server_str = f"{self.DB_SERVER}:{self.DB_PORT}"
+
+        if self.DB_TRUSTED_CONNECTION:
+            return (
+                f"mssql+pyodbc://@{server_str}/{self.DB_NAME}"
+                f"?driver={self.DB_DRIVER.replace(' ', '+')}"
+                f"&trusted_connection=yes"
+                f"&TrustServerCertificate=yes"
+            )
+
+        import urllib.parse
+        encoded_password = urllib.parse.quote_plus(self.DB_PASSWORD)
+        return (
+            f"mssql+pyodbc://{self.DB_USER}:{encoded_password}"
+            f"@{server_str}/{self.DB_NAME}"
+            f"?driver={self.DB_DRIVER.replace(' ', '+')}"
+            f"&TrustServerCertificate=yes"
+        )
+
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+        extra = "ignore"
+
+settings = Settings()
