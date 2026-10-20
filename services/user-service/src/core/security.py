@@ -5,19 +5,43 @@ import bcrypt
 from src.core.config import settings
 
 def hash_password(password: str) -> str:
-    """Mã hóa mật khẩu bằng thuật toán bcrypt."""
-    salt = bcrypt.gensalt(rounds=12)
-    return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
+    """
+    Tạm thời bỏ mã hóa mật khẩu, lưu dạng plain text (Mở lại bcrypt sau này).
+    """
+    # [TODO: Mở lại bcrypt sau]
+    # salt = bcrypt.gensalt(rounds=12)
+    # return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
+    return password
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Kiểm tra mật khẩu thô với hash."""
+    """
+    Kiểm tra mật khẩu:
+    - So sánh trực tiếp plain text: plain_password == hashed_password
+    - Vẫn hỗ trợ fallback nếu chuỗi trong DB còn lưu hash bcrypt cũ
+    """
+    # 1. So sánh trực tiếp chuỗi mật khẩu (plain text)
+    if plain_password == hashed_password:
+        return True
+
+    # 2. [TODO: Mở lại bcrypt sau]
+    # try:
+    #     return bcrypt.checkpw(
+    #         plain_password.encode("utf-8"),
+    #         hashed_password.encode("utf-8"),
+    #     )
+    # except Exception:
+    #     return False
+
     try:
-        return bcrypt.checkpw(
-            plain_password.encode("utf-8"),
-            hashed_password.encode("utf-8"),
-        )
+        if hashed_password and hashed_password.startswith("$2"):
+            return bcrypt.checkpw(
+                plain_password.encode("utf-8"),
+                hashed_password.encode("utf-8"),
+            )
     except Exception:
-        return False
+        pass
+
+    return False
 
 def create_access_token(
     data: dict, expires_delta: Optional[timedelta] = None

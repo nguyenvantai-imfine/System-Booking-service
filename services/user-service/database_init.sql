@@ -56,12 +56,12 @@ BEGIN
 END
 GO
 
--- 3. TÀI KHOẢN MẪU (Password bcrypt hash của "123456")
--- Hash: $2b$12$e8yN8bVbIqG0WzN8mD6f4eR9r2b6m5N8yN8bVbIqG0WzN8mD6f4eR
+-- 3. TÀI KHOẢN MẪU (Tạm thời lưu plain text "123456", mở lại hash sau)
+-- Hash bcrypt tương ứng nếu cần mở lại: $2b$12$Kqn2T4eXTRDp8BblqbANu.QelIG.Zhr6VHT6zNXfiSnhgeKJhLV6W
 IF NOT EXISTS (SELECT * FROM tai_khoan WHERE ten_dang_nhap = 'admin')
 BEGIN
     INSERT INTO tai_khoan (ten_dang_nhap, email, sdt, mat_khau_hash, vai_tro, trang_thai)
-    VALUES ('admin', 'admin@hotel.com', '0900000001', '$2b$12$Kqn2T4eXTRDp8BblqbANu.QelIG.Zhr6VHT6zNXfiSnhgeKJhLV6W', 'ADMIN', 'ACTIVE');
+    VALUES ('admin', 'admin@hotel.com', '0900000001', '123456', 'ADMIN', 'ACTIVE');
 
     DECLARE @admin_id INT = SCOPE_IDENTITY();
     INSERT INTO nguoi_dung (id_tai_khoan, ho, ten, dia_chi)
@@ -72,7 +72,7 @@ GO
 IF NOT EXISTS (SELECT * FROM tai_khoan WHERE ten_dang_nhap = 'partner1')
 BEGIN
     INSERT INTO tai_khoan (ten_dang_nhap, email, sdt, mat_khau_hash, vai_tro, trang_thai)
-    VALUES ('partner1', 'partner@hotel.com', '0900000002', '$2b$12$Kqn2T4eXTRDp8BblqbANu.QelIG.Zhr6VHT6zNXfiSnhgeKJhLV6W', 'PARTNER', 'ACTIVE');
+    VALUES ('partner1', 'partner@hotel.com', '0900000002', '123456', 'PARTNER', 'ACTIVE');
 
     DECLARE @partner_id INT = SCOPE_IDENTITY();
     INSERT INTO nguoi_dung (id_tai_khoan, ho, ten, dia_chi)
@@ -83,7 +83,7 @@ GO
 IF NOT EXISTS (SELECT * FROM tai_khoan WHERE ten_dang_nhap = 'customer1')
 BEGIN
     INSERT INTO tai_khoan (ten_dang_nhap, email, sdt, mat_khau_hash, vai_tro, trang_thai)
-    VALUES ('customer1', 'customer@gmail.com', '0900000003', '$2b$12$Kqn2T4eXTRDp8BblqbANu.QelIG.Zhr6VHT6zNXfiSnhgeKJhLV6W', 'CUSTOMER', 'ACTIVE');
+    VALUES ('customer1', 'customer@gmail.com', '0900000003', '123456', 'CUSTOMER', 'ACTIVE');
 
     DECLARE @cust_id INT = SCOPE_IDENTITY();
     INSERT INTO nguoi_dung (id_tai_khoan, ho, ten, dia_chi)
