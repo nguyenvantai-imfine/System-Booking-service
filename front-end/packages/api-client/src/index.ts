@@ -221,9 +221,11 @@ export class ApiClient {
     if (params?.page) query.set("page", params.page.toString());
     if (params?.page_size) query.set("page_size", params.page_size.toString());
     if (params?.vai_tro && params.vai_tro !== "all") {
+      query.set("role", params.vai_tro);
       query.set("vai_tro", params.vai_tro);
     }
     if (params?.trang_thai && params.trang_thai !== "all") {
+      query.set("status", params.trang_thai);
       query.set("trang_thai", params.trang_thai);
     }
     if (params?.keyword) {
@@ -233,6 +235,24 @@ export class ApiClient {
     const qs = query.toString();
     return this.request<UserPaginatedResponse>(
       `/admin/users${qs ? `?${qs}` : ""}`,
+      { method: "GET" },
+      this.userServiceUrl
+    );
+  }
+
+  public async adminCreateUser(
+    data: RegisterRequest
+  ): Promise<TaiKhoanResponse> {
+    return this.request<TaiKhoanResponse>(
+      "/admin/users",
+      { method: "POST", body: JSON.stringify(data) },
+      this.userServiceUrl
+    );
+  }
+
+  public async getUserById(userId: number): Promise<TaiKhoanResponse> {
+    return this.request<TaiKhoanResponse>(
+      `/admin/users/${userId}`,
       { method: "GET" },
       this.userServiceUrl
     );

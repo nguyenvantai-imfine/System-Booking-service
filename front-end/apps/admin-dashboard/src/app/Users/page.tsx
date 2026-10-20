@@ -160,7 +160,7 @@ export default function UsersPage() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      await apiClient.register(newUserForm);
+      await apiClient.adminCreateUser(newUserForm);
       setToastMessage({
         type: "success",
         text: `Đã tạo thành công tài khoản "${newUserForm.ten_dang_nhap}"!`,
@@ -291,7 +291,7 @@ export default function UsersPage() {
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Tìm theo tên đăng nhập, email, số điện thoại..."
+              placeholder="Tìm theo ID, tên đăng nhập, email, số điện thoại..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 focus:bg-white transition"

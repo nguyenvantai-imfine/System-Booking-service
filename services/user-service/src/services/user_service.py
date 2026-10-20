@@ -9,6 +9,7 @@ from src.schemas.user_schema import (
     TaiKhoanResponse,
     UserPaginatedResponse,
 )
+from src.schemas.auth_schema import RegisterRequest
 from src.core.security import hash_password
 
 class UserService:
@@ -157,6 +158,50 @@ class UserService:
         db.commit()
         db.refresh(user)
         return UserService._to_response(user)
+
+    @staticmethod
+    def admin_create_user(db: Session, req: RegisterRequest) -> TaiKhoanResponse:
+        existing = (
+            db.query(TaiKhoanModel)
+            .filter(
+                or_(
+                    TaiKhoanModel.ten_dang_nhap == req.ten_dang_nhap,
+                    TaiKhoanModel.email == req.email,
+                )
+            )
+            .first()
+        )
+        if existing:
+            if existing.ten_dang_nhap == req.ten_dang_nhap:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Tên đăng nhập đã tồn tại trong hệ thống.",
+                )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email đã được đăng ký cho tài khoản khác.",
+            )
+
+        tai_khoan = TaiKhoanModel(
+            ten_dang_nhap=req.ten_dang_nhap,
+            email=req.email,
+            sdt=req.sdt,
+            mat_khau_hash=hash_password(req.mat_khau),
+            vai_tro=req.vai_tro,
+            trang_thai=TrangThaiTaiKhoanEnum.ACTIVE,
+        )
+        db.add(tai_khoan)
+        db.flush()
+
+        nguoi_dung = NguoiDungModel(
+            id_tai_khoan=tai_khoan.id_tai_khoan,
+            ho=req.ho,
+            ten=req.ten,
+        )
+        db.add(nguoi_dung)
+        db.commit()
+        db.refresh(tai_khoan)
+        return UserService._to_response(tai_khoan)
 
     @staticmethod
     def seed_default_users(db: Session):

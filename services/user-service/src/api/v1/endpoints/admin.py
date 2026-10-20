@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from src.core.database import get_db
 from src.models import TaiKhoanModel, VaiTroEnum, TrangThaiTaiKhoanEnum
 from src.schemas.user_schema import TaiKhoanResponse, UserStatusUpdate, UserPaginatedResponse
+from src.schemas.auth_schema import RegisterRequest
 from src.services.user_service import UserService
 from src.api.dependencies import require_admin
 
@@ -17,21 +18,39 @@ router = APIRouter(prefix="/admin", tags=["🛡️ Quản trị Người Dùng (
 )
 def get_all_users(
     role: Optional[VaiTroEnum] = Query(None, description="Lọc theo vai trò (ADMIN, PARTNER, CUSTOMER)"),
+    vai_tro: Optional[VaiTroEnum] = Query(None, description="Lọc theo vai trò (alias)"),
     status: Optional[TrangThaiTaiKhoanEnum] = Query(None, description="Lọc theo trạng thái (ACTIVE, LOCKED, INACTIVE)"),
-    keyword: Optional[str] = Query(None, description="Tìm theo tên đăng nhập, email, họ tên, SĐT"),
+    trang_thai: Optional[TrangThaiTaiKhoanEnum] = Query(None, description="Lọc theo trạng thái (alias)"),
+    keyword: Optional[str] = Query(None, description="Tìm theo ID, tên đăng nhập, email, họ tên, SĐT"),
     page: int = Query(1, ge=1, description="Trang hiện tại"),
     page_size: int = Query(20, ge=1, le=100, description="Số lượng mỗi trang"),
     admin_user: TaiKhoanModel = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
+    selected_role = role or vai_tro
+    selected_status = status or trang_thai
     return UserService.get_users_admin(
         db=db,
-        role=role,
-        status_val=status,
+        role=selected_role,
+        status_val=selected_status,
         keyword=keyword,
         page=page,
         page_size=page_size,
     )
+
+@router.post(
+    "/users",
+    response_model=TaiKhoanResponse,
+    status_code=201,
+    summary="[Admin] Tạo mới tài khoản người dùng",
+    description="Quản trị viên tạo tài khoản mới với vai trò tùy chọn (ADMIN, PARTNER, CUSTOMER).",
+)
+def create_user_admin(
+    req: RegisterRequest,
+    admin_user: TaiKhoanModel = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    return UserService.admin_create_user(db, req)
 
 @router.patch(
     "/users/{user_id}/status",
