@@ -21,6 +21,7 @@ import type {
   RegisterRequest,
   UserPaginatedResponse,
   GetUsersAdminParams,
+  UserActionResponse,
   TrangThaiPhong,
   TienIchPhong,
   QuyTacPhong,
@@ -268,6 +269,23 @@ export class ApiClient {
       this.userServiceUrl
     );
   }
+
+  public async adminDeleteUser(userId: number): Promise<UserActionResponse> {
+    return this.request<UserActionResponse>(
+      `/admin/users/${userId}`,
+      { method: "DELETE" },
+      this.userServiceUrl
+    );
+  }
+
+  public async deleteMyAccount(): Promise<UserActionResponse> {
+    return this.request<UserActionResponse>(
+      "/users/me",
+      { method: "DELETE" },
+      this.userServiceUrl
+    );
+  }
+
 
   // ============================================================================
   // HOTEL SERVICE METHODS (Khách sạn)

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from src.core.database import get_db
 from src.models import TaiKhoanModel
-from src.schemas.user_schema import TaiKhoanResponse, NguoiDungUpdate
+from src.schemas.user_schema import TaiKhoanResponse, NguoiDungUpdate, UserActionResponse
 from src.services.user_service import UserService
 from src.api.dependencies import get_current_user
 
@@ -33,6 +33,18 @@ def update_my_profile(
 ):
     return UserService.update_profile(db, current_user.id_tai_khoan, req)
 
+@router.delete(
+    "/me",
+    response_model=UserActionResponse,
+    summary="Xóa tài khoản cá nhân",
+    description="Người dùng tự xóa vĩnh viễn tài khoản của chính mình khỏi hệ thống.",
+)
+def delete_my_account(
+    current_user: TaiKhoanModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return UserService.delete_user_self(db, current_user.id_tai_khoan)
+
 @router.get(
     "/{user_id}",
     response_model=TaiKhoanResponse,
@@ -45,3 +57,4 @@ def get_user_by_id(
     db: Session = Depends(get_db),
 ):
     return UserService.get_me(db, user_id)
+

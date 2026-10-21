@@ -8,6 +8,7 @@ from src.schemas.user_schema import (
     NguoiDungUpdate,
     TaiKhoanResponse,
     UserPaginatedResponse,
+    UserActionResponse,
 )
 from src.schemas.auth_schema import RegisterRequest
 from src.core.security import hash_password
@@ -39,6 +40,7 @@ class UserService:
             trang_thai=u.trang_thai,
             ngay_tao=u.ngay_tao,
             profile=profile,
+            nguoi_dung=profile,
         )
 
     @staticmethod
@@ -202,6 +204,70 @@ class UserService:
         db.commit()
         db.refresh(tai_khoan)
         return UserService._to_response(tai_khoan)
+
+    @staticmethod
+    def delete_user_admin(db: Session, user_id: int, current_admin_id: int) -> UserActionResponse:
+        user = (
+            db.query(TaiKhoanModel)
+            .filter(TaiKhoanModel.id_tai_khoan == user_id)
+            .first()
+        )
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Không tìm thấy người dùng có ID #{user_id}.",
+            )
+
+        if user.id_tai_khoan == current_admin_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Quản trị viên không thể tự xóa tài khoản của chính mình.",
+            )
+
+        if user.ten_dang_nhap.lower() == "admin" and user.vai_tro == VaiTroEnum.ADMIN:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Không thể xóa tài khoản Quản trị viên hệ thống (admin) mặc định.",
+            )
+
+        username = user.ten_dang_nhap
+        db.delete(user)
+        db.commit()
+
+        return UserActionResponse(
+            message=f"Đã xóa thành công tài khoản #{user_id} (@{username}) cùng hồ sơ liên quan.",
+            id_tai_khoan=user_id,
+            success=True,
+        )
+
+    @staticmethod
+    def delete_user_self(db: Session, user_id: int) -> UserActionResponse:
+        user = (
+            db.query(TaiKhoanModel)
+            .filter(TaiKhoanModel.id_tai_khoan == user_id)
+            .first()
+        )
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Không tìm thấy tài khoản người dùng.",
+            )
+
+        if user.vai_tro == VaiTroEnum.ADMIN:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Tài khoản Quản trị viên không thể tự hủy tài khoản qua chức năng này.",
+            )
+
+        username = user.ten_dang_nhap
+        db.delete(user)
+        db.commit()
+
+        return UserActionResponse(
+            message=f"Tài khoản @{username} và toàn bộ thông tin cá nhân đã được xóa vĩnh viễn.",
+            id_tai_khoan=user_id,
+            success=True,
+        )
 
     @staticmethod
     def seed_default_users(db: Session):

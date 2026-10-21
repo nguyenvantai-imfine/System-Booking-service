@@ -10,8 +10,10 @@ import {
   Unlock,
   Shield,
   Eye,
+  Trash2,
   RefreshCw,
   AlertCircle,
+  AlertTriangle,
   CheckCircle,
   X,
   ChevronLeft,
@@ -152,6 +154,33 @@ export default function UsersPage() {
         text: msg,
       });
       setStatusConfirm(null);
+    }
+  };
+
+  // Xác nhận xóa người dùng
+  const [deleteConfirm, setDeleteConfirm] = useState<TaiKhoanResponse | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Xử lý Xóa vĩnh viễn tài khoản người dùng
+  const executeDeleteUser = async () => {
+    if (!deleteConfirm) return;
+    setIsDeleting(true);
+    try {
+      const res = await apiClient.adminDeleteUser(deleteConfirm.id_tai_khoan);
+      setToastMessage({
+        type: "success",
+        text: res.message || `Đã xóa thành công tài khoản "${deleteConfirm.ten_dang_nhap}".`,
+      });
+      setDeleteConfirm(null);
+      fetchUsers();
+    } catch (err: any) {
+      const msg = err?.data?.detail || "Không thể xóa tài khoản người dùng.";
+      setToastMessage({
+        type: "error",
+        text: msg,
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -395,8 +424,10 @@ export default function UsersPage() {
                 </tr>
               ) : (
                 users.map((user) => {
+                  const userProfile = user.profile || user.nguoi_dung;
                   const fullName =
-                    [user.nguoi_dung?.ho, user.nguoi_dung?.ten]
+                    userProfile?.ho_va_ten ||
+                    [userProfile?.ho, userProfile?.ten]
                       .filter(Boolean)
                       .join(" ") || user.ten_dang_nhap;
 
@@ -412,9 +443,9 @@ export default function UsersPage() {
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
-                          {user.nguoi_dung?.avatar ? (
+                          {userProfile?.avatar ? (
                             <img
-                              src={user.nguoi_dung.avatar}
+                              src={userProfile.avatar}
                               alt={fullName}
                               className="w-9 h-9 rounded-full object-cover border border-slate-200"
                             />
@@ -479,6 +510,20 @@ export default function UsersPage() {
                               <span>Khóa</span>
                             </button>
                           )}
+
+                          {/* Nút Xóa tài khoản */}
+                          <button
+                            onClick={() => setDeleteConfirm(user)}
+                            title={
+                              user.ten_dang_nhap === "admin"
+                                ? "Không thể xóa tài khoản Quản trị viên hệ thống"
+                                : "Xóa tài khoản vĩnh viễn"
+                            }
+                            disabled={user.ten_dang_nhap === "admin"}
+                            className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -577,34 +622,50 @@ export default function UsersPage() {
                 <h4 className="font-semibold text-slate-800 mb-2">
                   Thông Tin Profile
                 </h4>
-                <div className="space-y-2 border border-slate-100 rounded-xl p-3">
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Họ và tên:</span>
-                    <span className="font-medium text-slate-800">
-                      {[viewingUser.nguoi_dung?.ho, viewingUser.nguoi_dung?.ten]
-                        .filter(Boolean)
-                        .join(" ") || "Chưa cập nhật"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Giới tính:</span>
-                    <span className="font-medium text-slate-800">
-                      {viewingUser.nguoi_dung?.gioi_tinh || "Chưa cập nhật"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Địa chỉ:</span>
-                    <span className="font-medium text-slate-800">
-                      {viewingUser.nguoi_dung?.dia_chi || "Chưa cập nhật"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">CCCD / Định danh:</span>
-                    <span className="font-medium text-slate-800">
-                      {viewingUser.nguoi_dung?.cccd || "Chưa cập nhật"}
-                    </span>
-                  </div>
-                </div>
+                {(() => {
+                  const vProfile = viewingUser.profile || viewingUser.nguoi_dung;
+                  const profileFullName =
+                    vProfile?.ho_va_ten ||
+                    [vProfile?.ho, vProfile?.ten].filter(Boolean).join(" ") ||
+                    "Chưa cập nhật";
+
+                  return (
+                    <div className="space-y-2 border border-slate-100 rounded-xl p-3">
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Họ và tên:</span>
+                        <span className="font-medium text-slate-800">
+                          {profileFullName}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Ngày sinh:</span>
+                        <span className="font-medium text-slate-800">
+                          {vProfile?.ngay_sinh
+                            ? new Date(vProfile.ngay_sinh).toLocaleDateString("vi-VN")
+                            : "Chưa cập nhật"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Giới tính:</span>
+                        <span className="font-medium text-slate-800">
+                          {vProfile?.gioi_tinh || "Chưa cập nhật"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Địa chỉ:</span>
+                        <span className="font-medium text-slate-800">
+                          {vProfile?.dia_chi || "Chưa cập nhật"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">CCCD / Định danh:</span>
+                        <span className="font-medium text-slate-800">
+                          {vProfile?.cccd || "Chưa cập nhật"}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 
@@ -836,7 +897,60 @@ export default function UsersPage() {
           </div>
         </div>
       )}
+
+      {/* Modal Xác nhận Xóa vĩnh viễn tài khoản */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-sm w-full p-6 space-y-4 animate-in fade-in zoom-in duration-150">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-rose-100 text-rose-600 rounded-xl">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
+                  Xóa tài khoản người dùng
+                </h3>
+                <p className="text-xs text-slate-500">
+                  ID: #{deleteConfirm.id_tai_khoan} • @{deleteConfirm.ten_dang_nhap}
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-rose-50/80 border border-rose-100 rounded-xl p-3 text-xs text-rose-800 space-y-1">
+              <p className="font-semibold flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>Cảnh báo quan trọng:</span>
+              </p>
+              <p className="text-slate-600">
+                Hành động này sẽ <strong className="text-rose-700 font-semibold">xóa vĩnh viễn</strong> tài khoản{" "}
+                <strong className="text-slate-900 font-semibold">{deleteConfirm.email}</strong> cùng toàn bộ hồ sơ cá nhân và{" "}
+                <strong className="text-rose-700 font-semibold">không thể hoàn tác</strong>.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setDeleteConfirm(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold disabled:opacity-50 transition"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={executeDeleteUser}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold disabled:opacity-50 transition flex items-center gap-1.5 shadow-sm shadow-rose-200"
+              >
+                {isDeleting ? "Đang xóa..." : "Xóa vĩnh viễn"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
 

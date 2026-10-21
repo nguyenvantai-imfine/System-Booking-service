@@ -3,7 +3,12 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from src.core.database import get_db
 from src.models import TaiKhoanModel, VaiTroEnum, TrangThaiTaiKhoanEnum
-from src.schemas.user_schema import TaiKhoanResponse, UserStatusUpdate, UserPaginatedResponse
+from src.schemas.user_schema import (
+    TaiKhoanResponse,
+    UserStatusUpdate,
+    UserPaginatedResponse,
+    UserActionResponse,
+)
 from src.schemas.auth_schema import RegisterRequest
 from src.services.user_service import UserService
 from src.api.dependencies import require_admin
@@ -78,3 +83,21 @@ def get_user_by_id_admin(
     db: Session = Depends(get_db),
 ):
     return UserService.get_me(db, user_id)
+
+@router.delete(
+    "/users/{user_id}",
+    response_model=UserActionResponse,
+    summary="[Admin] Xóa tài khoản người dùng",
+    description="Chỉ dành cho Quản trị viên (Admin). Xóa vĩnh viễn tài khoản người dùng và toàn bộ hồ sơ liên quan.",
+)
+def delete_user_admin(
+    user_id: int,
+    admin_user: TaiKhoanModel = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    return UserService.delete_user_admin(
+        db=db,
+        user_id=user_id,
+        current_admin_id=admin_user.id_tai_khoan,
+    )
+

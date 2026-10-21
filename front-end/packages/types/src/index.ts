@@ -305,6 +305,7 @@ export interface NguoiDungProfile {
   id_tai_khoan: number;
   ho?: string | null;
   ten?: string | null;
+  ho_va_ten?: string | null;
   ngay_sinh?: string | null;
   gioi_tinh?: string | null;
   dia_chi?: string | null;
@@ -320,6 +321,7 @@ export interface TaiKhoanResponse {
   vai_tro: VaiTro;
   trang_thai: TrangThaiTaiKhoan;
   ngay_tao: string;
+  profile?: NguoiDungProfile | null;
   nguoi_dung?: NguoiDungProfile | null;
 }
 
@@ -361,6 +363,13 @@ export interface GetUsersAdminParams {
   trang_thai?: TrangThaiTaiKhoan | "all";
   keyword?: string;
 }
+
+export interface UserActionResponse {
+  message: string;
+  id_tai_khoan?: number;
+  success: boolean;
+}
+
 
 // ==============================================================================
 // ROOM SERVICE SPECIFIC TYPES (Microservice Room API)

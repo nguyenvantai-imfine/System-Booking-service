@@ -82,9 +82,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Extract user info from token response or getMe()
       if (tokenRes.user) {
         const u = tokenRes.user;
-        const profile = u.nguoi_dung;
+        const profile = u.profile || u.nguoi_dung;
         const fullName =
-          profile ? [profile.ho, profile.ten].filter(Boolean).join(" ") : u.ten_dang_nhap;
+          profile?.ho_va_ten ||
+          (profile ? [profile.ho, profile.ten].filter(Boolean).join(" ") : (u as any).ho_va_ten) ||
+          u.ten_dang_nhap;
 
         const customerProfile: CustomerUser = {
           id: u.id_tai_khoan,
@@ -98,9 +100,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         try {
           const me = await apiClient.getMe();
-          const profile = me.nguoi_dung;
+          const profile = me.profile || me.nguoi_dung;
           const fullName =
-            profile ? [profile.ho, profile.ten].filter(Boolean).join(" ") : me.ten_dang_nhap;
+            profile?.ho_va_ten ||
+            (profile ? [profile.ho, profile.ten].filter(Boolean).join(" ") : me.ten_dang_nhap);
 
           const customerProfile: CustomerUser = {
             id: me.id_tai_khoan,

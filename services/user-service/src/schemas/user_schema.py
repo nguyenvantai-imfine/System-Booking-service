@@ -33,6 +33,7 @@ class TaiKhoanResponse(BaseModel):
     trang_thai: TrangThaiTaiKhoanEnum
     ngay_tao: datetime
     profile: Optional[NguoiDungProfile] = None
+    nguoi_dung: Optional[NguoiDungProfile] = None
 
 class UserStatusUpdate(BaseModel):
     trang_thai: TrangThaiTaiKhoanEnum
@@ -43,3 +44,9 @@ class UserPaginatedResponse(BaseModel):
     page: int
     page_size: int
     total_pages: int
+
+class UserActionResponse(BaseModel):
+    message: str
+    id_tai_khoan: Optional[int] = None
+    success: bool = True
+
