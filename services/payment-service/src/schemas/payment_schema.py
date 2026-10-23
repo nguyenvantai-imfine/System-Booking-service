@@ -38,6 +38,7 @@ class PaymentResponse(BaseModel):
     trang_thai: TrangThaiThanhToanEnum
     ma_giao_dich_gateway: str
     payment_url: Optional[str] = None
+    idempotency_key: Optional[str] = None
     ngay_tao: datetime
     ngay_thanh_toan: Optional[datetime] = None
     ghi_chu: Optional[str] = None

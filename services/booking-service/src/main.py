@@ -6,6 +6,7 @@ SERVICE_DIR = os.path.abspath(os.path.join(CURRENT_DIR, ".."))
 if SERVICE_DIR not in sys.path:
     sys.path.insert(0, SERVICE_DIR)
 
+import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,9 +19,24 @@ from src.services.booking_service import BookingService
 from src.api.v1.router import api_router
 import src.models
 
+async def expired_holds_background_cleaner():
+    """Chạy nền định kỳ mỗi 60 giây để quét và hủy các đơn quá hạn giữ chỗ 15 phút."""
+    while True:
+        try:
+            await asyncio.sleep(60)
+            db = SessionLocal()
+            try:
+                BookingService.release_expired_holds(db)
+            finally:
+                db.close()
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            print(">>> [Booking Service] Expired holds cleaner error:", e)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Khởi tạo bảng dữ liệu
+    cleaner_task = None
     try:
         Base.metadata.create_all(bind=engine)
         print(">>> [Booking Service] Database tables verified.")
@@ -30,9 +46,16 @@ async def lifespan(app: FastAPI):
             BookingService.release_expired_holds(db)
         finally:
             db.close()
+        cleaner_task = asyncio.create_task(expired_holds_background_cleaner())
     except Exception as e:
         print(">>> [Booking Service] Startup warning:", str(e))
     yield
+    if cleaner_task:
+        cleaner_task.cancel()
+        try:
+            await cleaner_task
+        except asyncio.CancelledError:
+            pass
 
 app = FastAPI(
     title=settings.APP_NAME,

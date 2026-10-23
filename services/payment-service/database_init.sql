@@ -25,6 +25,7 @@ BEGIN
         trang_thai NVARCHAR(20) NOT NULL DEFAULT 'PENDING',
         ma_giao_dich_gateway NVARCHAR(100) NOT NULL UNIQUE,
         payment_url NVARCHAR(500) NULL,
+        idempotency_key NVARCHAR(100) NULL,
         ngay_tao DATETIME NOT NULL DEFAULT GETDATE(),
         ngay_thanh_toan DATETIME NULL,
         ghi_chu NVARCHAR(255) NULL,
@@ -35,6 +36,34 @@ BEGIN
     CREATE INDEX idx_thanh_toan_booking ON thanh_toan(id_dat_phong, ma_booking);
     CREATE INDEX idx_thanh_toan_gateway ON thanh_toan(ma_giao_dich_gateway);
     CREATE INDEX idx_thanh_toan_trang_thai ON thanh_toan(trang_thai);
+END
+GO
+
+-- Bổ sung cột idempotency_key nếu bảng thanh_toan đã tồn tại từ trước
+IF NOT EXISTS (
+    SELECT 1 FROM sys.columns 
+    WHERE object_id = OBJECT_ID('thanh_toan') 
+      AND name = 'idempotency_key'
+)
+BEGIN
+    ALTER TABLE thanh_toan ADD idempotency_key NVARCHAR(100) NULL;
+END
+GO
+
+-- Tạo UNIQUE INDEX có lọc cho idempotency_key (cho phép nhiều giá trị NULL)
+SET ANSI_NULLS ON;
+SET QUOTED_IDENTIFIER ON;
+GO
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes 
+    WHERE name = 'ux_thanh_toan_idem' 
+      AND object_id = OBJECT_ID('thanh_toan')
+)
+BEGIN
+    CREATE UNIQUE INDEX ux_thanh_toan_idem 
+    ON thanh_toan(idempotency_key) 
+    WHERE idempotency_key IS NOT NULL;
 END
 GO
 

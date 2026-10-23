@@ -1,5 +1,5 @@
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Header, Query, status
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from src.api.v1.dependencies import get_db
@@ -22,13 +22,20 @@ router = APIRouter(prefix="/payments", tags=["💳 Quản lý Thanh Toán"])
     "/create-payment",
     response_model=PaymentResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Khởi tạo giao dịch thanh toán",
+    summary="Khởi tạo giao dịch thanh toán (Hỗ trợ Idempotency qua X-Idempotency-Key)",
 )
 def create_payment(
     payload: CreatePaymentRequest,
+    x_idempotency_key: Optional[str] = Header(
+        None,
+        alias="X-Idempotency-Key",
+        description="Khóa chống trùng lặp giao dịch (Idempotency Key)",
+    ),
     db: Session = Depends(get_db),
 ):
-    return PaymentService.create_payment(db, payload)
+    return PaymentService.create_payment(
+        db=db, payload=payload, idempotency_key=x_idempotency_key
+    )
 
 # 2. Sinh mã OTP xác thực thanh toán
 @router.post(

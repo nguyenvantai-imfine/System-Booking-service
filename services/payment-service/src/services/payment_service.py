@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from typing import List, Optional, Tuple
 from fastapi import HTTPException, status
 from sqlalchemy import func, desc
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from src.core.config import settings
 from src.core.publisher import publish_payment_event, publish_otp_event
@@ -103,6 +104,7 @@ class PaymentService:
             db.query(ThanhToanModel)
             .filter(ThanhToanModel.ma_giao_dich_gateway == payload.ma_giao_dich_gateway)
             .with_for_update()
+            .with_hint(ThanhToanModel, "WITH (UPDLOCK, ROWLOCK)")
             .first()
         )
         if not payment:
@@ -123,6 +125,7 @@ class PaymentService:
             .filter(GiaoDichOtpModel.ma_giao_dich_gateway == payload.ma_giao_dich_gateway)
             .order_by(desc(GiaoDichOtpModel.id_otp))
             .with_for_update()
+            .with_hint(GiaoDichOtpModel, "WITH (UPDLOCK, ROWLOCK)")
             .first()
         )
         if not otp_record:
@@ -211,14 +214,111 @@ class PaymentService:
 
     @staticmethod
     def create_payment(
-        db: Session, payload: CreatePaymentRequest
+        db: Session,
+        payload: CreatePaymentRequest,
+        idempotency_key: Optional[str] = None,
     ) -> ThanhToanModel:
+        clean_idem_key = idempotency_key.strip() if idempotency_key and idempotency_key.strip() else None
+
+        # 1. Kiểm tra Idempotency Key nếu được cung cấp
+        if clean_idem_key:
+            existing_txn = (
+                db.query(ThanhToanModel)
+                .filter(ThanhToanModel.idempotency_key == clean_idem_key)
+                .first()
+            )
+            if existing_txn:
+                # Nếu cùng key nhưng khác id_dat_phong hoặc số tiền: trả 409 Conflict kèm thông báo rõ ràng
+                if (
+                    existing_txn.id_dat_phong != payload.id_dat_phong
+                    or float(existing_txn.so_tien) != float(payload.so_tien)
+                ):
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=(
+                            f"X-Idempotency-Key '{clean_idem_key}' đã được sử dụng trước đó cho đơn đặt phòng hoặc số tiền khác "
+                            f"(ID: {existing_txn.id_dat_phong}, Số tiền: {float(existing_txn.so_tien):,.0f} VND)."
+                        ),
+                    )
+                # Key khớp hoàn toàn: trả lại giao dịch cũ, không tạo bản ghi mới
+                return existing_txn
+
+        # 2. Validation: không cho tạo thanh toán mới cho đơn đã CONFIRMED hoặc đã hết hạn giữ chỗ
+        # 2.1 Kiểm tra cục bộ trong CSDL payment-service: đơn đã có giao dịch SUCCESS chưa
+        existing_paid = (
+            db.query(ThanhToanModel)
+            .filter(
+                ThanhToanModel.id_dat_phong == payload.id_dat_phong,
+                ThanhToanModel.trang_thai == TrangThaiThanhToanEnum.SUCCESS.value,
+            )
+            .first()
+        )
+        if existing_paid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Đơn đặt phòng {payload.ma_booking} đã được thanh toán thành công trước đó (Mã GD: {existing_paid.ma_giao_dich_gateway}).",
+            )
+
+        # 2.2 Kiểm tra trạng thái và hạn giữ chỗ từ Booking Service
+        try:
+            import json
+            import urllib.request
+            import urllib.error
+            booking_url = f"{settings.BOOKING_SERVICE_URL}/bookings/{payload.id_dat_phong}"
+            req = urllib.request.Request(booking_url, headers={"User-Agent": "payment-service"})
+            with urllib.request.urlopen(req, timeout=3.0) as resp:
+                if resp.status == 200:
+                    bk_data = json.loads(resp.read().decode("utf-8"))
+                    bk_status = bk_data.get("trang_thai")
+                    if bk_status == "CONFIRMED":
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Đơn đặt phòng {payload.ma_booking} đã ở trạng thái CONFIRMED (đã được thanh toán).",
+                        )
+                    if bk_status in ["CANCELLED", "EXPIRED"]:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Đơn đặt phòng {payload.ma_booking} đã bị hủy hoặc hết hạn ({bk_status}). Không thể tạo thanh toán.",
+                        )
+
+                    # Kiểm tra hạn giữ chỗ (han_giu_cho)
+                    han_giu_cho_str = bk_data.get("han_giu_cho")
+                    if han_giu_cho_str:
+                        try:
+                            clean_iso = han_giu_cho_str.replace("Z", "+00:00")
+                            han_dt = datetime.fromisoformat(clean_iso)
+                            if han_dt.tzinfo is not None:
+                                han_dt = han_dt.astimezone().replace(tzinfo=None)
+                            if datetime.utcnow() > han_dt:
+                                raise HTTPException(
+                                    status_code=status.HTTP_400_BAD_REQUEST,
+                                    detail=f"Đơn đặt phòng {payload.ma_booking} đã hết hạn giữ chỗ (15 phút). Vui lòng thực hiện đặt phòng lại.",
+                                )
+                        except HTTPException:
+                            raise
+                        except Exception as dt_err:
+                            print(f">>> [Payment Service] Error checking hold time: {dt_err}")
+        except urllib.error.HTTPError as http_err:
+            if http_err.code == 404:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Không tìm thấy đơn đặt phòng có ID {payload.id_dat_phong} tại Booking Service.",
+                )
+            elif http_err.code == 400:
+                err_body = http_err.read().decode("utf-8", errors="ignore")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Booking Service từ chối: {err_body}",
+                )
+        except HTTPException:
+            raise
+        except Exception as net_err:
+            print(f">>> [Payment Service] Warning: Unable to contact Booking Service for pre-validation: {net_err}")
+
+        # 3. Khởi tạo bản ghi thanh toán mới
         now_utc = datetime.utcnow()
-        # Sinh mã giao dịch cổng thanh toán: VNPAY-YYYYMMDDHHMMSS-XXXX
         random_code = uuid.uuid4().hex[:6].upper()
         gateway_txn = f"{payload.phuong_thuc.value}-{now_utc.strftime('%Y%m%d%H%M%S')}-{random_code}"
-
-        # URL thanh toán Sandbox giả lập
         payment_url = f"http://localhost:8004/api/v1/payments/sandbox-checkout?txn={gateway_txn}&amount={payload.so_tien}&booking={payload.ma_booking}"
 
         db_payment = ThanhToanModel(
@@ -229,12 +329,37 @@ class PaymentService:
             trang_thai=TrangThaiThanhToanEnum.PENDING.value,
             ma_giao_dich_gateway=gateway_txn,
             payment_url=payment_url,
+            idempotency_key=clean_idem_key,
             ghi_chu=payload.ghi_chu or f"Thanh toán đơn {payload.ma_booking}",
         )
         db.add(db_payment)
-        db.commit()
-        db.refresh(db_payment)
-        return db_payment
+
+        # 4. Bắt lỗi vi phạm unique khi 2 request cùng key đến đồng thời (race condition)
+        try:
+            db.commit()
+            db.refresh(db_payment)
+            return db_payment
+        except IntegrityError:
+            db.rollback()
+            if clean_idem_key:
+                concurrent_txn = (
+                    db.query(ThanhToanModel)
+                    .filter(ThanhToanModel.idempotency_key == clean_idem_key)
+                    .first()
+                )
+                if concurrent_txn:
+                    if (
+                        concurrent_txn.id_dat_phong != payload.id_dat_phong
+                        or float(concurrent_txn.so_tien) != float(payload.so_tien)
+                    ):
+                        raise HTTPException(
+                            status_code=status.HTTP_409_CONFLICT,
+                            detail=(
+                                f"X-Idempotency-Key '{clean_idem_key}' đã được sử dụng đồng thời cho một đơn đặt phòng hoặc số tiền khác."
+                            ),
+                        )
+                    return concurrent_txn
+            raise
 
     @staticmethod
     async def simulate_ipn(
@@ -247,12 +372,20 @@ class PaymentService:
         payment = (
             db.query(ThanhToanModel)
             .filter(ThanhToanModel.ma_giao_dich_gateway == payload.ma_giao_dich_gateway)
+            .with_for_update()
+            .with_hint(ThanhToanModel, "WITH (UPDLOCK, ROWLOCK)")
             .first()
         )
         if not payment:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Không tìm thấy giao dịch: {payload.ma_giao_dich_gateway}",
+            )
+
+        if payment.trang_thai == TrangThaiThanhToanEnum.SUCCESS.value:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Giao dịch này đã được thanh toán thành công trước đó.",
             )
 
         old_status = payment.trang_thai
@@ -262,7 +395,11 @@ class PaymentService:
             payment.ngay_thanh_toan = datetime.utcnow()
             payment.ghi_chu = payload.note or "Thanh toán thành công qua IPN Callback"
 
-            # Gọi webhook sang Booking Service để xác nhận đơn
+            # 1. Đảm bảo commit trạng thái nguyên tử trong database TRƯỚC
+            db.commit()
+            db.refresh(payment)
+
+            # 2. CHỈ gọi Booking Service và publish event SAU khi commit thành công, và chỉ thực hiện đúng một lần
             try:
                 import urllib.request
                 import urllib.parse
@@ -278,9 +415,7 @@ class PaymentService:
             except Exception as e:
                 print(f">>> [Payment Service] Error contacting booking-service: {str(e)}")
 
-            # Bắn sự kiện thanh toán thành công qua RabbitMQ / Notification Service
             try:
-                from src.core.publisher import publish_payment_event
                 publish_payment_event("notification.payment.success", {
                     "ma_booking": payment.ma_booking,
                     "id_dat_phong": payment.id_dat_phong,
@@ -292,12 +427,17 @@ class PaymentService:
             except Exception as mq_err:
                 print(f">>> [Payment Service] MQ Warning: {mq_err}")
 
+            return payment
+
         elif payload.trang_thai == TrangThaiThanhToanEnum.FAILED:
             payment.ghi_chu = payload.note or "Giao dịch thanh toán thất bại"
-
-        db.commit()
-        db.refresh(payment)
-        return payment
+            db.commit()
+            db.refresh(payment)
+            return payment
+        else:
+            db.commit()
+            db.refresh(payment)
+            return payment
 
     @staticmethod
     def get_payments(

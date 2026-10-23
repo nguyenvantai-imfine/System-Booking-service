@@ -1,6 +1,6 @@
 import enum
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Numeric, DateTime, Index
+from sqlalchemy import Column, Integer, String, Numeric, DateTime, Index, text
 from sqlalchemy.orm import relationship
 from src.core.database import Base
 
@@ -36,6 +36,7 @@ class ThanhToanModel(Base):
     )
     ma_giao_dich_gateway = Column(String(100), unique=True, nullable=False, index=True)
     payment_url = Column(String(500), nullable=True)
+    idempotency_key = Column(String(100), nullable=True)
     ngay_tao = Column(DateTime, default=datetime.utcnow, nullable=False)
     ngay_thanh_toan = Column(DateTime, nullable=True)
     ghi_chu = Column(String(255), nullable=True)
@@ -53,4 +54,10 @@ class ThanhToanModel(Base):
 
     __table_args__ = (
         Index("idx_thanh_toan_booking", "id_dat_phong", "ma_booking"),
+        Index(
+            "ux_thanh_toan_idem",
+            "idempotency_key",
+            unique=True,
+            mssql_where=text("idempotency_key IS NOT NULL"),
+        ),
     )
