@@ -31,10 +31,23 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*", "X-Correlation-ID"],
 )
+
+from src.core.correlation import correlation_id_middleware
+app.middleware("http")(correlation_id_middleware)
 
 # Include Router
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+@app.get("/", tags=["Root"], summary="Health Check")
+def root():
+    return {
+        "service": settings.APP_NAME,
+        "status": "running",
+        "version": "1.0.0",
+        "port": settings.PORT,
+    }
 
 @app.get("/health", tags=["Health"])
 def health_check():

@@ -57,7 +57,11 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*", "X-Correlation-ID"],
 )
+
+from src.core.correlation import correlation_id_middleware
+app.middleware("http")(correlation_id_middleware)
 
 # Exception handlers
 @app.exception_handler(SQLAlchemyError)

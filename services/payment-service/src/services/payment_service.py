@@ -187,8 +187,14 @@ class PaymentService:
             note_encoded = urllib.parse.quote(
                 f"Xác nhận tự động qua cổng {payment.phuong_thuc} OTP ({payment.ma_giao_dich_gateway})"
             )
+            from src.core.correlation import get_correlation_id
+            cid = get_correlation_id()
+            headers = {"User-Agent": "payment-service"}
+            if cid:
+                headers["X-Correlation-ID"] = cid
+
             confirm_url = f"{settings.BOOKING_SERVICE_URL}/bookings/{payment.id_dat_phong}/confirm?note={note_encoded}"
-            req = urllib.request.Request(confirm_url, method="PATCH")
+            req = urllib.request.Request(confirm_url, method="PATCH", headers=headers)
             with urllib.request.urlopen(req, timeout=10.0) as resp:
                 print(
                     f">>> [Payment Service] Booking {payment.id_dat_phong} confirmed successfully via OTP (status {resp.status})."
@@ -264,8 +270,14 @@ class PaymentService:
             import json
             import urllib.request
             import urllib.error
+            from src.core.correlation import get_correlation_id
+            cid = get_correlation_id()
+            headers = {"User-Agent": "payment-service"}
+            if cid:
+                headers["X-Correlation-ID"] = cid
+
             booking_url = f"{settings.BOOKING_SERVICE_URL}/bookings/{payload.id_dat_phong}"
-            req = urllib.request.Request(booking_url, headers={"User-Agent": "payment-service"})
+            req = urllib.request.Request(booking_url, headers=headers)
             with urllib.request.urlopen(req, timeout=3.0) as resp:
                 if resp.status == 200:
                     bk_data = json.loads(resp.read().decode("utf-8"))
@@ -406,8 +418,14 @@ class PaymentService:
                 note_encoded = urllib.parse.quote(
                     f"Xác nhận tự động qua cổng {payment.phuong_thuc} ({payment.ma_giao_dich_gateway})"
                 )
+                from src.core.correlation import get_correlation_id
+                cid = get_correlation_id()
+                headers = {"User-Agent": "payment-service"}
+                if cid:
+                    headers["X-Correlation-ID"] = cid
+
                 confirm_url = f"{settings.BOOKING_SERVICE_URL}/bookings/{payment.id_dat_phong}/confirm?note={note_encoded}"
-                req = urllib.request.Request(confirm_url, method="PATCH")
+                req = urllib.request.Request(confirm_url, method="PATCH", headers=headers)
                 with urllib.request.urlopen(req, timeout=10.0) as resp:
                     print(
                         f">>> [Payment Service] Booking {payment.id_dat_phong} confirmed successfully via IPN (status {resp.status})."

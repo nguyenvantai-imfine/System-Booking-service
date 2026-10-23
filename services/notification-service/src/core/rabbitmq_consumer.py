@@ -84,7 +84,10 @@ class RabbitMQConsumer:
         queue_name = method.routing_key
         try:
             payload = json.loads(body.decode("utf-8"))
-            print(f">>> [RABBITMQ MESSAGE RECEIVED] Queue: {queue_name}")
+            cid = getattr(properties, "correlation_id", None) or payload.get("correlation_id") or "UNKNOWN"
+            if "correlation_id" not in payload and cid != "UNKNOWN":
+                payload["correlation_id"] = cid
+            print(f"[CORRELATION_ID: {cid}] >>> [RABBITMQ MESSAGE RECEIVED] Queue: {queue_name}")
             if self.on_message_callback:
                 self.on_message_callback(queue_name, payload)
             ch.basic_ack(delivery_tag=method.delivery_tag)

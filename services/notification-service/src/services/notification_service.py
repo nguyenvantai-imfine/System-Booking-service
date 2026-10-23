@@ -143,7 +143,8 @@ class NotificationService:
                 du_lieu=payload,
             )
             cls.send_notification(db, req)
-            print(f">>> [NOTIFICATION SERVICE] Notification processed and sent to {email}!")
+            cid = payload.get("correlation_id") or "UNKNOWN"
+            print(f"[CORRELATION_ID: {cid}] >>> [NOTIFICATION SERVICE] Notification processed and sent to {email}!")
         except Exception as e:
             logger.error(f"Error handling MQ event {queue_name}: {e}")
             print(f">>> [NOTIFICATION SERVICE ERROR]: {e}")

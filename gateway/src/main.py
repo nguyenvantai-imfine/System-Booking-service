@@ -51,6 +51,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+import time
+import uuid
+
 # Cấu hình CORS Header tập trung
 app.add_middleware(
     CORSMiddleware,
@@ -58,8 +61,23 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"],
+    expose_headers=["*", "X-Correlation-ID"],
 )
+
+@app.middleware("http")
+async def correlation_id_middleware(request: Request, call_next):
+    start_time = time.perf_counter()
+    cid = request.headers.get("X-Correlation-ID") or request.headers.get("x-correlation-id")
+    if not cid:
+        cid = str(uuid.uuid4())
+    request.state.correlation_id = cid
+
+    response = await call_next(request)
+    response.headers["X-Correlation-ID"] = cid
+
+    elapsed_ms = (time.perf_counter() - start_time) * 1000
+    print(f"[CORRELATION_ID: {cid}] {request.method} {request.url.path} -> {response.status_code} ({elapsed_ms:.2f}ms)")
+    return response
 
 # Bản đồ định tuyến theo tiền tố URL
 def resolve_target_url(full_path: str) -> str:
@@ -109,11 +127,14 @@ async def proxy_api_v1(request: Request, path: str):
     query_str = request.url.query
     target_url = f"{target_base}?{query_str}" if query_str else target_base
 
-    # Lọc header
+    cid = getattr(request.state, "correlation_id", None) or request.headers.get("X-Correlation-ID") or str(uuid.uuid4())
+
+    # Lọc header và đảm bảo chuyển tiếp đầy đủ X-Correlation-ID, Authorization, X-Idempotency-Key...
     forward_headers = {
         k: v for k, v in request.headers.items()
         if k.lower() not in HOP_BY_HOP_HEADERS
     }
+    forward_headers["X-Correlation-ID"] = cid
 
     body = await request.body()
 
@@ -129,6 +150,7 @@ async def proxy_api_v1(request: Request, path: str):
             k: v for k, v in resp.headers.items()
             if k.lower() not in HOP_BY_HOP_HEADERS
         }
+        response_headers["X-Correlation-ID"] = cid
 
         return Response(
             content=resp.content,
