@@ -41,6 +41,7 @@ app = FastAPI(
         "Microservice xử lý thanh toán đa kênh (VNPAY, MoMo, Thẻ tín dụng) và mô phỏng Sandbox IPN Callback.\n\n"
         "### Các tính năng chính:\n"
         "- Khởi tạo giao dịch thanh toán đơn đặt phòng.\n"
+        "- Sinh mã OTP và xác thực thanh toán bảo mật 2 lớp.\n"
         "- Mô phỏng Sandbox checkout và IPN Callback.\n"
         "- Tự động gửi webhook chuyển trạng thái đơn sang CONFIRMED khi thanh toán thành công.\n"
         "- Thống kê tổng doanh thu và lịch sử giao dịch.\n"

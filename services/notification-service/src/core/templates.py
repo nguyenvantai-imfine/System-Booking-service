@@ -230,3 +230,112 @@ Lý do: {ly_do}
 Hotline hỗ trợ: 1900 8888
 """
     return subject, html_content, text_content
+
+
+def render_otp_email(data: Dict[str, Any]) -> tuple[str, str, str]:
+    """
+    Render template email cho sự kiện: Gửi mã OTP xác thực thanh toán.
+    Trả về: (subject, html_content, text_content)
+    """
+    otp_code = str(data.get("otp_code", "------"))
+    expires_in = data.get("expires_in_seconds", 180)
+    minutes = max(1, expires_in // 60)
+    ma_txn = data.get("ma_giao_dich_gateway", "")
+    ma_booking = data.get("ma_booking", "")
+    ten_khach = data.get("ten_khach", "Quý khách")
+
+    subject = f"🔐 Mã OTP xác thực giao dịch thanh toán: {otp_code}"
+
+    html_content = f"""<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{subject}</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;">
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; padding: 35px 15px;">
+        <tr>
+            <td align="center">
+                <table width="100%" max-width="580" border="0" cellspacing="0" cellpadding="0" style="max-width: 580px; background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 15px 35px rgba(0,0,0,0.06); border: 1px solid #e2e8f0;">
+                    <!-- HEADER -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #2563eb 100%); padding: 35px 30px; text-align: center; color: #ffffff;">
+                            <div style="font-size: 24px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 6px;">✨ HOTEL BOOKING SERVICE</div>
+                            <div style="font-size: 15px; opacity: 0.92; font-weight: 500;">Mã Xác Thực Giao Dịch Thanh Toán (OTP)</div>
+                        </td>
+                    </tr>
+
+                    <!-- NỘI DUNG CHÍNH -->
+                    <tr>
+                        <td style="padding: 35px 30px;">
+                            <div style="font-size: 16px; font-weight: 600; color: #0f172a; margin-bottom: 12px;">
+                                Xin chào {ten_khach},
+                            </div>
+                            <div style="font-size: 14px; line-height: 1.6; color: #475569; margin-bottom: 24px;">
+                                Bạn vừa yêu cầu mã xác thực bảo mật 2 lớp (OTP) để hoàn tất thanh toán đơn đặt phòng trực tuyến. Vui lòng sử dụng mã xác thực dưới đây để tiếp tục:
+                            </div>
+
+                            <!-- KHỐI MÃ OTP CỠ LỚN -->
+                            <div style="background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%); border: 2px dashed #3b82f6; border-radius: 16px; padding: 25px; text-align: center; margin-bottom: 24px;">
+                                <div style="font-size: 12px; font-weight: 700; color: #1e40af; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">
+                                    Mã xác thực một lần (OTP)
+                                </div>
+                                <div style="font-size: 40px; font-weight: 900; letter-spacing: 10px; color: #1d4ed8; font-family: 'SF Mono', Consolas, 'Courier New', monospace; padding: 6px 0;">
+                                    {otp_code}
+                                </div>
+                                <div style="display: inline-block; background-color: #fee2e2; border: 1px solid #fecaca; color: #b91c1c; font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 9999px; margin-top: 10px;">
+                                    ⏱️ Mã có hiệu lực trong vòng {minutes} phút ({expires_in} giây)
+                                </div>
+                            </div>
+
+                            <!-- THÔNG TIN ĐƠN HÀNG KÈM THEO -->
+                            <div style="background-color: #f8fafc; border-radius: 12px; padding: 14px 18px; margin-bottom: 24px; font-size: 13px; color: #64748b; border: 1px solid #e2e8f0;">
+                                <div style="margin-bottom: 4px;"><strong style="color: #334155;">Mục đích:</strong> Xác thực thanh toán đơn đặt phòng</div>
+                                {f'<div style="margin-bottom: 4px;"><strong style="color: #334155;">Mã đặt phòng:</strong> {ma_booking}</div>' if ma_booking else ''}
+                                {f'<div><strong style="color: #334155;">Mã giao dịch:</strong> <code style="font-family: monospace; color: #2563eb;">{ma_txn}</code></div>' if ma_txn else ''}
+                            </div>
+
+                            <!-- HƯỚNG DẪN BẢO MẬT -->
+                            <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 16px; font-size: 13px; line-height: 1.6; color: #92400e;">
+                                <div style="font-weight: 700; margin-bottom: 6px;">
+                                    🛡️ Hướng dẫn bảo mật quan trọng:
+                                </div>
+                                <ul style="margin: 0; padding-left: 20px;">
+                                    <li>Tuyệt đối <strong>KHÔNG</strong> chia sẻ mã OTP này cho bất kỳ ai, bao gồm cả nhân viên hỗ trợ khách sạn hoặc nhân viên ngân hàng.</li>
+                                    <li>Mã này chỉ có hiệu lực duy nhất một lần và sẽ tự động vô hiệu hóa sau <strong>3 phút</strong>.</li>
+                                    <li>Nếu bạn <strong>không</strong> thực hiện yêu cầu này, vui lòng bỏ qua email và liên hệ ngay tổng đài hỗ trợ <strong>1900 8888</strong> để được hỗ trợ khóa giao dịch kịp thời.</li>
+                                </ul>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- FOOTER -->
+                    <tr>
+                        <td style="background-color: #f8fafc; padding: 24px 30px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0;">
+                            <div style="margin-bottom: 6px;">Hotline hỗ trợ 24/7: <strong style="color: #64748b;">1900 8888</strong> | Email: <strong style="color: #64748b;">support@hotelbooking.com</strong></div>
+                            <div>© 2026 Hotel Booking Service System. All rights reserved.</div>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>"""
+
+    text_content = f"""
+XÁC THỰC GIAO DỊCH THANH TOÁN (OTP)
+Xin chào {ten_khach},
+Mã OTP xác thực thanh toán của bạn là: {otp_code}
+Hiệu lực: {minutes} phút ({expires_in} giây).
+Mã giao dịch: {ma_txn}
+Mã đặt phòng: {ma_booking}
+
+LƯU Ý BẢO MẬT:
+- Tuyệt đối không chia sẻ mã này cho bất kỳ ai.
+- Nếu không phải bạn yêu cầu, vui lòng liên hệ hotline 1900 8888 ngay lập tức.
+© 2026 Hotel Booking Service System.
+"""
+    return subject, html_content, text_content
+

@@ -11,6 +11,7 @@ from src.schemas.notification_schema import SendNotificationRequest
 from src.core.templates import (
     render_booking_confirmed_email,
     render_booking_cancelled_email,
+    render_otp_email,
 )
 from src.core.email_sender import email_sender
 from src.core.database import SessionLocal
@@ -31,6 +32,9 @@ class NotificationService:
             subject, html_content, text_content = render_booking_confirmed_email(du_lieu)
         elif loai == "BOOKING_CANCELLED":
             subject, html_content, text_content = render_booking_cancelled_email(du_lieu)
+        elif loai in ("OTP", "OTP_VERIFICATION", "NOTIFICATION.OTP.GENERATED"):
+            loai = "OTP"
+            subject, html_content, text_content = render_otp_email(du_lieu)
         else:
             subject = f"Thông báo từ hệ thống đặt phòng: {loai}"
             html_content = f"<p>{du_lieu.get('message', 'Thông báo từ hệ thống')}</p>"
@@ -49,13 +53,26 @@ class NotificationService:
         db.add(thong_bao)
         db.flush()
 
-        # 3. Tạo bản ghi NoiDungThongBao
+        # 3. Tạo bản ghi NoiDungThongBao (Che mã OTP trước khi lưu trữ lâu dài trong CSDL)
+        saved_html = html_content
+        saved_text = text_content
+        saved_du_lieu = dict(du_lieu)
+
+        if loai == "OTP":
+            otp_val = str(du_lieu.get("otp_code", ""))
+            if otp_val:
+                masked_otp = f"{otp_val[:2]}****" if len(otp_val) >= 2 else "******"
+                saved_html = saved_html.replace(otp_val, masked_otp)
+                if saved_text:
+                    saved_text = saved_text.replace(otp_val, masked_otp)
+                saved_du_lieu["otp_code"] = masked_otp
+
         noi_dung = NoiDungThongBaoModel(
             id_thong_bao=thong_bao.id_thong_bao,
             tieu_de=subject,
-            noi_dung_html=html_content,
-            noi_dung_text=text_content,
-            du_lieu_dinh_kem=json.dumps(du_lieu, ensure_ascii=False),
+            noi_dung_html=saved_html,
+            noi_dung_text=saved_text,
+            du_lieu_dinh_kem=json.dumps(saved_du_lieu, ensure_ascii=False),
         )
         db.add(noi_dung)
 
@@ -82,6 +99,20 @@ class NotificationService:
         return thong_bao
 
     @classmethod
+    def send_otp_notification(cls, db: Session, payload: Dict[str, Any]) -> ThongBaoModel:
+        """Hàm chuyên biệt xử lý sự kiện gửi email OTP"""
+        email = payload.get("email") or payload.get("nguoi_nhan") or "customer@hotel.com"
+        req = SendNotificationRequest(
+            loai_thong_bao="OTP",
+            nguoi_nhan=email,
+            kenh_gui="EMAIL",
+            id_tai_khoan=payload.get("id_tai_khoan"),
+            ma_booking=payload.get("ma_booking"),
+            du_lieu=payload,
+        )
+        return cls.send_notification(db, req)
+
+    @classmethod
     def handle_message_queue_event(cls, queue_name: str, payload: Dict[str, Any]):
         """Xử lý sự kiện từ RabbitMQ Consumer trong thread nền"""
         db = SessionLocal()
@@ -90,6 +121,7 @@ class NotificationService:
                 "notification.booking.confirmed": "BOOKING_CONFIRMED",
                 "notification.payment.success": "PAYMENT_SUCCESS",
                 "notification.booking.cancelled": "BOOKING_CANCELLED",
+                "notification.otp.generated": "OTP",
             }
             loai_thong_bao = loai_map.get(queue_name, "SYSTEM")
 

@@ -9,6 +9,9 @@ from src.schemas import (
     PaymentResponse,
     PaymentPaginatedResponse,
     PaymentStatsResponse,
+    GenerateOtpRequest,
+    VerifyOtpRequest,
+    OtpResponse,
 )
 from src.services import PaymentService
 
@@ -27,7 +30,35 @@ def create_payment(
 ):
     return PaymentService.create_payment(db, payload)
 
-# 2. Mô phỏng IPN Callback từ cổng thanh toán (Sandbox)
+# 2. Sinh mã OTP xác thực thanh toán
+@router.post(
+    "/generate-otp",
+    response_model=OtpResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Sinh mã OTP xác thực thanh toán",
+    description="Tạo mã OTP 6 chữ số (hiệu lực 3 phút) cho giao dịch đang chờ thanh toán (PENDING), lưu DB và phát sự kiện gửi email qua RabbitMQ / Notification Service.",
+)
+async def generate_otp(
+    payload: GenerateOtpRequest,
+    db: Session = Depends(get_db),
+):
+    return await PaymentService.generate_otp(db, payload)
+
+# 3. Xác thực mã OTP và hoàn tất thanh toán
+@router.post(
+    "/verify-otp",
+    response_model=PaymentResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Xác thực OTP và hoàn tất thanh toán",
+    description="Xác thực mã OTP 6 chữ số, cập nhật trạng thái giao dịch sang SUCCESS, gọi đồng bộ Booking Service chuyển đơn sang CONFIRMED và kích hoạt gửi vé điện tử kèm mã QR.",
+)
+async def verify_otp(
+    payload: VerifyOtpRequest,
+    db: Session = Depends(get_db),
+):
+    return await PaymentService.verify_otp(db, payload)
+
+# 4. Mô phỏng IPN Callback từ cổng thanh toán (Sandbox)
 @router.post(
     "/simulate-ipn",
     response_model=PaymentResponse,
@@ -120,19 +151,108 @@ def sandbox_checkout(
                 </div>
             </div>
 
-            <div class="space-y-3">
-                <button onclick="simulate('SUCCESS')" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl shadow-sm transition">
-                    ✓ Thanh Toán Thành Công
-                </button>
-                <button onclick="simulate('FAILED')" class="w-full py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold rounded-xl border border-rose-200 transition">
-                    ✕ Hủy Giao Dịch
-                </button>
+            <!-- Khu vực thanh toán trực tiếp hoặc xác thực OTP -->
+            <div class="border-t pt-4 space-y-3">
+                <div class="text-xs font-bold text-slate-500 uppercase tracking-wider text-center">Phương thức 1: Xác thực OTP bảo mật</div>
+                <div class="space-y-2">
+                    <div class="flex gap-2">
+                        <input id="emailInput" type="email" placeholder="Nhập email nhận OTP..." value="customer@hotel.com" class="flex-1 px-3 py-2 border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <button onclick="requestOtp()" class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs rounded-xl transition whitespace-nowrap">
+                            Gửi OTP
+                        </button>
+                    </div>
+                    <div id="otpInputGroup" class="hidden flex gap-2">
+                        <input id="otpCodeInput" type="text" maxlength="6" placeholder="Mã 6 số..." class="w-28 text-center px-3 py-2 border rounded-xl text-xs font-mono font-bold tracking-widest focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <button onclick="submitVerifyOtp()" class="flex-1 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs rounded-xl transition">
+                            Xác thực OTP
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="border-t pt-4 space-y-3">
+                <div class="text-xs font-bold text-slate-500 uppercase tracking-wider text-center">Phương thức 2: Mô phỏng IPN trực tiếp</div>
+                <div class="flex gap-2">
+                    <button onclick="simulate('SUCCESS')" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-xs shadow-sm transition">
+                        ✓ Thành công
+                    </button>
+                    <button onclick="simulate('FAILED')" class="flex-1 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold rounded-xl text-xs border border-rose-200 transition">
+                        ✕ Hủy đơn
+                    </button>
+                </div>
             </div>
 
             <div id="result" class="text-center text-xs font-semibold hidden p-3 rounded-lg"></div>
         </div>
 
         <script>
+            async function requestOtp() {{
+                const resEl = document.getElementById('result');
+                const email = document.getElementById('emailInput').value.trim();
+                if (!email) {{
+                    alert('Vui lòng nhập email');
+                    return;
+                }}
+                resEl.className = 'text-center text-xs font-semibold p-3 rounded-lg block bg-blue-50 text-blue-700';
+                resEl.innerText = 'Đang sinh mã OTP và gửi qua Email / RabbitMQ...';
+
+                try {{
+                    const resp = await fetch('/api/v1/payments/generate-otp', {{
+                        method: 'POST',
+                        headers: {{ 'Content-Type': 'application/json' }},
+                        body: JSON.stringify({{
+                            ma_giao_dich_gateway: '{txn}',
+                            email: email
+                        }})
+                    }});
+                    const data = await resp.json();
+                    if (resp.ok) {{
+                        document.getElementById('otpInputGroup').className = 'flex gap-2';
+                        resEl.className = 'text-center text-xs font-semibold p-3 rounded-lg block bg-blue-50 text-blue-800 border border-blue-200';
+                        resEl.innerText = data.message + ' (Hiệu lực 3 phút).';
+                    }} else {{
+                        resEl.className = 'text-center text-xs font-semibold p-3 rounded-lg block bg-rose-50 text-rose-800 border border-rose-200';
+                        resEl.innerText = 'Lỗi: ' + (data.detail || 'Không thể tạo OTP');
+                    }}
+                }} catch (e) {{
+                    resEl.className = 'text-center text-xs font-semibold p-3 rounded-lg block bg-rose-50 text-rose-800';
+                    resEl.innerText = 'Lỗi kết nối: ' + e;
+                }}
+            }}
+
+            async function submitVerifyOtp() {{
+                const resEl = document.getElementById('result');
+                const otp = document.getElementById('otpCodeInput').value.trim();
+                if (!otp || otp.length !== 6) {{
+                    alert('Vui lòng nhập đủ 6 chữ số OTP');
+                    return;
+                }}
+                resEl.className = 'text-center text-xs font-semibold p-3 rounded-lg block bg-blue-50 text-blue-700';
+                resEl.innerText = 'Đang xác thực OTP...';
+
+                try {{
+                    const resp = await fetch('/api/v1/payments/verify-otp', {{
+                        method: 'POST',
+                        headers: {{ 'Content-Type': 'application/json' }},
+                        body: JSON.stringify({{
+                            ma_giao_dich_gateway: '{txn}',
+                            otp_code: otp
+                        }})
+                    }});
+                    const data = await resp.json();
+                    if (resp.ok) {{
+                        resEl.className = 'text-center text-xs font-semibold p-3 rounded-lg block bg-emerald-50 text-emerald-800 border border-emerald-200';
+                        resEl.innerText = 'Xác thực OTP thành công! Đơn đặt phòng ' + data.ma_booking + ' đã chuyển sang CONFIRMED.';
+                    }} else {{
+                        resEl.className = 'text-center text-xs font-semibold p-3 rounded-lg block bg-rose-50 text-rose-800 border border-rose-200';
+                        resEl.innerText = 'Lỗi: ' + (data.detail || 'Xác thực OTP thất bại');
+                    }}
+                }} catch (e) {{
+                    resEl.className = 'text-center text-xs font-semibold p-3 rounded-lg block bg-rose-50 text-rose-800';
+                    resEl.innerText = 'Lỗi kết nối: ' + e;
+                }}
+            }}
+
             async function simulate(status) {{
                 const resEl = document.getElementById('result');
                 resEl.className = 'text-center text-xs font-semibold p-3 rounded-lg block bg-blue-50 text-blue-700';

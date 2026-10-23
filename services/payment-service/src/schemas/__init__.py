@@ -4,6 +4,9 @@ from src.schemas.payment_schema import (
     PaymentResponse,
     PaymentPaginatedResponse,
     PaymentStatsResponse,
+    GenerateOtpRequest,
+    VerifyOtpRequest,
+    OtpResponse,
 )
 
 __all__ = [
@@ -12,4 +15,7 @@ __all__ = [
     "PaymentResponse",
     "PaymentPaginatedResponse",
     "PaymentStatsResponse",
+    "GenerateOtpRequest",
+    "VerifyOtpRequest",
+    "OtpResponse",
 ]

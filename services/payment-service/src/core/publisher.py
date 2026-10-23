@@ -60,3 +60,66 @@ def publish_payment_event(queue_name: str, payload: dict):
                     print(f">>> [PAYMENT NOTIFICATION FALLBACK] Gửi email xác nhận thanh toán trực tiếp thành công!")
         except Exception as fallback_err:
             logger.warning(f"Payment notification fallback API failed: {fallback_err}")
+
+def publish_otp_event(queue_name: str, payload: dict):
+    """
+    Bắn sự kiện tạo OTP vào RabbitMQ queue (mặc định notification.otp.generated).
+    Nếu RabbitMQ chưa bật hoặc gặp lỗi, fallback gửi trực tiếp qua REST API Notification Service và ghi log cảnh báo.
+    """
+    published = False
+    try:
+        credentials = pika.PlainCredentials(settings.RABBITMQ_USER, settings.RABBITMQ_PASSWORD)
+        parameters = pika.ConnectionParameters(
+            host=settings.RABBITMQ_HOST,
+            port=settings.RABBITMQ_PORT,
+            credentials=credentials,
+            connection_attempts=1,
+            retry_delay=1,
+            socket_timeout=2,
+        )
+        connection = pika.BlockingConnection(parameters)
+        channel = connection.channel()
+        channel.queue_declare(queue=queue_name, durable=True)
+
+        message_body = json.dumps(payload, ensure_ascii=False)
+        channel.basic_publish(
+            exchange="",
+            routing_key=queue_name,
+            body=message_body.encode("utf-8"),
+            properties=pika.BasicProperties(
+                delivery_mode=2,
+                content_type="application/json",
+            )
+        )
+        connection.close()
+        published = True
+        print(f">>> [PAYMENT RABBITMQ] Da ban su kien OTP vao queue: {queue_name}")
+    except Exception as e:
+        logger.warning(f"RabbitMQ OTP publish skipped/failed ({e}). Triggering Notification API directly...")
+        print(f">>> [PAYMENT RABBITMQ WARNING] Khong the ket noi RabbitMQ ({e}), chuyen sang fallback REST.")
+
+    # Fallback trực tiếp qua REST Notification Service
+    if not published and settings.NOTIFICATION_SERVICE_URL:
+        try:
+            email_dest = payload.get("email")
+            data = json.dumps({
+                "loai_thong_bao": "OTP_VERIFICATION",
+                "nguoi_nhan": email_dest,
+                "kenh_gui": "EMAIL",
+                "ma_booking": payload.get("ma_booking"),
+                "du_lieu": {
+                    "otp_code": payload.get("otp_code"),
+                    "ma_giao_dich_gateway": payload.get("ma_giao_dich_gateway"),
+                    "expires_in_seconds": payload.get("expires_in_seconds", 180),
+                    "message": f"Mã OTP xác thực thanh toán của bạn là: {payload.get('otp_code')} (Hiệu lực trong {payload.get('expires_in_seconds', 180)} giây).",
+                },
+            }, ensure_ascii=False).encode("utf-8")
+
+            url = f"{settings.NOTIFICATION_SERVICE_URL}/notifications/send"
+            req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=3) as res:
+                if res.status in (200, 201):
+                    print(f">>> [PAYMENT NOTIFICATION FALLBACK] Gui ma OTP truc tiep qua REST API thanh cong!")
+        except Exception as fallback_err:
+            logger.warning(f"Payment OTP notification fallback API failed: {fallback_err}")
+

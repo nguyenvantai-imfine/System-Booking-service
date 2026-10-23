@@ -20,6 +20,10 @@ class EmailSender:
             print(f"    Recipient: {to_email}")
             safe_subj = subject.encode("ascii", "replace").decode("ascii")
             print(f"    Subject:   {safe_subj}")
+            if text_content:
+                first_lines = [l.strip() for l in text_content.strip().split("\n") if l.strip()][:3]
+                preview_text = " | ".join(first_lines).encode("ascii", "replace").decode("ascii")
+                print(f"    Preview:   {preview_text}")
             print(f"    Status:    SENT (MOCK/SIMULATION SUCCESS)")
             return True, "Email sent successfully (Simulation/Mock mode)"
 

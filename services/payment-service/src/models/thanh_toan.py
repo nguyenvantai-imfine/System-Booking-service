@@ -45,6 +45,11 @@ class ThanhToanModel(Base):
         back_populates="thanh_toan",
         cascade="all, delete-orphan",
     )
+    giao_dich_otp = relationship(
+        "GiaoDichOtpModel",
+        back_populates="thanh_toan",
+        cascade="all, delete-orphan",
+    )
 
     __table_args__ = (
         Index("idx_thanh_toan_booking", "id_dat_phong", "ma_booking"),

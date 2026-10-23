@@ -1,7 +1,21 @@
 from datetime import datetime
 from typing import List, Optional
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, EmailStr
 from src.models.thanh_toan import PhuongThucThanhToanEnum, TrangThaiThanhToanEnum
+
+class GenerateOtpRequest(BaseModel):
+    ma_giao_dich_gateway: str = Field(..., min_length=5, max_length=100, description="Mã giao dịch gateway")
+    email: EmailStr = Field(..., description="Email nhận mã OTP")
+
+class VerifyOtpRequest(BaseModel):
+    ma_giao_dich_gateway: str = Field(..., min_length=5, max_length=100, description="Mã giao dịch gateway")
+    otp_code: str = Field(..., pattern=r"^\d{6}$", description="Mã OTP đúng 6 ký tự, chỉ gồm chữ số")
+
+class OtpResponse(BaseModel):
+    success: bool = Field(..., description="Trạng thái thao tác OTP")
+    message: str = Field(..., description="Thông điệp thông báo")
+    ma_giao_dich_gateway: str = Field(..., description="Mã giao dịch gateway")
+    expires_in_seconds: Optional[int] = Field(None, description="Thời gian hiệu lực tính bằng giây")
 
 class CreatePaymentRequest(BaseModel):
     id_dat_phong: int = Field(..., ge=1)

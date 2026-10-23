@@ -37,7 +37,7 @@ def get_notification_stats(db: Session = Depends(get_db)):
 @router.get("", response_model=PaginatedNotifications)
 def get_notifications(
     status: Optional[str] = Query(None, description="SENT, FAILED, PENDING, ALL"),
-    notification_type: Optional[str] = Query(None, description="BOOKING_CONFIRMED, PAYMENT_SUCCESS, BOOKING_CANCELLED"),
+    notification_type: Optional[str] = Query(None, description="BOOKING_CONFIRMED, PAYMENT_SUCCESS, BOOKING_CANCELLED, OTP"),
     recipient: Optional[str] = Query(None, description="Tìm theo email người nhận"),
     booking_code: Optional[str] = Query(None, description="Tìm theo mã booking"),
     page: int = Query(1, ge=1),

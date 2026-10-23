@@ -1,23 +1,214 @@
 import math
+import secrets
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional, Tuple
 from fastapi import HTTPException, status
 from sqlalchemy import func, desc
 from sqlalchemy.orm import Session
 from src.core.config import settings
+from src.core.publisher import publish_payment_event, publish_otp_event
 from src.models import (
     ThanhToanModel,
     TrangThaiThanhToanEnum,
     PhuongThucThanhToanEnum,
+    GiaoDichOtpModel,
 )
 from src.schemas import (
     CreatePaymentRequest,
     SimulateIpnRequest,
     PaymentStatsResponse,
+    GenerateOtpRequest,
+    VerifyOtpRequest,
+    OtpResponse,
 )
 
 class PaymentService:
+    @staticmethod
+    async def generate_otp(
+        db: Session, payload: GenerateOtpRequest
+    ) -> OtpResponse:
+        # 1. Kiểm tra giao dịch tồn tại và đang PENDING
+        payment = (
+            db.query(ThanhToanModel)
+            .filter(ThanhToanModel.ma_giao_dich_gateway == payload.ma_giao_dich_gateway)
+            .first()
+        )
+        if not payment:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Không tìm thấy giao dịch: {payload.ma_giao_dich_gateway}",
+            )
+
+        if payment.trang_thai != TrangThaiThanhToanEnum.PENDING.value:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Giao dịch đã ở trạng thái {payment.trang_thai}, không thể tạo OTP.",
+            )
+
+        # 2. Vô hiệu hóa các OTP cũ chưa dùng của giao dịch
+        db.query(GiaoDichOtpModel).filter(
+            GiaoDichOtpModel.ma_giao_dich_gateway == payload.ma_giao_dich_gateway,
+            GiaoDichOtpModel.da_su_dung == False,
+        ).update({"da_su_dung": True}, synchronize_session=False)
+
+        # 3. Sinh mã 6 chữ số bằng module secrets (secrets.randbelow), giữ số 0 đứng đầu bằng zfill(6)
+        otp_code = str(secrets.randbelow(1_000_000)).zfill(6)
+
+        # 4. Hạn dùng 3 phút (now + timedelta(minutes=3)); lưu DB
+        now_utc = datetime.utcnow()
+        expires_at = now_utc + timedelta(minutes=3)
+        expires_in_seconds = 180
+
+        otp_record = GiaoDichOtpModel(
+            ma_giao_dich_gateway=payload.ma_giao_dich_gateway,
+            email=str(payload.email),
+            otp_code=otp_code,
+            thoi_gian_tao=now_utc,
+            thoi_gian_het_han=expires_at,
+            da_su_dung=False,
+            so_lan_thu=0,
+        )
+        db.add(otp_record)
+        db.commit()
+        db.refresh(otp_record)
+
+        # 5. Publish event RabbitMQ notification.otp.generated với payload
+        # Nếu publish lỗi thì fallback gọi REST sang Notification Service (/api/v1/notifications/send) và ghi log cảnh báo
+        try:
+            publish_otp_event("notification.otp.generated", {
+                "email": str(payload.email),
+                "otp_code": otp_code,
+                "ma_giao_dich_gateway": payload.ma_giao_dich_gateway,
+                "ma_booking": payment.ma_booking,
+                "expires_in_seconds": expires_in_seconds,
+            })
+        except Exception as e:
+            print(f">>> [Payment Service] Error publishing OTP event: {e}")
+
+        # 6. Không bao giờ trả otp_code trong response API
+        return OtpResponse(
+            success=True,
+            message=f"Mã OTP đã được gửi đến email {payload.email}.",
+            ma_giao_dich_gateway=payload.ma_giao_dich_gateway,
+            expires_in_seconds=expires_in_seconds,
+        )
+
+    @staticmethod
+    async def verify_otp(
+        db: Session, payload: VerifyOtpRequest
+    ) -> ThanhToanModel:
+        # 1. Mở transaction, khóa dòng giao dịch bằng with_for_update() để chống tranh chấp
+        payment = (
+            db.query(ThanhToanModel)
+            .filter(ThanhToanModel.ma_giao_dich_gateway == payload.ma_giao_dich_gateway)
+            .with_for_update()
+            .first()
+        )
+        if not payment:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Không tìm thấy giao dịch: {payload.ma_giao_dich_gateway}",
+            )
+
+        if payment.trang_thai == TrangThaiThanhToanEnum.SUCCESS.value:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Giao dịch này đã được thanh toán thành công trước đó.",
+            )
+
+        # 2. Lấy OTP mới nhất theo ma_giao_dich_gateway
+        otp_record = (
+            db.query(GiaoDichOtpModel)
+            .filter(GiaoDichOtpModel.ma_giao_dich_gateway == payload.ma_giao_dich_gateway)
+            .order_by(desc(GiaoDichOtpModel.id_otp))
+            .with_for_update()
+            .first()
+        )
+        if not otp_record:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Không tìm thấy mã OTP nào cho giao dịch này. Vui lòng yêu cầu tạo OTP mới.",
+            )
+
+        # Kiểm tra da_su_dung == 0
+        if otp_record.da_su_dung:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Mã OTP này đã được sử dụng. Vui lòng tạo mã OTP mới.",
+            )
+
+        # Kiểm tra so_lan_thu < 3
+        if otp_record.so_lan_thu >= 3:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Mã OTP đã vượt quá 3 lần thử sai. Vui lòng tạo mã OTP mới.",
+            )
+
+        # Kiểm tra now <= thoi_gian_het_han
+        now_utc = datetime.utcnow()
+        if now_utc > otp_record.thoi_gian_het_han:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Mã OTP đã hết thời hạn hiệu lực (3 phút). Vui lòng tạo mã OTP mới.",
+            )
+
+        # So sánh mã bằng secrets.compare_digest
+        if not secrets.compare_digest(otp_record.otp_code, payload.otp_code):
+            otp_record.so_lan_thu += 1
+            db.commit()
+            remaining = 3 - otp_record.so_lan_thu
+            if remaining <= 0:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Mã OTP không chính xác. Bạn đã hết 3 lần thử, vui lòng tạo mã OTP mới.",
+                )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Mã OTP không chính xác. Bạn còn {remaining} lần thử.",
+            )
+
+        # Đúng mã: da_su_dung = 1, cập nhật thanh_toan sang SUCCESS, commit nguyên tử
+        otp_record.da_su_dung = True
+        payment.trang_thai = TrangThaiThanhToanEnum.SUCCESS.value
+        payment.ngay_thanh_toan = datetime.utcnow()
+        payment.ghi_chu = f"Thanh toán xác thực OTP thành công ({otp_record.email})"
+
+        db.commit()
+        db.refresh(payment)
+
+        # Sau commit: gọi đồng bộ PATCH sang Booking Service để chuyển đơn sang CONFIRMED
+        try:
+            import urllib.request
+            import urllib.parse
+            note_encoded = urllib.parse.quote(
+                f"Xác nhận tự động qua cổng {payment.phuong_thuc} OTP ({payment.ma_giao_dich_gateway})"
+            )
+            confirm_url = f"{settings.BOOKING_SERVICE_URL}/bookings/{payment.id_dat_phong}/confirm?note={note_encoded}"
+            req = urllib.request.Request(confirm_url, method="PATCH")
+            with urllib.request.urlopen(req, timeout=10.0) as resp:
+                print(
+                    f">>> [Payment Service] Booking {payment.id_dat_phong} confirmed successfully via OTP (status {resp.status})."
+                )
+        except Exception as e:
+            print(f">>> [Payment Service] Error contacting booking-service: {str(e)}")
+
+        # Publish event notification.payment.success để gửi vé điện tử kèm QR
+        try:
+            publish_payment_event("notification.payment.success", {
+                "ma_booking": payment.ma_booking,
+                "id_dat_phong": payment.id_dat_phong,
+                "id_thanh_toan": payment.id_thanh_toan,
+                "so_tien": float(payment.so_tien),
+                "phuong_thuc": payment.phuong_thuc,
+                "ma_giao_dich_gateway": payment.ma_giao_dich_gateway,
+                "email": otp_record.email,
+            })
+        except Exception as mq_err:
+            print(f">>> [Payment Service] MQ Warning: {mq_err}")
+
+        return payment
+
     @staticmethod
     def create_payment(
         db: Session, payload: CreatePaymentRequest

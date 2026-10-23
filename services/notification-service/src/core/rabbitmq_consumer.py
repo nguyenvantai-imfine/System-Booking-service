@@ -11,6 +11,7 @@ QUEUES = [
     "notification.booking.confirmed",
     "notification.payment.success",
     "notification.booking.cancelled",
+    "notification.otp.generated",
 ]
 
 class RabbitMQConsumer:
