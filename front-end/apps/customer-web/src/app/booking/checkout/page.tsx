@@ -6,6 +6,7 @@ import Link from "next/link";
 import { apiClient } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { formatVND, calculateNights } from "@/lib/utils";
+import { OtpModal } from "@/components/OtpModal";
 import {
   ShieldCheck,
   CreditCard,
@@ -19,6 +20,7 @@ import {
   Landmark,
   ArrowRight,
   ChevronLeft,
+  Clock,
 } from "lucide-react";
 
 function CheckoutContent() {
@@ -52,6 +54,14 @@ function CheckoutContent() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  // OTP Modal states
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [currentTxnCode, setCurrentTxnCode] = useState("");
+  const [currentBookingCode, setCurrentBookingCode] = useState("");
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [isResendingOtp, setIsResendingOtp] = useState(false);
+  const [otpError, setOtpError] = useState("");
 
   useEffect(() => {
     if (user) {
@@ -97,43 +107,84 @@ function CheckoutContent() {
       };
 
       const bookingRes = await apiClient.createBookingOrder(bookingPayload);
-
       const bookingCode = bookingRes.ma_booking;
       const bookingId = bookingRes.id_dat_phong;
 
-      // 2. Tạo giao dịch thanh toán
-      try {
-        const paymentRes = await apiClient.createPayment({
+      // 2. Tạo giao dịch thanh toán kèm Idempotency-Key
+      const idempotencyKey =
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `checkout_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+      const paymentRes = await apiClient.createPayment(
+        {
           id_dat_phong: bookingId,
           ma_booking: bookingCode,
           so_tien: finalTotal,
           phuong_thuc: paymentMethod as any,
           ghi_chu: `Thanh toán cho đơn ${bookingCode}`,
-        });
-
-        // 3. Nếu là thanh toán online (VNPAY / MOMO / ATM), mô phỏng IPN tự động xác nhận đơn
-        if (paymentMethod !== "TIEN_MAT" && paymentRes.ma_giao_dich_gateway) {
-          try {
-            await apiClient.simulateIpn({
-              ma_giao_dich_gateway: paymentRes.ma_giao_dich_gateway,
-              note: `Thanh toán tự động thành công qua cổng ${paymentMethod}`,
-            });
-          } catch (ipnErr) {
-            console.warn("IPN simulation warning:", ipnErr);
-          }
-        }
-      } catch (payErr) {
-        console.warn("Payment service warning, booking was created:", payErr);
-      }
-
-      // 4. Chuyển hướng tới trang thành công kèm mã QR
-      router.push(`/booking/success/${bookingCode}`);
-    } catch (err: any) {
-      console.error("Booking error:", err);
-      setErrorMessage(
-        err.message || "Không thể khởi tạo đơn đặt phòng. Vui lòng kiểm tra lại thông tin."
+        },
+        idempotencyKey
       );
+
+      const txnCode = paymentRes.ma_giao_dich_gateway;
+
+      // 3. Sinh mã OTP và gửi qua RabbitMQ / Notification Service
+      await apiClient.generatePaymentOtp({
+        ma_giao_dich_gateway: txnCode,
+        email: guestEmail.trim(),
+      });
+
+      // 4. Lưu trạng thái và mở Modal OTP
+      setCurrentTxnCode(txnCode);
+      setCurrentBookingCode(bookingCode);
+      setOtpError("");
+      setShowOtpModal(true);
+    } catch (err: any) {
+      console.error("Booking/Payment error:", err);
+      setErrorMessage(
+        err.message || "Không thể khởi tạo đơn đặt phòng hoặc thanh toán. Vui lòng kiểm tra lại thông tin."
+      );
+    } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleVerifyOtp = async (code: string) => {
+    if (!currentTxnCode) return;
+    setIsVerifyingOtp(true);
+    setOtpError("");
+    try {
+      await apiClient.verifyPaymentOtp({
+        ma_giao_dich_gateway: currentTxnCode,
+        otp_code: code,
+      });
+      // Xác thực OTP thành công: chuyển sang trang thành công hiển thị vé & QR
+      setShowOtpModal(false);
+      router.push(`/booking/success/${currentBookingCode}`);
+    } catch (err: any) {
+      console.error("Verify OTP error:", err);
+      setOtpError(err.message || "Mã OTP không chính xác hoặc đã hết hạn. Vui lòng thử lại.");
+    } finally {
+      setIsVerifyingOtp(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (!currentTxnCode || !guestEmail) return;
+    setIsResendingOtp(true);
+    setOtpError("");
+    try {
+      await apiClient.generatePaymentOtp({
+        ma_giao_dich_gateway: currentTxnCode,
+        email: guestEmail.trim(),
+      });
+    } catch (err: any) {
+      console.error("Resend OTP error:", err);
+      setOtpError(err.message || "Không thể gửi lại mã OTP. Vui lòng thử lại sau.");
+      throw err;
+    } finally {
+      setIsResendingOtp(false);
     }
   };
 
@@ -469,6 +520,23 @@ function CheckoutContent() {
               </span>
             </div>
 
+            {/* Pending OTP Re-open Banner if closed */}
+            {currentBookingCode && !showOtpModal && (
+              <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 space-y-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-amber-800">
+                  <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>Đơn {currentBookingCode} đang chờ xác thực OTP</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowOtpModal(true)}
+                  className="w-full py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs transition-colors"
+                >
+                  Mở lại màn hình nhập mã OTP
+                </button>
+              </div>
+            )}
+
             {/* Submit Button */}
             <button
               type="submit"
@@ -478,11 +546,11 @@ function CheckoutContent() {
               {isSubmitting ? (
                 <>
                   <span className="inline-block w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Đang xử lý đặt phòng & gửi vé...</span>
+                  <span>Đang khởi tạo giao dịch & gửi mã OTP...</span>
                 </>
               ) : (
                 <>
-                  <span>Xác nhận & Đặt phòng ngay</span>
+                  <span>Xác nhận và Thanh toán</span>
                   <ArrowRight className="w-5 h-5" />
                 </>
               )}
@@ -495,6 +563,21 @@ function CheckoutContent() {
           </div>
         </div>
       </form>
+
+      {/* OTP Verification Modal */}
+      <OtpModal
+        isOpen={showOtpModal}
+        onClose={() => setShowOtpModal(false)}
+        email={guestEmail.trim()}
+        txnCode={currentTxnCode}
+        bookingCode={currentBookingCode}
+        onVerify={handleVerifyOtp}
+        onResend={handleResendOtp}
+        isVerifying={isVerifyingOtp}
+        isResending={isResendingOtp}
+        errorMessage={otpError}
+        clearError={() => setOtpError("")}
+      />
     </div>
   );
 }

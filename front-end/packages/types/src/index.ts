@@ -553,7 +553,38 @@ export interface GetBookingsParams {
 export type PhuongThucThanhToan = "VNPAY" | "MOMO" | "CREDIT_CARD" | "CASH";
 export type TrangThaiThanhToan = "PENDING" | "SUCCESS" | "FAILED" | "REFUNDED";
 
-export interface ThanhToanItem {
+export interface GenerateOtpRequest {
+  ma_giao_dich_gateway: string;
+  email: string;
+}
+
+export interface VerifyOtpRequest {
+  ma_giao_dich_gateway: string;
+  otp_code: string;
+}
+
+export interface OtpResponse {
+  success: boolean;
+  message: string;
+  ma_giao_dich_gateway: string;
+  expires_in_seconds?: number | null;
+}
+
+export interface CreatePaymentRequest {
+  id_dat_phong: number;
+  ma_booking: string;
+  so_tien: number;
+  phuong_thuc?: PhuongThucThanhToan;
+  ghi_chu?: string;
+}
+
+export interface SimulateIpnRequest {
+  ma_giao_dich_gateway: string;
+  trang_thai?: TrangThaiThanhToan;
+  note?: string;
+}
+
+export interface PaymentResponse {
   id_thanh_toan: number;
   id_dat_phong: number;
   ma_booking: string;
@@ -562,10 +593,13 @@ export interface ThanhToanItem {
   trang_thai: TrangThaiThanhToan;
   ma_giao_dich_gateway: string;
   payment_url?: string | null;
+  idempotency_key?: string | null;
   ngay_tao: string;
   ngay_thanh_toan?: string | null;
   ghi_chu?: string | null;
 }
+
+export type ThanhToanItem = PaymentResponse;
 
 export interface PaginatedPayments {
   items: ThanhToanItem[];

@@ -43,6 +43,12 @@ import type {
   PhuongThucThanhToan,
   TrangThaiThanhToan,
   ThanhToanItem,
+  PaymentResponse,
+  CreatePaymentRequest,
+  GenerateOtpRequest,
+  VerifyOtpRequest,
+  OtpResponse,
+  SimulateIpnRequest,
   PaginatedPayments,
   PaymentStats,
   GetPaymentsParams,
@@ -125,8 +131,28 @@ export class ApiClient {
       } catch {
         errorBody = await response.text();
       }
+
+      let errorMessage = `API request failed with status ${response.status}`;
+      if (typeof errorBody === "object" && errorBody !== null) {
+        const bodyObj = errorBody as Record<string, unknown>;
+        if (typeof bodyObj.detail === "string" && bodyObj.detail.trim()) {
+          errorMessage = bodyObj.detail.trim();
+        } else if (Array.isArray(bodyObj.detail) && bodyObj.detail.length > 0) {
+          const msgs = bodyObj.detail
+            .map((item: any) => item?.msg || item?.message || JSON.stringify(item))
+            .filter(Boolean);
+          if (msgs.length > 0) {
+            errorMessage = msgs.join("; ");
+          }
+        } else if (typeof bodyObj.message === "string" && bodyObj.message.trim()) {
+          errorMessage = bodyObj.message.trim();
+        }
+      } else if (typeof errorBody === "string" && errorBody.trim()) {
+        errorMessage = errorBody.trim();
+      }
+
       throw new ApiError(
-        `API request failed with status ${response.status}`,
+        errorMessage,
         response.status,
         errorBody
       );
@@ -590,26 +616,51 @@ export class ApiClient {
     );
   }
 
-  public async createPayment(data: {
-    id_dat_phong: number;
-    ma_booking: string;
-    so_tien: number;
-    phuong_thuc?: PhuongThucThanhToan;
-    ghi_chu?: string;
-  }): Promise<ThanhToanItem> {
-    return this.request<ThanhToanItem>(
+  public async createPayment(
+    data: CreatePaymentRequest & { idempotency_key?: string; idempotencyKey?: string },
+    idempotencyKey?: string
+  ): Promise<PaymentResponse> {
+    const key = idempotencyKey || data.idempotency_key || data.idempotencyKey;
+    const headers: Record<string, string> = {};
+    if (key && key.trim()) {
+      headers["X-Idempotency-Key"] = key.trim();
+    }
+    const { idempotency_key, idempotencyKey: _ik, ...payload } = data;
+    return this.request<PaymentResponse>(
       "/payments/create-payment",
-      { method: "POST", body: JSON.stringify(data) },
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+        headers,
+      },
       this.paymentServiceUrl
     );
   }
 
-  public async simulateIpn(data: {
-    ma_giao_dich_gateway: string;
-    trang_thai?: TrangThaiThanhToan;
-    note?: string;
-  }): Promise<ThanhToanItem> {
-    return this.request<ThanhToanItem>(
+  public async generatePaymentOtp(data: GenerateOtpRequest): Promise<OtpResponse> {
+    return this.request<OtpResponse>(
+      "/payments/generate-otp",
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
+      this.paymentServiceUrl
+    );
+  }
+
+  public async verifyPaymentOtp(data: VerifyOtpRequest): Promise<PaymentResponse> {
+    return this.request<PaymentResponse>(
+      "/payments/verify-otp",
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
+      this.paymentServiceUrl
+    );
+  }
+
+  public async simulateIpn(data: SimulateIpnRequest): Promise<PaymentResponse> {
+    return this.request<PaymentResponse>(
       "/payments/simulate-ipn",
       { method: "POST", body: JSON.stringify(data) },
       this.paymentServiceUrl
