@@ -5,6 +5,7 @@ from typing import Optional
 import math
 
 from src.core.database import get_db
+from src.core.security import get_current_user_id
 from src.schemas.notification_schema import (
     SendNotificationRequest,
     ThongBaoResponse,
@@ -19,20 +20,19 @@ router = APIRouter(prefix="/notifications", tags=["Notifications"])
 def send_notification(
     req: SendNotificationRequest,
     db: Session = Depends(get_db),
+    user_id: int = Depends(get_current_user_id),
 ):
-    """API gửi thông báo trực tiếp qua Email/SMS và lưu vết vào CSDL"""
-    try:
-        return NotificationService.send_notification(db, req)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Lỗi gửi thông báo: {str(e)}",
-        )
+    """Tạo thông báo cho tài khoản đang đăng nhập."""
+    req = req.model_copy(update={"id_tai_khoan": user_id})
+    return NotificationService.send_notification(db, req)
 
 @router.get("/stats", response_model=NotificationStats)
-def get_notification_stats(db: Session = Depends(get_db)):
+def get_notification_stats(
+    db: Session = Depends(get_db),
+    user_id: int = Depends(get_current_user_id),
+):
     """Lấy thống kê số lượng thông báo theo trạng thái"""
-    return NotificationService.get_stats(db)
+    return NotificationService.get_stats(db, user_id)
 
 @router.get("", response_model=PaginatedNotifications)
 def get_notifications(
@@ -43,10 +43,12 @@ def get_notifications(
     page: int = Query(1, ge=1),
     page_size: int = Query(15, ge=1, le=100),
     db: Session = Depends(get_db),
+    user_id: int = Depends(get_current_user_id),
 ):
     """Lấy danh sách lịch sử thông báo kèm phân trang và bộ lọc"""
     items, total = NotificationService.get_notifications(
         db=db,
+        user_id=user_id,
         status=status,
         notification_type=notification_type,
         recipient=recipient,
@@ -67,9 +69,10 @@ def get_notifications(
 def get_notification_detail(
     id_thong_bao: int,
     db: Session = Depends(get_db),
+    user_id: int = Depends(get_current_user_id),
 ):
     """Lấy chi tiết thông báo theo ID"""
-    item = NotificationService.get_notification_by_id(db, id_thong_bao)
+    item = NotificationService.get_notification_by_id(db, id_thong_bao, user_id)
     if not item:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -81,12 +84,42 @@ def get_notification_detail(
 def preview_email_html(
     id_thong_bao: int,
     db: Session = Depends(get_db),
+    user_id: int = Depends(get_current_user_id),
 ):
     """Xem trực tiếp giao diện HTML của email đã gửi"""
-    item = NotificationService.get_notification_by_id(db, id_thong_bao)
+    item = NotificationService.get_notification_by_id(db, id_thong_bao, user_id)
     if not item or not item.noi_dung:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Không tìm thấy nội dung email.",
         )
     return HTMLResponse(content=item.noi_dung.noi_dung_html)
+
+
+@router.patch("/{id_thong_bao}/read", response_model=ThongBaoResponse)
+def mark_notification_as_read(
+    id_thong_bao: int,
+    db: Session = Depends(get_db),
+    user_id: int = Depends(get_current_user_id),
+):
+    item = NotificationService.mark_as_read(db, id_thong_bao, user_id)
+    if item is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Không tìm thấy thông báo này.",
+        )
+    return item
+
+
+@router.delete("/{id_thong_bao}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_notification(
+    id_thong_bao: int,
+    db: Session = Depends(get_db),
+    user_id: int = Depends(get_current_user_id),
+):
+    deleted = NotificationService.delete_notification(db, id_thong_bao, user_id)
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Không tìm thấy thông báo này.",
+        )

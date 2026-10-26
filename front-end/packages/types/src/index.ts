@@ -632,6 +632,7 @@ export type LoaiThongBao =
   | "BOOKING_CONFIRMED"
   | "PAYMENT_SUCCESS"
   | "BOOKING_CANCELLED"
+  | "OTP"
   | "SYSTEM";
 
 export type TrangThaiThongBao = "SENT" | "FAILED" | "PENDING";
@@ -651,6 +652,7 @@ export interface ThongBaoItem {
   kenh_gui: string;
   nguoi_nhan: string;
   trang_thai: TrangThaiThongBao;
+  is_read: boolean;
   ma_booking?: string | null;
   ngay_tao: string;
   ngay_gui?: string | null;
@@ -672,5 +674,4 @@ export interface NotificationStats {
   failed_count: number;
   pending_count: number;
 }
-
 

@@ -711,6 +711,22 @@ export class ApiClient {
     );
   }
 
+  public async markNotificationAsRead(id: number): Promise<ThongBaoItem> {
+    return this.request<ThongBaoItem>(
+      `/notifications/${id}/read`,
+      { method: "PATCH" },
+      this.notificationServiceUrl
+    );
+  }
+
+  public async deleteNotification(id: number): Promise<void> {
+    return this.request<void>(
+      `/notifications/${id}`,
+      { method: "DELETE" },
+      this.notificationServiceUrl
+    );
+  }
+
   public async sendNotification(data: {
     loai_thong_bao: string;
     nguoi_nhan: string;

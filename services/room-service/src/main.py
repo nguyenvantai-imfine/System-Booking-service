@@ -1,5 +1,6 @@
 import os
 import sys
+import logging
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 SERVICE_DIR = os.path.abspath(os.path.join(CURRENT_DIR, ".."))
@@ -13,25 +14,16 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
 from src.core.config import settings
-from src.core.database import engine, Base, SessionLocal
-from src.services.room_service import RoomService
+from src.core.database import engine, Base
 from src.api.v1.router import api_router
 import src.models  # Nạp toàn bộ models
 
+logger = logging.getLogger(__name__)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Khởi tạo bảng dữ liệu nếu chưa có
-    try:
-        Base.metadata.create_all(bind=engine)
-        print(">>> [Room Service] Database tables verified.")
-        # Khởi tạo dữ liệu mẫu nếu bảng trống
-        db = SessionLocal()
-        try:
-            RoomService.seed_default_data(db)
-        finally:
-            db.close()
-    except Exception as e:
-        print(">>> [Room Service] Startup warning:", str(e))
+    Base.metadata.create_all(bind=engine)
+    logger.info("Room Service database tables verified.")
     yield
 
 app = FastAPI(
@@ -66,20 +58,22 @@ app.middleware("http")(correlation_id_middleware)
 # Exception handlers
 @app.exception_handler(SQLAlchemyError)
 async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):
+    logger.exception("Unhandled SQLAlchemy error while processing %s %s", request.method, request.url.path)
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
-            "detail": f"Lỗi cơ sở dữ liệu: {str(exc)}",
+            "detail": "Đã xảy ra lỗi khi truy cập cơ sở dữ liệu.",
             "type": "DatabaseError",
         },
     )
 
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled application error while processing %s %s", request.method, request.url.path)
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
-            "detail": f"Lỗi hệ thống: {str(exc)}",
+            "detail": "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.",
             "type": "InternalServerError",
         },
     )

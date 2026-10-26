@@ -93,6 +93,6 @@ class RabbitMQConsumer:
             ch.basic_ack(delivery_tag=method.delivery_tag)
         except Exception as e:
             logger.error(f"Error processing message from {queue_name}: {e}")
-            ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+            ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
 
 rabbitmq_consumer = RabbitMQConsumer()

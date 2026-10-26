@@ -37,10 +37,10 @@ foreach ($item in $sqlFiles) {
     Write-Host "[$step/$($sqlFiles.Count)] Dang khoi tao $($item.Name)..." -ForegroundColor Yellow
     
     if ($Username -and $Password) {
-        $cmd = "sqlcmd -S `"$Server`" -U `"$Username`" -P `"$Password`" -i `"$filePath`" -b"
+        $cmd = "sqlcmd -C -S `"$Server`" -U `"$Username`" -P `"$Password`" -i `"$filePath`" -b"
     } else {
         # Windows Authentication (Trusted Connection)
-        $cmd = "sqlcmd -S `"$Server`" -E -i `"$filePath`" -b"
+        $cmd = "sqlcmd -C -S `"$Server`" -E -i `"$filePath`" -b"
     }
 
     Invoke-Expression $cmd

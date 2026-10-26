@@ -21,8 +21,27 @@ def get_current_user_payload(
         )
 
     token = credentials.credentials.strip()
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token xác thực không được để trống.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     try:
         payload = decode_token(token)
+        if payload.get("type") != "access":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token không phải là access token hợp lệ.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        if not payload.get("sub"):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token không chứa thông tin định danh người dùng.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
         return payload
     except jwt.ExpiredSignatureError:
         raise HTTPException(
@@ -30,15 +49,9 @@ def get_current_user_payload(
             detail="Token đã hết hạn. Vui lòng đăng nhập lại.",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    except HTTPException:
+        raise
     except jwt.PyJWTError:
-        # Fallback chế độ demo nếu token là số ID người dùng
-        try:
-            demo_id = int(token)
-            if demo_id > 0:
-                return {"sub": str(demo_id), "role": "ADMIN", "email": "admin@hotel.com"}
-        except (ValueError, TypeError):
-            pass
-
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token không hợp lệ hoặc đã hết hạn.",
@@ -49,7 +62,7 @@ def require_partner_or_admin(
     payload: dict = Depends(get_current_user_payload),
 ) -> dict:
     role = str(payload.get("role", "")).upper()
-    if role not in ["PARTNER", "ADMIN"]:
+    if role not in {"PARTNER", "ADMIN"}:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Chỉ tài khoản Chủ khách sạn (Partner) hoặc Quản trị viên (Admin) mới có quyền thao tác.",

@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     APP_NAME: str = "Notification Service"
     PORT: int = 8005
     API_V1_STR: str = "/api/v1"
+    JWT_SECRET_KEY: str = "booking_super_secret_jwt_key_2026_xyz!@#"
+    JWT_ALGORITHM: str = "HS256"
 
     # Database
     DB_SERVER: str = "localhost\\SQLEXPRESS"

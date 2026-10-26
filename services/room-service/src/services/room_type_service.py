@@ -3,14 +3,17 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session, selectinload
 from src.models import (
     LoaiPhongModel,
+    PhongModel,
     TienIchPhongModel,
     QuyTacPhongModel,
     KhuyenMaiPhongModel,
 )
 from src.schemas import LoaiPhongCreate, LoaiPhongUpdate
+from src.services.database_errors import handle_database_errors
 
 class RoomTypeService:
     @staticmethod
+    @handle_database_errors("Không thể tạo loại phòng")
     def create_room_type(
         db: Session, hotel_id: int, payload: LoaiPhongCreate
     ) -> LoaiPhongModel:
@@ -59,6 +62,7 @@ class RoomTypeService:
         return db_type
 
     @staticmethod
+    @handle_database_errors("Không thể tải danh sách loại phòng")
     def get_room_types_by_hotel(db: Session, hotel_id: int) -> List[LoaiPhongModel]:
         return (
             db.query(LoaiPhongModel)
@@ -73,6 +77,7 @@ class RoomTypeService:
         )
 
     @staticmethod
+    @handle_database_errors("Không thể tải thông tin loại phòng")
     def get_room_type_by_id(db: Session, id_loai_phong: int) -> LoaiPhongModel:
         db_type = (
             db.query(LoaiPhongModel)
@@ -92,6 +97,7 @@ class RoomTypeService:
         return db_type
 
     @staticmethod
+    @handle_database_errors("Không thể cập nhật loại phòng")
     def update_room_type(
         db: Session, id_loai_phong: int, payload: LoaiPhongUpdate
     ) -> LoaiPhongModel:
@@ -106,7 +112,21 @@ class RoomTypeService:
         return db_type
 
     @staticmethod
+    @handle_database_errors("Không thể xóa loại phòng")
     def delete_room_type(db: Session, id_loai_phong: int) -> None:
         db_type = RoomTypeService.get_room_type_by_id(db, id_loai_phong)
+        has_physical_rooms = (
+            db.query(PhongModel.id_phong)
+            .filter(PhongModel.id_loai_phong == id_loai_phong)
+            .first()
+        )
+        if has_physical_rooms:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    "Không thể xóa loại phòng đang có phòng vật lý liên kết. "
+                    "Hãy ngừng khai thác các phòng và giữ lại loại phòng để bảo toàn dữ liệu."
+                ),
+            )
         db.delete(db_type)
         db.commit()

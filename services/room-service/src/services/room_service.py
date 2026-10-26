@@ -8,17 +8,64 @@ from src.models import (
     PhongModel,
     LoaiPhongModel,
     TrangThaiPhongEnum,
-    TienIchPhongModel,
-    QuyTacPhongModel,
 )
 from src.schemas import (
     PhongCreate,
     BatchCreateRoomsRequest,
     PhongStatusUpdate,
 )
+from src.services.database_errors import handle_database_errors
+
+ALLOWED_STATUS_TRANSITIONS = {
+    TrangThaiPhongEnum.AVAILABLE: {
+        TrangThaiPhongEnum.OCCUPIED,
+        TrangThaiPhongEnum.MAINTENANCE,
+        TrangThaiPhongEnum.INACTIVE,
+    },
+    TrangThaiPhongEnum.OCCUPIED: {
+        TrangThaiPhongEnum.AVAILABLE,
+    },
+    TrangThaiPhongEnum.MAINTENANCE: {
+        TrangThaiPhongEnum.AVAILABLE,
+        TrangThaiPhongEnum.INACTIVE,
+    },
+    TrangThaiPhongEnum.INACTIVE: {
+        TrangThaiPhongEnum.AVAILABLE,
+    },
+}
+
+
+def _validate_status_transition(
+    current_status: str, next_status: TrangThaiPhongEnum
+) -> None:
+    try:
+        current = TrangThaiPhongEnum(current_status)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Trạng thái hiện tại của phòng không hợp lệ; cần kiểm tra dữ liệu phòng.",
+        ) from exc
+
+    if current == next_status:
+        return
+
+    allowed = ALLOWED_STATUS_TRANSITIONS[current]
+    if next_status not in allowed:
+        if next_status == TrangThaiPhongEnum.MAINTENANCE:
+            detail = "Chỉ phòng đang ở trạng thái AVAILABLE mới được chuyển sang MAINTENANCE."
+        else:
+            detail = (
+                f"Không thể chuyển trạng thái phòng từ {current.value} "
+                f"sang {next_status.value}."
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=detail,
+        )
 
 class RoomService:
     @staticmethod
+    @handle_database_errors("Không thể tạo phòng")
     def create_room(
         db: Session, type_id: int, payload: PhongCreate
     ) -> PhongModel:
@@ -44,7 +91,7 @@ class RoomService:
         )
         if existing:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=status.HTTP_409_CONFLICT,
                 detail=f"Số phòng {payload.so_phong} đã tồn tại trong khách sạn này.",
             )
 
@@ -66,6 +113,7 @@ class RoomService:
         return db_room
 
     @staticmethod
+    @handle_database_errors("Không thể tạo hàng loạt phòng")
     def batch_create_rooms(
         db: Session, type_id: int, payload: BatchCreateRoomsRequest
     ) -> List[PhongModel]:
@@ -89,7 +137,7 @@ class RoomService:
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="from_number không được lớn hơn to_number.",
                 )
-            if (payload.to_number - payload.from_number) > 100:
+            if (payload.to_number - payload.from_number + 1) > 100:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Số lượng tạo hàng loạt tối đa là 100 phòng một lần.",
@@ -104,31 +152,44 @@ class RoomService:
                 detail="Cần cung cấp (from_number, to_number) hoặc mảng room_numbers.",
             )
 
+        if len(set(numbers_to_create)) != len(numbers_to_create):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Danh sách tạo phòng chứa số phòng bị trùng; không có phòng nào được tạo.",
+            )
+
         # Lấy danh sách số phòng đã tồn tại của khách sạn
-        existing_rooms = set(
-            db.query(PhongModel.so_phong)
+        existing_rooms = {
+            room_number
+            for (room_number,) in db.query(PhongModel.so_phong)
             .filter(
                 PhongModel.id_khach_san == room_type.id_khach_san,
                 PhongModel.so_phong.in_(numbers_to_create),
             )
             .all()
-        )
-        existing_set = {r[0] for r in existing_rooms}
+        }
+        duplicate_rooms = sorted(set(numbers_to_create).intersection(existing_rooms))
+        if duplicate_rooms:
+            duplicate_list = ", ".join(duplicate_rooms)
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    f"Số phòng đã tồn tại trong khách sạn này: {duplicate_list}. "
+                    "Không có phòng nào được tạo."
+                ),
+            )
 
-        created_rooms: List[PhongModel] = []
-        for num in numbers_to_create:
-            if num in existing_set:
-                continue  # Bỏ qua nếu đã tồn tại
-
-            new_room = PhongModel(
+        created_rooms = [
+            PhongModel(
                 id_loai_phong=type_id,
                 id_khach_san=room_type.id_khach_san,
                 so_phong=num,
-                tang=payload.tang or 1,
+                tang=payload.tang if payload.tang is not None else 1,
                 trang_thai=TrangThaiPhongEnum.AVAILABLE.value,
             )
-            db.add(new_room)
-            created_rooms.append(new_room)
+            for num in numbers_to_create
+        ]
+        db.add_all(created_rooms)
 
         # Cập nhật tổng số lượng phòng
         db.flush()
@@ -145,6 +206,7 @@ class RoomService:
         return created_rooms
 
     @staticmethod
+    @handle_database_errors("Không thể tải danh sách phòng")
     def get_all_rooms(
         db: Session,
         hotel_id: Optional[int] = None,
@@ -189,6 +251,7 @@ class RoomService:
         return items, total, total_pages
 
     @staticmethod
+    @handle_database_errors("Không thể tải thông tin phòng")
     def get_room_by_id(db: Session, room_id: int) -> PhongModel:
         room = (
             db.query(PhongModel)
@@ -204,10 +267,12 @@ class RoomService:
         return room
 
     @staticmethod
+    @handle_database_errors("Không thể cập nhật trạng thái phòng")
     def update_room_status(
         db: Session, room_id: int, payload: PhongStatusUpdate
     ) -> PhongModel:
         room = RoomService.get_room_by_id(db, room_id)
+        _validate_status_transition(room.trang_thai, payload.trang_thai)
         room.trang_thai = payload.trang_thai.value
         if payload.ghi_chu is not None:
             room.ghi_chu = payload.ghi_chu
@@ -217,29 +282,17 @@ class RoomService:
         return room
 
     @staticmethod
+    @handle_database_errors("Không thể ngừng khai thác phòng")
     def delete_room(db: Session, room_id: int) -> None:
         room = RoomService.get_room_by_id(db, room_id)
-        type_id = room.id_loai_phong
-        db.delete(room)
-        db.flush()
-
-        # Cập nhật số lượng phòng của loại phòng
-        room_type = (
-            db.query(LoaiPhongModel)
-            .filter(LoaiPhongModel.id_loai_phong == type_id)
-            .first()
+        _validate_status_transition(
+            room.trang_thai, TrangThaiPhongEnum.INACTIVE
         )
-        if room_type:
-            total_count = (
-                db.query(func.count(PhongModel.id_phong))
-                .filter(PhongModel.id_loai_phong == type_id)
-                .scalar()
-            )
-            room_type.so_luong_phong = total_count or 0
-
+        room.trang_thai = TrangThaiPhongEnum.INACTIVE.value
         db.commit()
 
     @staticmethod
+    @handle_database_errors("Không thể tra cứu phòng khả dụng")
     def get_available_rooms(
         db: Session,
         hotel_id: int,
@@ -269,89 +322,3 @@ class RoomService:
             .order_by(PhongModel.so_phong.asc())
         )
         return query.all()
-
-    @staticmethod
-    def seed_default_data(db: Session) -> None:
-        """Khởi tạo loại phòng mẫu và 10 phòng vật lý nếu CSDL còn trống."""
-        try:
-            count = db.query(LoaiPhongModel).count()
-            if count == 0:
-                print(">>> [Room Service] Seeding default room types and rooms...")
-                # Hotel 1 (Khách sạn Mường Thanh hoặc Grand Hotel)
-                hotel_id = 1
-
-                # Loại 1: Deluxe Ocean View
-                deluxe = LoaiPhongModel(
-                    id_khach_san=hotel_id,
-                    ten_loai_phong="Deluxe Ocean View",
-                    mo_ta="Phòng Deluxe hướng biển cao cấp, đón bình minh tuyệt đẹp, ban công rộng.",
-                    suc_chua_nguoi_lon=2,
-                    suc_chua_tre_em=1,
-                    gia_co_ban_mot_dem=1250000,
-                    dien_tich_m2=35.5,
-                    so_luong_phong=5,
-                )
-                deluxe.tien_ich.append(TienIchPhongModel(ten_tien_ich="Điều hòa 2 chiều", bieu_tuong="wind"))
-                deluxe.tien_ich.append(TienIchPhongModel(ten_tien_ich="Ban công hướng biển", bieu_tuong="sun"))
-                deluxe.tien_ich.append(TienIchPhongModel(ten_tien_ich="Bồn tắm nằm", bieu_tuong="bath"))
-                deluxe.tien_ich.append(TienIchPhongModel(ten_tien_ich="Wifi tốc độ cao", bieu_tuong="wifi"))
-
-                deluxe.quy_tac.append(QuyTacPhongModel(tieu_de="Không hút thuốc trong phòng", cho_phep=False))
-                deluxe.quy_tac.append(QuyTacPhongModel(tieu_de="Không mang thú cưng", cho_phep=False))
-                deluxe.quy_tac.append(QuyTacPhongModel(tieu_de="Giờ yên lặng từ 22:00", cho_phep=True))
-
-                db.add(deluxe)
-                db.flush()
-
-                # Sinh 5 phòng Deluxe
-                for i in range(101, 106):
-                    db.add(
-                        PhongModel(
-                            id_loai_phong=deluxe.id_loai_phong,
-                            id_khach_san=hotel_id,
-                            so_phong=f"P.{i}",
-                            tang=1,
-                            trang_thai=TrangThaiPhongEnum.AVAILABLE.value,
-                            ghi_chu="Phòng mới nâng cấp",
-                        )
-                    )
-
-                # Loại 2: Executive Suite
-                suite = LoaiPhongModel(
-                    id_khach_san=hotel_id,
-                    ten_loai_phong="Executive Suite",
-                    mo_ta="Phòng Suite sang trọng đẳng cấp với phòng khách riêng biệt và minibar cao cấp.",
-                    suc_chua_nguoi_lon=4,
-                    suc_chua_tre_em=2,
-                    gia_co_ban_mot_dem=2500000,
-                    dien_tich_m2=65.0,
-                    so_luong_phong=5,
-                )
-                suite.tien_ich.append(TienIchPhongModel(ten_tien_ich="Phòng khách riêng", bieu_tuong="home"))
-                suite.tien_ich.append(TienIchPhongModel(ten_tien_ich="Smart TV 65 inch", bieu_tuong="tv"))
-                suite.tien_ich.append(TienIchPhongModel(ten_tien_ich="Minibar miễn phí", bieu_tuong="coffee"))
-                suite.tien_ich.append(TienIchPhongModel(ten_tien_ich="Bồn tắm sục Jacuzzi", bieu_tuong="bath"))
-
-                suite.quy_tac.append(QuyTacPhongModel(tieu_de="Không hút thuốc", cho_phep=False))
-
-                db.add(suite)
-                db.flush()
-
-                # Sinh 5 phòng Suite
-                for i in range(201, 206):
-                    db.add(
-                        PhongModel(
-                            id_loai_phong=suite.id_loai_phong,
-                            id_khach_san=hotel_id,
-                            so_phong=f"P.{i}",
-                            tang=2,
-                            trang_thai=TrangThaiPhongEnum.AVAILABLE.value,
-                            ghi_chu="VIP Suite",
-                        )
-                    )
-
-                db.commit()
-                print(">>> [Room Service] Seeded 2 room types and 10 rooms successfully.")
-        except Exception as e:
-            db.rollback()
-            print(">>> [Room Service] Seed warning:", str(e))

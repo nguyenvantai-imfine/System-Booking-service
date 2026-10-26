@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, func
+from fastapi import HTTPException, status
 
 from src.models.thong_bao import ThongBaoModel
 from src.models.noi_dung_thong_bao import NoiDungThongBaoModel
@@ -15,15 +16,23 @@ from src.core.templates import (
 )
 from src.core.email_sender import email_sender
 from src.core.database import SessionLocal
+from src.services.database_errors import handle_database_errors
 
 logger = logging.getLogger(__name__)
 
 class NotificationService:
     @staticmethod
+    @handle_database_errors("Không thể tạo thông báo")
     def send_notification(db: Session, req: SendNotificationRequest) -> ThongBaoModel:
-        """Tạo và gửi thông báo (qua Email hoặc kênh khác)"""
+        """Tạo thông báo trong ứng dụng và gửi Email khi được yêu cầu."""
         loai = req.loai_thong_bao.upper()
         du_lieu = req.du_lieu or {}
+        kenh_gui = req.kenh_gui.upper()
+        if kenh_gui not in {"EMAIL", "IN_APP"}:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Kênh thông báo chỉ hỗ trợ EMAIL hoặc IN_APP.",
+            )
         if req.ma_booking and "ma_booking" not in du_lieu:
             du_lieu["ma_booking"] = req.ma_booking
 
@@ -44,7 +53,7 @@ class NotificationService:
         thong_bao = ThongBaoModel(
             id_tai_khoan=req.id_tai_khoan,
             loai_thong_bao=loai,
-            kenh_gui=req.kenh_gui,
+            kenh_gui=kenh_gui,
             nguoi_nhan=req.nguoi_nhan,
             trang_thai="PENDING",
             ma_booking=req.ma_booking or du_lieu.get("ma_booking"),
@@ -77,7 +86,7 @@ class NotificationService:
         db.add(noi_dung)
 
         # 4. Gửi email
-        if req.kenh_gui.upper() == "EMAIL":
+        if kenh_gui == "EMAIL":
             success, msg = email_sender.send_email(
                 to_email=req.nguoi_nhan,
                 subject=subject,
@@ -101,10 +110,12 @@ class NotificationService:
     @classmethod
     def send_otp_notification(cls, db: Session, payload: Dict[str, Any]) -> ThongBaoModel:
         """Hàm chuyên biệt xử lý sự kiện gửi email OTP"""
-        email = payload.get("email") or payload.get("nguoi_nhan") or "customer@hotel.com"
+        email = payload.get("email") or payload.get("nguoi_nhan")
+        if not isinstance(email, str) or not email.strip():
+            raise ValueError("Sự kiện OTP thiếu email người nhận.")
         req = SendNotificationRequest(
             loai_thong_bao="OTP",
-            nguoi_nhan=email,
+            nguoi_nhan=email.strip(),
             kenh_gui="EMAIL",
             id_tai_khoan=payload.get("id_tai_khoan"),
             ma_booking=payload.get("ma_booking"),
@@ -131,12 +142,14 @@ class NotificationService:
                 if isinstance(khach_o, dict):
                     email = khach_o.get("email")
 
-            if not email:
-                email = "customer@hotel.com" # Fallback email mặc định
+            if not isinstance(email, str) or not email.strip():
+                raise ValueError(
+                    f"Sự kiện {queue_name} thiếu email hoặc nguoi_nhan hợp lệ."
+                )
 
             req = SendNotificationRequest(
                 loai_thong_bao=loai_thong_bao,
-                nguoi_nhan=email,
+                nguoi_nhan=email.strip(),
                 kenh_gui="EMAIL",
                 id_tai_khoan=payload.get("id_tai_khoan"),
                 ma_booking=payload.get("ma_booking"),
@@ -144,16 +157,19 @@ class NotificationService:
             )
             cls.send_notification(db, req)
             cid = payload.get("correlation_id") or "UNKNOWN"
-            print(f"[CORRELATION_ID: {cid}] >>> [NOTIFICATION SERVICE] Notification processed and sent to {email}!")
+            print(f"[CORRELATION_ID: {cid}] >>> [NOTIFICATION SERVICE] Notification processed for {email}!")
         except Exception as e:
             logger.error(f"Error handling MQ event {queue_name}: {e}")
-            print(f">>> [NOTIFICATION SERVICE ERROR]: {e}")
+            db.rollback()
+            raise
         finally:
             db.close()
 
     @staticmethod
+    @handle_database_errors("Không thể truy vấn thông báo")
     def get_notifications(
         db: Session,
+        user_id: int,
         status: Optional[str] = None,
         notification_type: Optional[str] = None,
         recipient: Optional[str] = None,
@@ -161,7 +177,9 @@ class NotificationService:
         page: int = 1,
         page_size: int = 15,
     ) -> tuple[list[ThongBaoModel], int]:
-        query = db.query(ThongBaoModel)
+        query = db.query(ThongBaoModel).filter(
+            ThongBaoModel.id_tai_khoan == user_id
+        )
         if status and status.upper() != "ALL":
             query = query.filter(ThongBaoModel.trang_thai == status.upper())
         if notification_type and notification_type.upper() != "ALL":
@@ -181,18 +199,67 @@ class NotificationService:
         return items, total
 
     @staticmethod
-    def get_notification_by_id(db: Session, id_thong_bao: int) -> Optional[ThongBaoModel]:
-        return db.query(ThongBaoModel).filter(ThongBaoModel.id_thong_bao == id_thong_bao).first()
+    @handle_database_errors("Không thể truy vấn thông báo")
+    def get_notification_by_id(
+        db: Session, id_thong_bao: int, user_id: int
+    ) -> Optional[ThongBaoModel]:
+        return (
+            db.query(ThongBaoModel)
+            .filter(
+                ThongBaoModel.id_thong_bao == id_thong_bao,
+                ThongBaoModel.id_tai_khoan == user_id,
+            )
+            .first()
+        )
 
     @staticmethod
-    def get_stats(db: Session) -> Dict[str, int]:
-        total = db.query(func.count(ThongBaoModel.id_thong_bao)).scalar() or 0
-        sent = db.query(func.count(ThongBaoModel.id_thong_bao)).filter(ThongBaoModel.trang_thai == "SENT").scalar() or 0
-        failed = db.query(func.count(ThongBaoModel.id_thong_bao)).filter(ThongBaoModel.trang_thai == "FAILED").scalar() or 0
-        pending = db.query(func.count(ThongBaoModel.id_thong_bao)).filter(ThongBaoModel.trang_thai == "PENDING").scalar() or 0
+    @handle_database_errors("Không thể truy vấn thống kê thông báo")
+    def get_stats(db: Session, user_id: int) -> Dict[str, int]:
+        user_filter = ThongBaoModel.id_tai_khoan == user_id
+        total = db.query(func.count(ThongBaoModel.id_thong_bao)).filter(user_filter).scalar() or 0
+        sent = db.query(func.count(ThongBaoModel.id_thong_bao)).filter(user_filter, ThongBaoModel.trang_thai == "SENT").scalar() or 0
+        failed = db.query(func.count(ThongBaoModel.id_thong_bao)).filter(user_filter, ThongBaoModel.trang_thai == "FAILED").scalar() or 0
+        pending = db.query(func.count(ThongBaoModel.id_thong_bao)).filter(user_filter, ThongBaoModel.trang_thai == "PENDING").scalar() or 0
         return {
             "total_notifications": total,
             "sent_count": sent,
             "failed_count": failed,
             "pending_count": pending,
         }
+
+    @staticmethod
+    @handle_database_errors("Không thể cập nhật thông báo")
+    def mark_as_read(
+        db: Session, id_thong_bao: int, user_id: int
+    ) -> Optional[ThongBaoModel]:
+        notification = (
+            db.query(ThongBaoModel)
+            .filter(
+                ThongBaoModel.id_thong_bao == id_thong_bao,
+                ThongBaoModel.id_tai_khoan == user_id,
+            )
+            .first()
+        )
+        if notification is None:
+            return None
+        notification.is_read = True
+        db.commit()
+        db.refresh(notification)
+        return notification
+
+    @staticmethod
+    @handle_database_errors("Không thể xóa thông báo")
+    def delete_notification(db: Session, id_thong_bao: int, user_id: int) -> bool:
+        notification = (
+            db.query(ThongBaoModel)
+            .filter(
+                ThongBaoModel.id_thong_bao == id_thong_bao,
+                ThongBaoModel.id_tai_khoan == user_id,
+            )
+            .first()
+        )
+        if notification is None:
+            return False
+        db.delete(notification)
+        db.commit()
+        return True
