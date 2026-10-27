@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = "booking_super_secret_jwt_key_2026_xyz!@#"
     JWT_ALGORITHM: str = "HS256"
 
+    # Booking Service is optional for availability checks; failures degrade to AVAILABLE rooms.
+    BOOKING_SERVICE_URL: str = "http://localhost:8003/api/v1"
+    BOOKING_SERVICE_TIMEOUT: float = 2.0
+
     @property
     def DATABASE_URL(self) -> str:
         server_str = self.DB_SERVER

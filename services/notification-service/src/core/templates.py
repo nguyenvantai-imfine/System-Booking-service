@@ -1,5 +1,12 @@
 import json
 from typing import Dict, Any
+from jinja2 import Environment
+
+_HTML_ESCAPE_TEMPLATE = Environment(autoescape=True).from_string("{{ value }}")
+
+
+def escape_html(value: Any) -> str:
+    return _HTML_ESCAPE_TEMPLATE.render(value=value)
 
 def render_booking_confirmed_email(data: Dict[str, Any]) -> tuple[str, str, str]:
     """
@@ -23,8 +30,8 @@ def render_booking_confirmed_email(data: Dict[str, Any]) -> tuple[str, str, str]
 
     phong_rows_html = ""
     for p in phong_list:
-        so_phong = p.get("so_phong", "Phòng tiêu chuẩn")
-        ten_loai = p.get("ten_loai_phong", "Hạng phòng Deluxe")
+        so_phong = escape_html(p.get("so_phong", "Phòng tiêu chuẩn"))
+        ten_loai = escape_html(p.get("ten_loai_phong", "Hạng phòng Deluxe"))
         gia = f"{int(p.get('gia_tai_thoi_diem_dat', 0)):,} đ".replace(",", ".")
         phong_rows_html += f"""
         <tr>
@@ -37,7 +44,7 @@ def render_booking_confirmed_email(data: Dict[str, Any]) -> tuple[str, str, str]
     if not phong_rows_html:
         phong_rows_html = f"""
         <tr>
-            <td colspan="3" style="padding: 12px; text-align: center; color: #718096;">Thông tin phòng theo mã đặt chỗ #{ma_booking}</td>
+            <td colspan="3" style="padding: 12px; text-align: center; color: #718096;">Thông tin phòng theo mã đặt chỗ #{escape_html(ma_booking)}</td>
         </tr>
         """
 
@@ -51,7 +58,7 @@ def render_booking_confirmed_email(data: Dict[str, Any]) -> tuple[str, str, str]
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{subject}</title>
+    <title>{escape_html(subject)}</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #f7fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #2d3748;">
     <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f7fafc; padding: 30px 15px;">
@@ -70,14 +77,14 @@ def render_booking_confirmed_email(data: Dict[str, Any]) -> tuple[str, str, str]
                     <tr>
                         <td style="padding: 30px;">
                             <div style="font-size: 16px; color: #2d3748; margin-bottom: 20px;">
-                                Xin chào <strong>{ten_khach}</strong>,<br>
+                                Xin chào <strong>{escape_html(ten_khach)}</strong>,<br>
                                 Cảm ơn bạn đã lựa chọn dịch vụ của chúng tôi! Đơn đặt phòng của bạn đã được xác nhận thành công.
                             </div>
 
                             <!-- BANNER MÃ BOOKING -->
                             <div style="background-color: #eff6ff; border: 1.5px dashed #3b82f6; border-radius: 12px; padding: 18px; text-align: center; margin-bottom: 25px;">
                                 <div style="font-size: 12px; font-weight: 700; color: #1d4ed8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">MÃ ĐẶT PHÒNG (BOOKING CODE)</div>
-                                <div style="font-size: 28px; font-weight: 800; color: #1e40af; font-family: 'Courier New', Courier, monospace;">{ma_booking}</div>
+                                <div style="font-size: 28px; font-weight: 800; color: #1e40af; font-family: 'Courier New', Courier, monospace;">{escape_html(ma_booking)}</div>
                                 <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Trình mã này hoặc quét mã QR dưới đây khi làm thủ tục nhận phòng</div>
                             </div>
 
@@ -87,19 +94,19 @@ def render_booking_confirmed_email(data: Dict[str, Any]) -> tuple[str, str, str]
                                 <table width="100%" border="0" cellspacing="0" cellpadding="6" style="font-size: 14px;">
                                     <tr>
                                         <td width="35%" style="color: #64748b; font-weight: 500;">Khách sạn:</td>
-                                        <td style="color: #0f172a; font-weight: 700;">{ten_khach_san}</td>
+                                        <td style="color: #0f172a; font-weight: 700;">{escape_html(ten_khach_san)}</td>
                                     </tr>
                                     <tr>
                                         <td style="color: #64748b; font-weight: 500;">Địa chỉ:</td>
-                                        <td style="color: #334155;">{dia_chi}</td>
+                                        <td style="color: #334155;">{escape_html(dia_chi)}</td>
                                     </tr>
                                     <tr>
                                         <td style="color: #64748b; font-weight: 500;">Ngày nhận phòng:</td>
-                                        <td style="color: #047857; font-weight: 700;">{ngay_nhan} (Sau 14:00)</td>
+                                        <td style="color: #047857; font-weight: 700;">{escape_html(ngay_nhan)} (Sau 14:00)</td>
                                     </tr>
                                     <tr>
                                         <td style="color: #64748b; font-weight: 500;">Ngày trả phòng:</td>
-                                        <td style="color: #b91c1c; font-weight: 700;">{ngay_tra} (Trước 12:00)</td>
+                                        <td style="color: #b91c1c; font-weight: 700;">{escape_html(ngay_tra)} (Trước 12:00)</td>
                                     </tr>
                                 </table>
                             </div>
@@ -130,7 +137,7 @@ def render_booking_confirmed_email(data: Dict[str, Any]) -> tuple[str, str, str]
                                         <div style="font-size: 11px; color: #10b981; font-weight: 600; margin-top: 2px;">✔ Đã xác nhận thanh toán an toàn</div>
                                     </td>
                                     <td width="40%" align="center" valign="middle">
-                                        <img src="{qr_url}" alt="Mã QR Check-in" width="110" height="110" style="display: block; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; padding: 4px;" />
+                                        <img src="{escape_html(qr_url)}" alt="Mã QR Check-in" width="110" height="110" style="display: block; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; padding: 4px;" />
                                         <div style="font-size: 10px; color: #64748b; margin-top: 4px; font-weight: 600;">QUÉT MÃ CHECK-IN</div>
                                     </td>
                                 </tr>
@@ -186,7 +193,7 @@ def render_booking_cancelled_email(data: Dict[str, Any]) -> tuple[str, str, str]
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>{subject}</title>
+    <title>{escape_html(subject)}</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #f7fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #2d3748;">
     <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f7fafc; padding: 30px 15px;">
@@ -196,15 +203,15 @@ def render_booking_cancelled_email(data: Dict[str, Any]) -> tuple[str, str, str]
                     <tr>
                         <td style="background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%); padding: 30px; text-align: center; color: #ffffff;">
                             <div style="font-size: 24px; font-weight: 800;">ĐƠN ĐẶT PHÒNG ĐÃ BỊ HỦY</div>
-                            <div style="font-size: 14px; opacity: 0.9; margin-top: 4px;">Mã đặt phòng: {ma_booking}</div>
+                            <div style="font-size: 14px; opacity: 0.9; margin-top: 4px;">Mã đặt phòng: {escape_html(ma_booking)}</div>
                         </td>
                     </tr>
                     <tr>
                         <td style="padding: 30px; font-size: 14px; line-height: 1.6;">
-                            Xin chào <strong>{ten_khach}</strong>,<br><br>
-                            Chúng tôi xin thông báo đơn đặt phòng <strong>#{ma_booking}</strong> tại <strong>{ten_khach_san}</strong> đã được hủy và phòng đã được mở lại cho các khách hàng khác.<br><br>
+                            Xin chào <strong>{escape_html(ten_khach)}</strong>,<br><br>
+                            Chúng tôi xin thông báo đơn đặt phòng <strong>#{escape_html(ma_booking)}</strong> tại <strong>{escape_html(ten_khach_san)}</strong> đã được hủy và phòng đã được mở lại cho các khách hàng khác.<br><br>
                             <div style="background-color: #fef2f2; border: 1px solid #fee2e2; border-radius: 8px; padding: 12px; color: #991b1b;">
-                                <strong>Lý do hủy:</strong> {ly_do}
+                                <strong>Lý do hủy:</strong> {escape_html(ly_do)}
                             </div>
                             <br>
                             Nếu bạn có thắc mắc hoặc cần hỗ trợ thêm, vui lòng liên hệ tổng đài <strong>1900 8888</strong> để được trợ giúp.
@@ -251,7 +258,7 @@ def render_otp_email(data: Dict[str, Any]) -> tuple[str, str, str]:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{subject}</title>
+    <title>{escape_html(subject)}</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;">
     <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; padding: 35px 15px;">
@@ -270,7 +277,7 @@ def render_otp_email(data: Dict[str, Any]) -> tuple[str, str, str]:
                     <tr>
                         <td style="padding: 35px 30px;">
                             <div style="font-size: 16px; font-weight: 600; color: #0f172a; margin-bottom: 12px;">
-                                Xin chào {ten_khach},
+                                Xin chào {escape_html(ten_khach)},
                             </div>
                             <div style="font-size: 14px; line-height: 1.6; color: #475569; margin-bottom: 24px;">
                                 Bạn vừa yêu cầu mã xác thực bảo mật 2 lớp (OTP) để hoàn tất thanh toán đơn đặt phòng trực tuyến. Vui lòng sử dụng mã xác thực dưới đây để tiếp tục:
@@ -282,18 +289,18 @@ def render_otp_email(data: Dict[str, Any]) -> tuple[str, str, str]:
                                     Mã xác thực một lần (OTP)
                                 </div>
                                 <div style="font-size: 40px; font-weight: 900; letter-spacing: 10px; color: #1d4ed8; font-family: 'SF Mono', Consolas, 'Courier New', monospace; padding: 6px 0;">
-                                    {otp_code}
+                                    {escape_html(otp_code)}
                                 </div>
                                 <div style="display: inline-block; background-color: #fee2e2; border: 1px solid #fecaca; color: #b91c1c; font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 9999px; margin-top: 10px;">
-                                    ⏱️ Mã có hiệu lực trong vòng {minutes} phút ({expires_in} giây)
+                                    ⏱️ Mã có hiệu lực trong vòng {escape_html(minutes)} phút ({escape_html(expires_in)} giây)
                                 </div>
                             </div>
 
                             <!-- THÔNG TIN ĐƠN HÀNG KÈM THEO -->
                             <div style="background-color: #f8fafc; border-radius: 12px; padding: 14px 18px; margin-bottom: 24px; font-size: 13px; color: #64748b; border: 1px solid #e2e8f0;">
                                 <div style="margin-bottom: 4px;"><strong style="color: #334155;">Mục đích:</strong> Xác thực thanh toán đơn đặt phòng</div>
-                                {f'<div style="margin-bottom: 4px;"><strong style="color: #334155;">Mã đặt phòng:</strong> {ma_booking}</div>' if ma_booking else ''}
-                                {f'<div><strong style="color: #334155;">Mã giao dịch:</strong> <code style="font-family: monospace; color: #2563eb;">{ma_txn}</code></div>' if ma_txn else ''}
+                                {f'<div style="margin-bottom: 4px;"><strong style="color: #334155;">Mã đặt phòng:</strong> {escape_html(ma_booking)}</div>' if ma_booking else ''}
+                                {f'<div><strong style="color: #334155;">Mã giao dịch:</strong> <code style="font-family: monospace; color: #2563eb;">{escape_html(ma_txn)}</code></div>' if ma_txn else ''}
                             </div>
 
                             <!-- HƯỚNG DẪN BẢO MẬT -->
@@ -338,4 +345,3 @@ LƯU Ý BẢO MẬT:
 © 2026 Hotel Booking Service System.
 """
     return subject, html_content, text_content
-

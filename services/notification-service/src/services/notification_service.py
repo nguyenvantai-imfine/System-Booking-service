@@ -10,6 +10,7 @@ from src.models.thong_bao import ThongBaoModel
 from src.models.noi_dung_thong_bao import NoiDungThongBaoModel
 from src.schemas.notification_schema import SendNotificationRequest
 from src.core.templates import (
+    escape_html,
     render_booking_confirmed_email,
     render_booking_cancelled_email,
     render_otp_email,
@@ -46,8 +47,9 @@ class NotificationService:
             subject, html_content, text_content = render_otp_email(du_lieu)
         else:
             subject = f"Thông báo từ hệ thống đặt phòng: {loai}"
-            html_content = f"<p>{du_lieu.get('message', 'Thông báo từ hệ thống')}</p>"
-            text_content = du_lieu.get("message", "Thông báo từ hệ thống")
+            message = str(du_lieu.get("message", "Thông báo từ hệ thống"))
+            html_content = f"<p>{escape_html(message)}</p>"
+            text_content = message
 
         # 2. Tạo bản ghi ThongBao trong DB
         thong_bao = ThongBaoModel(

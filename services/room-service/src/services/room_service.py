@@ -1,9 +1,15 @@
 import math
+import json
+import logging
+import time
+from urllib.parse import urlencode
+from urllib.request import urlopen
 from datetime import date
-from typing import List, Optional, Tuple
+from typing import List, Optional, Set, Tuple
 from fastapi import HTTPException, status
 from sqlalchemy import or_, func
 from sqlalchemy.orm import Session, selectinload
+from src.core.config import settings
 from src.models import (
     PhongModel,
     LoaiPhongModel,
@@ -15,6 +21,8 @@ from src.schemas import (
     PhongStatusUpdate,
 )
 from src.services.database_errors import handle_database_errors
+
+logger = logging.getLogger(__name__)
 
 ALLOWED_STATUS_TRANSITIONS = {
     TrangThaiPhongEnum.AVAILABLE: {
@@ -64,6 +72,95 @@ def _validate_status_transition(
         )
 
 class RoomService:
+    @staticmethod
+    def _get_booked_room_ids(
+        hotel_id: int, check_in: date, check_out: date
+    ) -> Optional[Set[int]]:
+        """Return overlapping active booking room IDs, or None if Booking is unavailable."""
+        base_url = settings.BOOKING_SERVICE_URL.rstrip("/")
+        if not base_url.endswith("/api/v1"):
+            base_url = f"{base_url}/api/v1"
+
+        booked_room_ids: Set[int] = set()
+        try:
+            deadline = time.monotonic() + settings.BOOKING_SERVICE_TIMEOUT
+            page = 1
+            total_pages = 1
+            while page <= total_pages:
+                timeout = deadline - time.monotonic()
+                if timeout <= 0:
+                    raise TimeoutError("Booking Service request deadline exceeded.")
+                query = urlencode(
+                    {"hotel_id": hotel_id, "page": page, "page_size": 100}
+                )
+                url = f"{base_url}/bookings?{query}"
+                with urlopen(url, timeout=timeout) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+
+                items = payload.get("items")
+                if not isinstance(items, list):
+                    raise ValueError("Booking Service response has no items list.")
+                total_pages = int(payload["total_pages"])
+                if total_pages < 1:
+                    raise ValueError("Booking Service returned an invalid page count.")
+
+                for booking in items:
+                    if not isinstance(booking, dict):
+                        raise ValueError("Booking Service returned an invalid booking.")
+                    booking_status = str(
+                        booking.get("trang_thai", "")
+                    ).upper()
+                    if booking_status not in {
+                        "PENDING_PAYMENT",
+                        "CONFIRMED",
+                        "CANCELLED",
+                        "COMPLETED",
+                        "REFUNDED",
+                    }:
+                        raise ValueError(
+                            "Booking Service returned an unknown booking status."
+                        )
+                    if booking_status not in {"PENDING_PAYMENT", "CONFIRMED"}:
+                        continue
+
+                    booking_check_in = date.fromisoformat(
+                        str(booking["ngay_nhan_phong"])
+                    )
+                    booking_check_out = date.fromisoformat(
+                        str(booking["ngay_tra_phong"])
+                    )
+                    if (
+                        booking_check_in < check_out
+                        and booking_check_out > check_in
+                    ):
+                        details = booking.get("chi_tiet", [])
+                        if not isinstance(details, list) or not details:
+                            raise ValueError(
+                                "Booking Service returned invalid room details."
+                            )
+                        for detail in details:
+                            if not isinstance(detail, dict):
+                                raise ValueError(
+                                    "Booking Service returned an invalid room detail."
+                                )
+                            room_id = detail.get("id_phong")
+                            if room_id is None or int(room_id) < 1:
+                                raise ValueError(
+                                    "Booking Service returned an invalid room ID."
+                                )
+                            booked_room_ids.add(int(room_id))
+
+                page += 1
+            return booked_room_ids
+        except Exception:
+            logger.warning(
+                "Booking Service unavailable or returned invalid data; "
+                "availability will fall back to room status. URL: %s",
+                settings.BOOKING_SERVICE_URL,
+                exc_info=True,
+            )
+            return None
+
     @staticmethod
     @handle_database_errors("Không thể tạo phòng")
     def create_room(
@@ -321,4 +418,11 @@ class RoomService:
             )
             .order_by(PhongModel.so_phong.asc())
         )
+
+        booked_room_ids = RoomService._get_booked_room_ids(
+            hotel_id, check_in, check_out
+        )
+        if booked_room_ids:
+            query = query.filter(~PhongModel.id_phong.in_(booked_room_ids))
+
         return query.all()

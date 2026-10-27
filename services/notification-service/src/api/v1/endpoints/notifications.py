@@ -5,7 +5,7 @@ from typing import Optional
 import math
 
 from src.core.database import get_db
-from src.core.security import get_current_user_id
+from src.core.security import get_current_user_id, get_notification_actor_id
 from src.schemas.notification_schema import (
     SendNotificationRequest,
     ThongBaoResponse,
@@ -20,10 +20,11 @@ router = APIRouter(prefix="/notifications", tags=["Notifications"])
 def send_notification(
     req: SendNotificationRequest,
     db: Session = Depends(get_db),
-    user_id: int = Depends(get_current_user_id),
+    user_id: int | None = Depends(get_notification_actor_id),
 ):
     """Tạo thông báo cho tài khoản đang đăng nhập."""
-    req = req.model_copy(update={"id_tai_khoan": user_id})
+    if user_id is not None:
+        req = req.model_copy(update={"id_tai_khoan": user_id})
     return NotificationService.send_notification(db, req)
 
 @router.get("/stats", response_model=NotificationStats)

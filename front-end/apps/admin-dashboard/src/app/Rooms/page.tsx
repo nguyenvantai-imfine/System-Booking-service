@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   Search,
   Filter,
@@ -34,6 +34,26 @@ import type {
 type SortField = "so_phong" | "hotel" | "roomType" | "price" | "capacity" | "status";
 type SortOrder = "asc" | "desc";
 
+async function loadRoomTypesForHotels(hotels: KhachSanBrief[]) {
+  const failedHotelIds: number[] = [];
+  const roomTypesByHotel = await Promise.all(
+    hotels.map(async (hotel) => {
+      try {
+        const types = await apiClient.getRoomTypesByHotel(hotel.id_khach_san);
+        return Array.isArray(types) ? types : [];
+      } catch (error) {
+        failedHotelIds.push(hotel.id_khach_san);
+        console.error(
+          `Không thể tải loại phòng khách sạn ${hotel.id_khach_san}:`,
+          error,
+        );
+        return [];
+      }
+    }),
+  );
+  return { roomTypes: roomTypesByHotel.flat(), failedHotelIds };
+}
+
 export default function RoomsPage() {
   // Dữ liệu danh sách phòng
   const [rooms, setRooms] = useState<PhongItem[]>([]);
@@ -45,6 +65,7 @@ export default function RoomsPage() {
   // Dữ liệu tham chiếu khách sạn & loại phòng
   const [hotels, setHotels] = useState<KhachSanBrief[]>([]);
   const [roomTypes, setRoomTypes] = useState<LoaiPhongDetail[]>([]);
+  const [roomTypesRefreshKey, setRoomTypesRefreshKey] = useState(0);
 
   // Bộ lọc & Tìm kiếm
   const [searchTerm, setSearchTerm] = useState("");
@@ -159,16 +180,15 @@ export default function RoomsPage() {
             return;
           }
 
-          const roomTypesByHotel = await Promise.all(
-            hotels.map(async (hotel) => {
-              const types = await apiClient.getRoomTypesByHotel(
-                hotel.id_khach_san,
-              );
-              return Array.isArray(types) ? types : [];
-            }),
-          );
+          const result = await loadRoomTypesForHotels(hotels);
           if (!cancelled) {
-            setRoomTypes(roomTypesByHotel.flat());
+            setRoomTypes(result.roomTypes);
+            if (result.failedHotelIds.length > 0) {
+              setToastMessage({
+                type: "error",
+                text: `Không thể tải loại phòng của khách sạn: ${result.failedHotelIds.join(", ")}.`,
+              });
+            }
           }
         } else {
           const hotelId = Number(hotelFilter);
@@ -206,7 +226,7 @@ export default function RoomsPage() {
     return () => {
       cancelled = true;
     };
-  }, [hotelFilter, hotels]);
+  }, [hotelFilter, hotels, roomTypesRefreshKey]);
 
   // Hàm tải dữ liệu danh sách phòng từ Room Service
   const fetchRooms = useCallback(async () => {
@@ -319,9 +339,7 @@ export default function RoomsPage() {
         text: `Đã tạo hạng phòng "${newTypeForm.ten_loai_phong}" thành công!`,
       });
       setIsTypeModalOpen(false);
-      // Tải lại danh sách loại phòng
-      const types = await apiClient.getRoomTypesByHotel(newTypeForm.hotel_id);
-      setRoomTypes(types);
+      setRoomTypesRefreshKey((current) => current + 1);
     } catch (err: any) {
       setToastMessage({
         type: "error",
@@ -346,6 +364,56 @@ export default function RoomsPage() {
     const found = hotels.find((h) => h.id_khach_san === hotelId);
     return found ? found.ten_khach_san : `Khách sạn #${hotelId}`;
   };
+
+  const sortedRooms = useMemo(() => {
+    const collator = new Intl.Collator("vi", {
+      numeric: true,
+      sensitivity: "base",
+    });
+    const direction = sortOrder === "asc" ? 1 : -1;
+
+    return [...rooms].sort((a, b) => {
+      let comparison = 0;
+      switch (sortField) {
+        case "so_phong":
+          comparison = collator.compare(a.so_phong, b.so_phong);
+          break;
+        case "hotel": {
+          const hotelName = (hotelId: number) =>
+            hotels.find((hotel) => hotel.id_khach_san === hotelId)
+              ?.ten_khach_san ?? `Khách sạn #${hotelId}`;
+          comparison = collator.compare(
+            hotelName(a.id_khach_san),
+            hotelName(b.id_khach_san),
+          );
+          break;
+        }
+        case "roomType":
+          comparison = collator.compare(
+            a.loai_phong?.ten_loai_phong ?? "",
+            b.loai_phong?.ten_loai_phong ?? "",
+          );
+          break;
+        case "price":
+          comparison =
+            Number(a.loai_phong?.gia_co_ban_mot_dem ?? 0) -
+            Number(b.loai_phong?.gia_co_ban_mot_dem ?? 0);
+          break;
+        case "capacity":
+          comparison =
+            (a.loai_phong?.suc_chua_nguoi_lon ?? 0) +
+            (a.loai_phong?.suc_chua_tre_em ?? 0) -
+            ((b.loai_phong?.suc_chua_nguoi_lon ?? 0) +
+              (b.loai_phong?.suc_chua_tre_em ?? 0));
+          break;
+        case "status":
+          comparison = collator.compare(a.trang_thai, b.trang_thai);
+          break;
+      }
+
+      return comparison * direction;
+    });
+  }, [hotels, rooms, sortField, sortOrder]);
 
   const getStatusBadge = (status: TrangThaiPhong) => {
     switch (status) {
@@ -566,7 +634,7 @@ export default function RoomsPage() {
                   </td>
                 </tr>
               ) : (
-                rooms.map((room) => {
+                sortedRooms.map((room) => {
                   const price =
                     room.loai_phong?.gia_co_ban_mot_dem !== undefined
                       ? Number(room.loai_phong.gia_co_ban_mot_dem).toLocaleString("vi-VN") +
