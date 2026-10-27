@@ -114,11 +114,31 @@ export default function RoomsPage() {
   useEffect(() => {
     const loadHotels = async () => {
       try {
-        const res = await apiClient.getHotels({ page: 1, page_size: 100 });
-        setHotels(res.items);
-        if (res.items.length > 0) {
-          setBatchForm((prev) => ({ ...prev, hotel_id: res.items[0].id_khach_san }));
-          setNewTypeForm((prev) => ({ ...prev, hotel_id: res.items[0].id_khach_san }));
+        const firstPage = await apiClient.getHotels({ page: 1, page_size: 100 });
+        const remainingPages = await Promise.all(
+          Array.from(
+            { length: Math.max(0, firstPage.total_pages - 1) },
+            (_, index) =>
+              apiClient.getHotels({ page: index + 2, page_size: 100 }),
+          ),
+        );
+        const allHotels = [
+          ...(Array.isArray(firstPage.items) ? firstPage.items : []),
+          ...remainingPages.flatMap((result) =>
+            Array.isArray(result.items) ? result.items : [],
+          ),
+        ];
+
+        setHotels(allHotels);
+        if (allHotels.length > 0) {
+          setBatchForm((prev) => ({
+            ...prev,
+            hotel_id: allHotels[0].id_khach_san,
+          }));
+          setNewTypeForm((prev) => ({
+            ...prev,
+            hotel_id: allHotels[0].id_khach_san,
+          }));
         }
       } catch (err) {
         console.error("Lỗi khi tải danh sách khách sạn:", err);
@@ -127,24 +147,66 @@ export default function RoomsPage() {
     loadHotels();
   }, []);
 
-  // Tải danh sách loại phòng khi thay đổi khách sạn được chọn
+  // Tải loại phòng của khách sạn được chọn hoặc của toàn bộ khách sạn.
   useEffect(() => {
+    let cancelled = false;
+
     const loadRoomTypes = async () => {
       try {
-        const hotelId = hotelFilter !== "all" ? Number(hotelFilter) : batchForm.hotel_id;
-        if (hotelId) {
-          const types = await apiClient.getRoomTypesByHotel(hotelId);
-          setRoomTypes(types);
-          if (types.length > 0) {
-            setBatchForm((prev) => ({ ...prev, type_id: types[0].id_loai_phong }));
+        if (hotelFilter === "all") {
+          if (hotels.length === 0) {
+            setRoomTypes([]);
+            return;
+          }
+
+          const roomTypesByHotel = await Promise.all(
+            hotels.map(async (hotel) => {
+              const types = await apiClient.getRoomTypesByHotel(
+                hotel.id_khach_san,
+              );
+              return Array.isArray(types) ? types : [];
+            }),
+          );
+          if (!cancelled) {
+            setRoomTypes(roomTypesByHotel.flat());
+          }
+        } else {
+          const hotelId = Number(hotelFilter);
+          if (Number.isInteger(hotelId) && hotelId > 0) {
+            const result = await apiClient.getRoomTypesByHotel(hotelId);
+            const types = Array.isArray(result) ? result : [];
+            if (cancelled) return;
+
+            setRoomTypes(types);
+            if (types.length > 0) {
+              setBatchForm((prev) => ({
+                ...prev,
+                type_id: types[0].id_loai_phong,
+              }));
+            }
+          } else {
+            setRoomTypes([]);
           }
         }
       } catch (err) {
-        console.error("Lỗi tải loại phòng:", err);
+        if (!cancelled) {
+          setRoomTypes([]);
+          setToastMessage({
+            type: "error",
+            text:
+              err instanceof Error
+                ? err.message
+                : "Không thể tải danh sách loại phòng.",
+          });
+        }
       }
     };
-    loadRoomTypes();
-  }, [hotelFilter, batchForm.hotel_id]);
+    void loadRoomTypes();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hotelFilter, hotels]);
 
   // Hàm tải dữ liệu danh sách phòng từ Room Service
   const fetchRooms = useCallback(async () => {
