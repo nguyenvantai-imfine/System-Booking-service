@@ -122,6 +122,8 @@ services:
       - APP_NAME=Room Service
       - API_V1_STR=/api/v1
       - PORT=8002
+      - BOOKING_SERVICE_URL=http://booking-service:8003/api/v1
+      - BOOKING_SERVICE_TIMEOUT=2
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-booking_super_secret_jwt_key_2026_xyz!@#}
       - JWT_ALGORITHM=HS256
 
@@ -213,12 +215,16 @@ services:
       - APP_NAME=Notification Service
       - API_V1_STR=/api/v1
       - PORT=8005
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-booking_super_secret_jwt_key_2026_xyz!@#}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
+      - INTERNAL_SERVICE_SECRET=${INTERNAL_SERVICE_SECRET:-}
+      - TRUSTED_INTERNAL_CIDRS=${TRUSTED_INTERNAL_CIDRS:-127.0.0.1/32,::1/128,172.16.0.0/12}
       - RABBITMQ_HOST=rabbitmq
       - RABBITMQ_PORT=5672
       - RABBITMQ_USER=guest
       - RABBITMQ_PASSWORD=guest
       - RABBITMQ_ENABLED=True
-      - MOCK_EMAIL_SEND=True
+      - EMAIL_MOCK=${EMAIL_MOCK:-True}
 
   gateway:
     build:

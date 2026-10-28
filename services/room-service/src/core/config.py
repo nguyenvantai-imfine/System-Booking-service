@@ -43,9 +43,15 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = "booking_super_secret_jwt_key_2026_xyz!@#"
     JWT_ALGORITHM: str = "HS256"
 
+<<<<<<< HEAD
     # Microservice URLs
     HOTEL_SERVICE_URL: str = "http://127.0.0.1:8000/api/v1"
     BOOKING_SERVICE_URL: str = "http://localhost:8003/api/v1"
+=======
+    # Booking Service is optional for availability checks; failures degrade to AVAILABLE rooms.
+    BOOKING_SERVICE_URL: str = "http://localhost:8003/api/v1"
+    BOOKING_SERVICE_TIMEOUT: float = 2.0
+>>>>>>> 2708e038e84913f727dc4c52b8e5cfe91426ba6b
 
     @property
     def DATABASE_URL(self) -> str:

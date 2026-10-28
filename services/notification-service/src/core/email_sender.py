@@ -13,6 +13,7 @@ class EmailSender:
         Gửi email qua SMTP (hỗ trợ Gmail, Mailtrap, AWS SES, v.v.)
         Trả về (is_success, error_or_info_message)
         """
+<<<<<<< HEAD
         # Kiểm tra chế độ Mock và cấu hình SMTP
         use_mock = getattr(settings, "USE_MOCK_EMAIL", None)
         if use_mock is None:
@@ -24,17 +25,22 @@ class EmailSender:
 
         # Nếu đang ở chế độ Mock hoặc chưa cấu hình đầy đủ SMTP credentials
         if use_mock or not has_smtp_credentials:
+=======
+        if settings.MOCK_EMAIL_SEND:
+>>>>>>> 2708e038e84913f727dc4c52b8e5cfe91426ba6b
             logger.info(f"[MOCK EMAIL SENT] To: {to_email}")
             print(f">>> [NOTIFICATION SERVICE - EMAIL DISPATCHED] >>>")
             print(f"    Recipient: {to_email}")
             safe_subj = subject.encode("ascii", "replace").decode("ascii")
             print(f"    Subject:   {safe_subj}")
-            if text_content:
-                first_lines = [l.strip() for l in text_content.strip().split("\n") if l.strip()][:3]
-                preview_text = " | ".join(first_lines).encode("ascii", "replace").decode("ascii")
-                print(f"    Preview:   {preview_text}")
+            print(f"    Content:   {text_content or html_content}")
             print(f"    Status:    SENT (MOCK/SIMULATION SUCCESS)")
             return True, "Email sent successfully (Simulation/Mock mode)"
+
+        if not settings.SMTP_USER or not settings.SMTP_PASSWORD:
+            error_msg = "SMTP_USER and SMTP_PASSWORD are required when EMAIL_MOCK is false."
+            logger.error(error_msg)
+            return False, error_msg
 
         try:
             msg = MIMEMultipart("alternative")
@@ -48,6 +54,7 @@ class EmailSender:
 
             timeout = 10
             if settings.SMTP_PORT == 465:
+<<<<<<< HEAD
                 server = smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=timeout)
             else:
                 server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=timeout)
@@ -59,10 +66,30 @@ class EmailSender:
 
             server.sendmail(settings.SMTP_FROM_EMAIL, [to_email], msg.as_string())
             server.quit()
+=======
+                server = smtplib.SMTP_SSL(
+                    settings.SMTP_HOST, settings.SMTP_PORT, timeout=10
+                )
+                with server:
+                    server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                    server.sendmail(
+                        settings.SMTP_FROM_EMAIL, [to_email], msg.as_string()
+                    )
+            else:
+                with smtplib.SMTP(
+                    settings.SMTP_HOST, settings.SMTP_PORT, timeout=10
+                ) as server:
+                    if settings.SMTP_TLS:
+                        server.starttls()
+                    server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                    server.sendmail(
+                        settings.SMTP_FROM_EMAIL, [to_email], msg.as_string()
+                    )
+>>>>>>> 2708e038e84913f727dc4c52b8e5cfe91426ba6b
             logger.info(f"[REAL SMTP EMAIL SENT] To: {to_email} | Subject: {subject}")
             print(f">>> [NOTIFICATION SERVICE - REAL SMTP EMAIL SENT] >>> To: {to_email} | Subject: {subject}")
             return True, "Email sent successfully via SMTP"
-        except Exception as e:
+        except (OSError, smtplib.SMTPException) as e:
             error_msg = f"SMTP Error: {str(e)}"
             logger.error(error_msg)
             print(f">>> [NOTIFICATION SERVICE - SMTP ERROR]: {error_msg}")

@@ -20,6 +20,7 @@ from src.schemas import (
 
 class BookingService:
     @staticmethod
+<<<<<<< HEAD
     def get_booked_room_ids(
         db: Session,
         hotel_id: int,
@@ -60,6 +61,9 @@ class BookingService:
 
     @staticmethod
     def release_expired_holds(db: Session) -> int:
+=======
+    def release_expired_holds(db: Session, commit: bool = True) -> int:
+>>>>>>> 2708e038e84913f727dc4c52b8e5cfe91426ba6b
         """Tự động hủy các đơn PENDING_PAYMENT đã quá hạn 15 phút giữ chỗ."""
         now_utc = datetime.utcnow()
         expired_bookings = (
@@ -84,7 +88,7 @@ class BookingService:
             )
             released_count += 1
 
-        if released_count > 0:
+        if released_count > 0 and commit:
             db.commit()
             print(f">>> [Booking Service] Released {released_count} expired booking holds.")
 
@@ -229,6 +233,13 @@ class BookingService:
                 detail="Đơn đặt phòng phải chứa ít nhất một phòng.",
             )
 
+        room_ids = [room.id_phong for room in payload.rooms]
+        if len(room_ids) != len(set(room_ids)):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Một phòng không thể được đặt nhiều lần trong cùng một yêu cầu.",
+            )
+
         nights = (ngay_tra - ngay_nhan).days
         if nights < 1:
             nights = 1
@@ -270,7 +281,7 @@ class BookingService:
                 })
 
         # Sắp xếp danh sách id_phong tăng dần để triệt tiêu hoàn toàn khả năng Deadlock giữa các transaction (Canonical Ordering)
-        sorted_phong_ids = sorted(list(set(r.id_phong for r in payload.rooms)))
+        sorted_phong_ids = sorted(room_ids)
 
         try:
             # 1. Khóa tài nguyên từng phòng bằng sp_getapplock trong transaction
@@ -292,8 +303,10 @@ class BookingService:
                         detail=f"Phòng #{id_phong} đang được xử lý trong một giao dịch khác. Vui lòng thử lại sau.",
                     )
 
-            # 2. Giải phóng các đơn giữ chỗ đã hết hạn trước khi kiểm tra giao thoa
-            BookingService.release_expired_holds(db)
+            # Giữ thay đổi hết hạn trong transaction này để không nhả sp_getapplock
+            # trước khi kiểm tra giao thoa và ghi booking/hold mới.
+            BookingService.release_expired_holds(db, commit=False)
+            now_utc = datetime.utcnow()
 
             # 3. ── KIỂM TRA CHỐNG TRÙNG PHÒNG (CONCURRENCY PROTECTION) ──
             # Điều kiện giao thoa ngày: (DatPhongModel.ngay_nhan_phong < new.ngay_tra) AND (DatPhongModel.ngay_tra_phong > new.ngay_nhan)

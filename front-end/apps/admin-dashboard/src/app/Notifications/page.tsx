@@ -90,11 +90,17 @@ export default function NotificationsPage() {
   };
 
   const handleMarkAsRead = async (notification: ThongBaoItem) => {
-    setBusyId(notification.id_thong_bao);
+    const notificationId = notification.id_thong_bao;
+    setBusyId(notificationId);
+    setNotifications((current) =>
+      current.map((item) =>
+        item.id_thong_bao === notificationId
+          ? { ...item, is_read: true }
+          : item,
+      ),
+    );
     try {
-      const updated = await apiClient.markNotificationAsRead(
-        notification.id_thong_bao,
-      );
+      const updated = await apiClient.markNotificationAsRead(notificationId);
       setNotifications((current) =>
         current.map((item) =>
           item.id_thong_bao === updated.id_thong_bao ? updated : item,
@@ -105,6 +111,13 @@ export default function NotificationsPage() {
         text: `Đã đánh dấu thông báo #${notification.id_thong_bao} là đã đọc.`,
       });
     } catch (error) {
+      setNotifications((current) =>
+        current.map((item) =>
+          item.id_thong_bao === notificationId
+            ? { ...item, is_read: notification.is_read }
+            : item,
+        ),
+      );
       setToastMessage({
         type: "error",
         text: getErrorMessage(error, "Không thể đánh dấu thông báo đã đọc."),
