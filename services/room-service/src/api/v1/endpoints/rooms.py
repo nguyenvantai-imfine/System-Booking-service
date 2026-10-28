@@ -2,7 +2,8 @@ from datetime import date
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
-from src.api.v1.dependencies import get_db, require_partner_or_admin
+from src.api.v1.dependencies import get_db, require_partner_or_admin, check_hotel_ownership
+from src.models import LoaiPhongModel, PhongModel
 from src.schemas import (
     PhongCreate,
     BatchCreateRoomsRequest,
@@ -48,6 +49,9 @@ def batch_create_rooms(
     db: Session = Depends(get_db),
     user: dict = Depends(require_partner_or_admin),
 ):
+    room_type = db.query(LoaiPhongModel).filter(LoaiPhongModel.id_loai_phong == type_id).first()
+    if room_type:
+        check_hotel_ownership(room_type.id_khach_san, user)
     return RoomService.batch_create_rooms(db, type_id, payload)
 
 # 3. Tạo 1 phòng đơn lẻ
@@ -63,6 +67,9 @@ def create_single_room(
     db: Session = Depends(get_db),
     user: dict = Depends(require_partner_or_admin),
 ):
+    room_type = db.query(LoaiPhongModel).filter(LoaiPhongModel.id_loai_phong == type_id).first()
+    if room_type:
+        check_hotel_ownership(room_type.id_khach_san, user)
     return RoomService.create_room(db, type_id, payload)
 
 # 4. Lấy danh sách tất cả phòng của khách sạn
@@ -151,6 +158,9 @@ def update_room_status(
     db: Session = Depends(get_db),
     user: dict = Depends(require_partner_or_admin),
 ):
+    room = db.query(PhongModel).filter(PhongModel.id_phong == id).first()
+    if room:
+        check_hotel_ownership(room.id_khach_san, user)
     return RoomService.update_room_status(db, id, payload)
 
 # 8. Xóa phòng
@@ -164,5 +174,8 @@ def delete_room(
     db: Session = Depends(get_db),
     user: dict = Depends(require_partner_or_admin),
 ):
+    room = db.query(PhongModel).filter(PhongModel.id_phong == id).first()
+    if room:
+        check_hotel_ownership(room.id_khach_san, user)
     RoomService.delete_room(db, id)
     return None

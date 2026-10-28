@@ -63,6 +63,7 @@ class NotificationService:
         db.flush()
 
         # 3. Tạo bản ghi NoiDungThongBao (Che mã OTP trước khi lưu trữ lâu dài trong CSDL)
+        saved_subject = subject
         saved_html = html_content
         saved_text = text_content
         saved_du_lieu = dict(du_lieu)
@@ -71,14 +72,22 @@ class NotificationService:
             otp_val = str(du_lieu.get("otp_code", ""))
             if otp_val:
                 masked_otp = f"{otp_val[:2]}****" if len(otp_val) >= 2 else "******"
+                saved_subject = saved_subject.replace(otp_val, masked_otp)
                 saved_html = saved_html.replace(otp_val, masked_otp)
                 if saved_text:
                     saved_text = saved_text.replace(otp_val, masked_otp)
-                saved_du_lieu["otp_code"] = masked_otp
+                # Che OTP trong toàn bộ các trường của saved_du_lieu
+                for k, v in list(saved_du_lieu.items()):
+                    if isinstance(v, str) and otp_val in v:
+                        saved_du_lieu[k] = v.replace(otp_val, masked_otp)
+                    elif k == "otp_code":
+                        saved_du_lieu[k] = masked_otp
+            else:
+                saved_subject = "🔐 Mã OTP xác thực giao dịch thanh toán (Đã bảo mật)"
 
         noi_dung = NoiDungThongBaoModel(
             id_thong_bao=thong_bao.id_thong_bao,
-            tieu_de=subject,
+            tieu_de=saved_subject,
             noi_dung_html=saved_html,
             noi_dung_text=saved_text,
             du_lieu_dinh_kem=json.dumps(saved_du_lieu, ensure_ascii=False),

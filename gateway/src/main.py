@@ -1,31 +1,13 @@
 import os
 import sys
+import re
 from contextlib import asynccontextmanager
 from typing import Dict
 import httpx
 from fastapi import FastAPI, Request, Response, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic_settings import BaseSettings
-
-class GatewaySettings(BaseSettings):
-    APP_NAME: str = "API Gateway"
-    PORT: int = 8080
-
-    # Backend Microservices
-    HOTEL_SERVICE_URL: str = "http://127.0.0.1:8000"
-    USER_SERVICE_URL: str = "http://127.0.0.1:8001"
-    ROOM_SERVICE_URL: str = "http://127.0.0.1:8002"
-    BOOKING_SERVICE_URL: str = "http://127.0.0.1:8003"
-    PAYMENT_SERVICE_URL: str = "http://127.0.0.1:8004"
-    NOTIFICATION_SERVICE_URL: str = "http://127.0.0.1:8005"
-
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        extra = "ignore"
-
-settings = GatewaySettings()
+from src.core.config import settings, GatewaySettings
 
 # HTTP Client dùng chung cho toàn bộ Gateway proxy
 http_client: httpx.AsyncClient = None
@@ -57,7 +39,7 @@ import uuid
 # Cấu hình CORS Header tập trung
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -86,6 +68,15 @@ def resolve_target_url(full_path: str) -> str:
 
     # path dạng: api/v1/<service>/...
     if len(parts) >= 3 and parts[0] == "api" and parts[1] == "v1":
+        # 1. Các route thuộc Room Service:
+        #    - api/v1/room-types/...
+        #    - api/v1/hotels/{hotel_id}/rooms hoặc api/v1/hotels/{hotel_id}/room-types
+        if parts[2].lower() == "room-types":
+            return f"{settings.ROOM_SERVICE_URL}/{path}"
+
+        if re.match(r"^api/v1/hotels/\d+/(rooms|room-types)", path, re.IGNORECASE):
+            return f"{settings.ROOM_SERVICE_URL}/{path}"
+
         service = parts[2].lower()
         if service in ("auth", "users", "profiles", "admin"):
             return f"{settings.USER_SERVICE_URL}/{path}"
@@ -179,8 +170,12 @@ def gateway_info():
         "routes": {
             "/api/v1/auth/**": settings.USER_SERVICE_URL,
             "/api/v1/users/**": settings.USER_SERVICE_URL,
+            "/api/v1/admin/**": settings.USER_SERVICE_URL,
             "/api/v1/hotels/**": settings.HOTEL_SERVICE_URL,
+            "/api/v1/hotels/{hotel_id}/rooms/**": settings.ROOM_SERVICE_URL,
+            "/api/v1/hotels/{hotel_id}/room-types/**": settings.ROOM_SERVICE_URL,
             "/api/v1/rooms/**": settings.ROOM_SERVICE_URL,
+            "/api/v1/room-types/**": settings.ROOM_SERVICE_URL,
             "/api/v1/bookings/**": settings.BOOKING_SERVICE_URL,
             "/api/v1/payments/**": settings.PAYMENT_SERVICE_URL,
             "/api/v1/notifications/**": settings.NOTIFICATION_SERVICE_URL,

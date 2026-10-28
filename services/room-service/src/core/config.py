@@ -1,3 +1,5 @@
+from typing import List, Union
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
@@ -5,6 +7,28 @@ class Settings(BaseSettings):
     APP_NAME: str = "Room Service"
     PORT: int = 8002
     API_V1_STR: str = "/api/v1"
+
+    # Cấu hình CORS
+    CORS_ORIGINS: List[str] = [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+    ]
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
+        if isinstance(v, str):
+            v = v.strip()
+            if v.startswith("[") and v.endswith("]"):
+                import json
+                try:
+                    return json.loads(v)
+                except Exception:
+                    pass
+            return [i.strip() for i in v.split(",") if i.strip()]
+        return v
 
     # Cấu hình Database SQL Server
     DB_SERVER: str = "localhost\\SQLEXPRESS"
@@ -18,6 +42,10 @@ class Settings(BaseSettings):
     # Cấu hình JWT Auth dùng chung với User & Hotel Service
     JWT_SECRET_KEY: str = "booking_super_secret_jwt_key_2026_xyz!@#"
     JWT_ALGORITHM: str = "HS256"
+
+    # Microservice URLs
+    HOTEL_SERVICE_URL: str = "http://127.0.0.1:8000/api/v1"
+    BOOKING_SERVICE_URL: str = "http://localhost:8003/api/v1"
 
     @property
     def DATABASE_URL(self) -> str:

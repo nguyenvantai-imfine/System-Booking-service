@@ -30,7 +30,7 @@ BEGIN
         ngay_thanh_toan DATETIME NULL,
         ghi_chu NVARCHAR(255) NULL,
         CONSTRAINT chk_phuong_thuc CHECK (phuong_thuc IN ('VNPAY', 'MOMO', 'CREDIT_CARD', 'CASH')),
-        CONSTRAINT chk_trang_thai_tt CHECK (trang_thai IN ('PENDING', 'SUCCESS', 'FAILED', 'REFUNDED'))
+        CONSTRAINT chk_trang_thai_tt CHECK (trang_thai IN ('PENDING', 'SUCCESS', 'FAILED', 'REFUNDED', 'SYNC_FAILED'))
     );
 
     CREATE INDEX idx_thanh_toan_booking ON thanh_toan(id_dat_phong, ma_booking);
@@ -67,6 +67,14 @@ BEGIN
 END
 GO
 
+-- Cập nhật CHECK constraint chk_trang_thai_tt nếu bảng thanh_toan đã tồn tại từ trước
+IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'chk_trang_thai_tt')
+BEGIN
+    ALTER TABLE thanh_toan DROP CONSTRAINT chk_trang_thai_tt;
+    ALTER TABLE thanh_toan ADD CONSTRAINT chk_trang_thai_tt CHECK (trang_thai IN ('PENDING', 'SUCCESS', 'FAILED', 'REFUNDED', 'SYNC_FAILED'));
+END
+GO
+
 -- Đảm bảo cột ma_giao_dich_gateway của thanh_toan đồng nhất kiểu NVARCHAR(100) nếu DB cũ được tạo từ trước
 IF EXISTS (
     SELECT 1 FROM information_schema.columns 
@@ -84,6 +92,18 @@ BEGIN
     ALTER TABLE thanh_toan ALTER COLUMN ma_giao_dich_gateway NVARCHAR(100) NOT NULL;
 
     CREATE UNIQUE INDEX ix_thanh_toan_ma_giao_dich_gateway ON thanh_toan(ma_giao_dich_gateway);
+END
+GO
+
+-- Đảm bảo cột ghi_chu của thanh_toan là NVARCHAR(255) để lưu ký tự tiếng Việt có dấu
+IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'thanh_toan' 
+      AND column_name = 'ghi_chu' 
+      AND data_type = 'varchar'
+)
+BEGIN
+    ALTER TABLE thanh_toan ALTER COLUMN ghi_chu NVARCHAR(255) NULL;
 END
 GO
 
@@ -111,7 +131,7 @@ BEGIN
         id_otp INT IDENTITY(1,1) PRIMARY KEY,
         ma_giao_dich_gateway NVARCHAR(100) NOT NULL,
         email NVARCHAR(150) NOT NULL,
-        otp_code NVARCHAR(6) NOT NULL,
+        otp_code NVARCHAR(64) NOT NULL,
         thoi_gian_tao DATETIME NOT NULL DEFAULT GETDATE(),
         thoi_gian_het_han DATETIME NOT NULL,
         da_su_dung BIT NOT NULL DEFAULT 0,
@@ -121,6 +141,18 @@ BEGIN
     );
 
     CREATE INDEX idx_otp_txn ON giao_dich_otp(ma_giao_dich_gateway);
+END
+GO
+
+-- Đảm bảo cột otp_code của giao_dich_otp có độ dài NVARCHAR(64) để lưu hash SHA-256
+IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'giao_dich_otp' 
+      AND column_name = 'otp_code' 
+      AND character_maximum_length < 64
+)
+BEGIN
+    ALTER TABLE giao_dich_otp ALTER COLUMN otp_code NVARCHAR(64) NOT NULL;
 END
 GO
 

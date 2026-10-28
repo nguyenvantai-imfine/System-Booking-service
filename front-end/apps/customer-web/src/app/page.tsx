@@ -14,20 +14,24 @@ import {
   Compass,
   ArrowRight,
   Flame,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 
 export default function HomePage() {
   const [hotels, setHotels] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  useEffect(() => {
-    async function fetchFeaturedHotels() {
-      try {
-        const res = await apiClient.getHotels({ page: 1, page_size: 6 });
-        if (res?.items && res.items.length > 0) {
-          setHotels(res.items);
-        } else {
-          // Sample fallback hotels if database is empty
+  const fetchFeaturedHotels = async () => {
+    setIsLoading(true);
+    setErrorMessage("");
+    try {
+      const res = await apiClient.getHotels({ page: 1, page_size: 6 });
+      if (res?.items && res.items.length > 0) {
+        setHotels(res.items);
+      } else {
+        if (process.env.NEXT_PUBLIC_DEMO_MODE === "true") {
           setHotels([
             {
               id_khach_san: 4,
@@ -41,38 +45,18 @@ export default function HomePage() {
               mo_ta:
                 "Tọa lạc ngay mặt biển Mỹ Khê với tầm nhìn vô cực ra vịnh Đà Nẵng. Hệ thống phòng nghỉ xa hoa và dịch vụ quản gia cao cấp.",
             },
-            {
-              id_khach_san: 101,
-              ten_khach_san: "The Opera Grand Hotel Hanoi",
-              dia_chi: "29 Tràng Tiền",
-              quan_huyen: "Hoàn Kiếm",
-              thanh_pho: "Hà Nội",
-              so_sao: 5,
-              gia_thap_nhat: 2450000,
-              diem_danh_gia: 9.6,
-              mo_ta:
-                "Khách sạn di sản kiến trúc Pháp cổ điển ngay trung tâm phố cổ Hà Nội. Gần Hồ Gươm và Nhà Hát Lớn.",
-            },
-            {
-              id_khach_san: 102,
-              ten_khach_san: "Saigon Riverfront Palace",
-              dia_chi: "8 Tôn Đức Thắng",
-              quan_huyen: "Quận 1",
-              thanh_pho: "TP. Hồ Chí Minh",
-              so_sao: 5,
-              gia_thap_nhat: 3100000,
-              diem_danh_gia: 9.5,
-              mo_ta:
-                "Khách sạn 5 sao ven sông Sài Gòn với hồ bơi chân mây tầng 30, sky bar đẳng cấp và nhà hàng sao Michelin.",
-            },
           ]);
+        } else {
+          setHotels([]);
         }
-      } catch (err) {
-        console.warn("Could not fetch hotels from API, using curated display:", err);
+      }
+    } catch (err: any) {
+      console.error("Could not fetch hotels from API:", err);
+      if (process.env.NEXT_PUBLIC_DEMO_MODE === "true") {
         setHotels([
           {
             id_khach_san: 4,
-            ten_khach_san: "Test JWT Grand Hotel Da Nang",
+            ten_khach_san: "Test JWT Grand Hotel Da Nang (Demo)",
             dia_chi: "123 Võ Nguyên Giáp",
             quan_huyen: "Sơn Trà",
             thanh_pho: "Đà Nẵng",
@@ -81,11 +65,16 @@ export default function HomePage() {
             diem_danh_gia: 9.4,
           },
         ]);
-      } finally {
-        setIsLoading(false);
+      } else {
+        setErrorMessage("Không thể kết nối đến máy chủ. Vui lòng thử lại sau.");
+        setHotels([]);
       }
+    } finally {
+      setIsLoading(false);
     }
+  };
 
+  useEffect(() => {
     fetchFeaturedHotels();
   }, []);
 
@@ -285,6 +274,25 @@ export default function HomePage() {
                 className="h-56 bg-slate-200/70 rounded-3xl animate-pulse"
               />
             ))}
+          </div>
+        ) : errorMessage ? (
+          <div className="text-center py-16 bg-white rounded-3xl border border-rose-200 p-8 space-y-4 shadow-xs">
+            <div className="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center mx-auto text-rose-500">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900">
+              Không thể tải danh sách khách sạn
+            </h3>
+            <p className="text-xs text-slate-500 max-w-md mx-auto">
+              {errorMessage}
+            </p>
+            <button
+              onClick={() => fetchFeaturedHotels()}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-600/20 transition-all hover:scale-105"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Thử lại
+            </button>
           </div>
         ) : hotels.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-3xl border border-slate-200">

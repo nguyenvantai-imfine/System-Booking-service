@@ -72,10 +72,25 @@ async def _get_hotel_or_404(db: Session, id_khach_san: int) -> KhachSanModel:
     return hotel
 
 
-def _check_ownership(hotel: KhachSanModel, partner_id: int) -> None:
-    """Kiểm tra quyền sở hữu. Cho phép Admin (partner_id == 1) hoặc chính chủ sở hữu."""
-    if partner_id == 1 or hotel.id_tai_khoan == partner_id:
+def _check_ownership(hotel: KhachSanModel, partner_id: Any) -> None:
+    """
+    Kiểm tra quyền sở hữu khách sạn:
+    Cho phép Admin (role == 'ADMIN') hoặc chính chủ sở hữu (hotel.id_chu_so_huu == current_user.id).
+    Không cho phép partner sửa/xóa khách sạn của partner khác.
+    """
+    role = getattr(partner_id, "role", "").upper()
+    if role == "ADMIN":
         return
+
+    try:
+        user_id = int(partner_id)
+    except (ValueError, TypeError):
+        user_id = None
+
+    hotel_owner_id = getattr(hotel, "id_chu_so_huu", None) or getattr(hotel, "id_tai_khoan", None)
+    if user_id is not None and hotel_owner_id == user_id:
+        return
+
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
         detail="Bạn không có quyền thực hiện thao tác này với khách sạn.",

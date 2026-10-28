@@ -30,6 +30,14 @@ from src.services.notification_service import NotificationService
 def test_notification_otp():
     print(">>> [TEST START] Checking Notification Service OTP Email...")
     client = TestClient(notif_app)
+    import jwt
+    from src.core.config import settings
+    token = jwt.encode(
+        {"sub": "1", "role": "CUSTOMER", "type": "access"},
+        settings.JWT_SECRET_KEY,
+        algorithm=settings.JWT_ALGORITHM,
+    )
+    client.headers["Authorization"] = f"Bearer {token}"
 
     # 1. Test template render_otp_email
     test_payload = {
@@ -65,10 +73,11 @@ def test_notification_otp():
     db = SessionLocal()
     saved_noi_dung = db.query(NoiDungThongBaoModel).filter(NoiDungThongBaoModel.id_thong_bao == notif_id).first()
     assert saved_noi_dung is not None
+    assert "849201" not in saved_noi_dung.tieu_de, "Ma OTP ro khong duoc luu trong tieu de CSDL!"
     assert "849201" not in saved_noi_dung.noi_dung_html, "Ma OTP ro khong duoc luu truc tiep trong noi dung HTML CSDL!"
     assert "84****" in saved_noi_dung.noi_dung_html or "******" in saved_noi_dung.noi_dung_html, "Ma OTP phai duoc che trong CSDL"
     assert "849201" not in saved_noi_dung.du_lieu_dinh_kem, "Ma OTP ro khong duoc luu trong du_lieu_dinh_kem!"
-    print("[PASS] Check 3: OTP is securely masked in database persistent storage.")
+    print("[PASS] Check 3: OTP is securely masked in database persistent storage (tieu_de, html, du_lieu).")
 
     # 4. Test MQ Event Handler: notification.otp.generated
     mq_payload = {
@@ -91,12 +100,27 @@ def test_notification_otp():
     assert mq_record.trang_thai == "SENT"
     print(f"[PASS] Check 4: RabbitMQ event notification.otp.generated processed, created notification ID {mq_record.id_thong_bao}.")
 
-    # 5. Don dep du lieu test
+    # 5. Kiem tra chong XSS trong cac template email
+    from src.core.templates import render_booking_confirmed_email, render_booking_cancelled_email
+    xss_payload = {
+        "ten_khach": "<script>alert(1)</script>",
+        "ten_khach_san": "Hotel <b>Bold</b>",
+        "dia_chi": "<img src=x onerror=alert(2)>",
+        "ma_booking": "BK-XSS<tag>",
+        "danh_sach_phong": [{"so_phong": "P101<script>", "ten_loai_phong": "Deluxe<img>"}]
+    }
+    _, xss_html, _ = render_booking_confirmed_email(xss_payload)
+    assert "<script>alert(1)</script>" not in xss_html, "HTML chua chuoi chua escape script!"
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in xss_html, "HTML phai escape &lt;script&gt;!"
+    assert "&lt;img src=x onerror=alert(2)&gt;" in xss_html
+    print("[PASS] Check 5: HTML email templates properly escape dynamic variables against XSS.")
+
+    # 6. Don dep du lieu test
     db.query(ThongBaoModel).filter(ThongBaoModel.id_thong_bao.in_([notif_id, mq_record.id_thong_bao])).delete(synchronize_session=False)
     db.commit()
     db.close()
     print("==================================================")
-    print(">>> ALL NOTIFICATION SERVICE OTP TESTS PASSED!")
+    print(">>> ALL NOTIFICATION SERVICE TESTS PASSED!")
     print("==================================================")
 
 if __name__ == "__main__":

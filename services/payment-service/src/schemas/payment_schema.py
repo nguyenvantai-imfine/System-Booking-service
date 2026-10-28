@@ -54,7 +54,9 @@ class PaymentPaginatedResponse(BaseModel):
 
 class PaymentStatsResponse(BaseModel):
     total_revenue: float
+    today_revenue: float = 0.0
     total_transactions: int
     success_count: int
     pending_count: int
     failed_count: int
+    sync_failed_count: int = 0

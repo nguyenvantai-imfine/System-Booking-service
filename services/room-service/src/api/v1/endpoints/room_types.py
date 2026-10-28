@@ -1,7 +1,8 @@
 from typing import List
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
-from src.api.v1.dependencies import get_db, require_partner_or_admin
+from src.api.v1.dependencies import get_db, require_partner_or_admin, check_hotel_ownership
+from src.models import LoaiPhongModel
 from src.schemas import (
     LoaiPhongCreate,
     LoaiPhongUpdate,
@@ -24,6 +25,7 @@ def create_room_type(
     db: Session = Depends(get_db),
     user: dict = Depends(require_partner_or_admin),
 ):
+    check_hotel_ownership(hotel_id, user)
     return RoomTypeService.create_room_type(db, hotel_id, payload)
 
 # 2. Danh sách loại phòng của khách sạn
@@ -62,6 +64,9 @@ def update_room_type(
     db: Session = Depends(get_db),
     user: dict = Depends(require_partner_or_admin),
 ):
+    rt = db.query(LoaiPhongModel).filter(LoaiPhongModel.id_loai_phong == id).first()
+    if rt:
+        check_hotel_ownership(rt.id_khach_san, user)
     return RoomTypeService.update_room_type(db, id, payload)
 
 # 5. Xóa loại phòng
@@ -75,5 +80,8 @@ def delete_room_type(
     db: Session = Depends(get_db),
     user: dict = Depends(require_partner_or_admin),
 ):
+    rt = db.query(LoaiPhongModel).filter(LoaiPhongModel.id_loai_phong == id).first()
+    if rt:
+        check_hotel_ownership(rt.id_khach_san, user)
     RoomTypeService.delete_room_type(db, id)
     return None

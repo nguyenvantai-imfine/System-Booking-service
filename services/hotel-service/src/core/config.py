@@ -1,9 +1,33 @@
+from typing import List, Union
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # Cấu hình ứng dụng
     APP_NAME: str = "Hotel Service"
     API_V1_STR: str = "/api/v1"
+
+    # Cấu hình CORS
+    CORS_ORIGINS: List[str] = [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+    ]
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
+        if isinstance(v, str):
+            v = v.strip()
+            if v.startswith("[") and v.endswith("]"):
+                import json
+                try:
+                    return json.loads(v)
+                except Exception:
+                    pass
+            return [i.strip() for i in v.split(",") if i.strip()]
+        return v
     
     # Cấu hình Database SQL Server
     DB_SERVER: str = "localhost"         # Tên Server hoặc IP (ví dụ: localhost, localhost\\SQLEXPRESS)

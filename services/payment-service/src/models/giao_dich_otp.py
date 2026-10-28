@@ -13,7 +13,7 @@ class GiaoDichOtpModel(Base):
         nullable=False,
     )
     email = Column(String(150), nullable=False)
-    otp_code = Column(String(6), nullable=False)
+    otp_code = Column(String(64), nullable=False)
     thoi_gian_tao = Column(DateTime, default=datetime.utcnow, nullable=False)
     thoi_gian_het_han = Column(DateTime, nullable=False)
     da_su_dung = Column(Boolean, default=False, nullable=False)

@@ -13,8 +13,17 @@ class EmailSender:
         Gửi email qua SMTP (hỗ trợ Gmail, Mailtrap, AWS SES, v.v.)
         Trả về (is_success, error_or_info_message)
         """
-        # Nếu đang ở chế độ Mock hoặc chưa cấu hình SMTP user
-        if settings.MOCK_EMAIL_SEND or not settings.SMTP_USER:
+        # Kiểm tra chế độ Mock và cấu hình SMTP
+        use_mock = getattr(settings, "USE_MOCK_EMAIL", None)
+        if use_mock is None:
+            use_mock = getattr(settings, "MOCK_EMAIL_SEND", True)
+
+        has_smtp_credentials = bool(
+            settings.SMTP_HOST and settings.SMTP_USER and settings.SMTP_PASSWORD
+        )
+
+        # Nếu đang ở chế độ Mock hoặc chưa cấu hình đầy đủ SMTP credentials
+        if use_mock or not has_smtp_credentials:
             logger.info(f"[MOCK EMAIL SENT] To: {to_email}")
             print(f">>> [NOTIFICATION SERVICE - EMAIL DISPATCHED] >>>")
             print(f"    Recipient: {to_email}")
@@ -37,10 +46,11 @@ class EmailSender:
                 msg.attach(MIMEText(text_content, "plain", "utf-8"))
             msg.attach(MIMEText(html_content, "html", "utf-8"))
 
+            timeout = 10
             if settings.SMTP_PORT == 465:
-                server = smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT)
+                server = smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=timeout)
             else:
-                server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT)
+                server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=timeout)
                 if settings.SMTP_TLS:
                     server.starttls()
 
@@ -50,6 +60,7 @@ class EmailSender:
             server.sendmail(settings.SMTP_FROM_EMAIL, [to_email], msg.as_string())
             server.quit()
             logger.info(f"[REAL SMTP EMAIL SENT] To: {to_email} | Subject: {subject}")
+            print(f">>> [NOTIFICATION SERVICE - REAL SMTP EMAIL SENT] >>> To: {to_email} | Subject: {subject}")
             return True, "Email sent successfully via SMTP"
         except Exception as e:
             error_msg = f"SMTP Error: {str(e)}"

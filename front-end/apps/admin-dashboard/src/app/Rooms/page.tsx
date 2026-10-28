@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   Search,
   Filter,
@@ -280,10 +280,49 @@ export default function RoomsPage() {
     }
   };
 
-  const getHotelName = (hotelId: number) => {
-    const found = hotels.find((h) => h.id_khach_san === hotelId);
-    return found ? found.ten_khach_san : `Khách sạn #${hotelId}`;
-  };
+  const getHotelName = useCallback(
+    (hotelId: number) => {
+      const found = hotels.find((h) => h.id_khach_san === hotelId);
+      return found ? found.ten_khach_san : `Khách sạn #${hotelId}`;
+    },
+    [hotels]
+  );
+
+  const sortedRooms = useMemo(() => {
+    return [...rooms].sort((a: any, b: any) => {
+      let valA: any = a[sortField];
+      let valB: any = b[sortField];
+
+      if (sortField === "price") {
+        valA = a.loai_phong?.gia_co_ban_mot_dem || 0;
+        valB = b.loai_phong?.gia_co_ban_mot_dem || 0;
+      } else if (sortField === "hotel") {
+        valA = getHotelName(a.id_khach_san);
+        valB = getHotelName(b.id_khach_san);
+      } else if (sortField === "status") {
+        valA = a.trang_thai || "";
+        valB = b.trang_thai || "";
+      } else if (sortField === "so_phong") {
+        valA = a.so_phong || "";
+        valB = b.so_phong || "";
+      } else if (sortField === "roomType") {
+        valA = a.loai_phong?.ten_loai_phong || "";
+        valB = b.loai_phong?.ten_loai_phong || "";
+      } else if (sortField === "capacity") {
+        valA = (a.loai_phong?.suc_chua_nguoi_lon || 0) + (a.loai_phong?.suc_chua_tre_em || 0);
+        valB = (b.loai_phong?.suc_chua_nguoi_lon || 0) + (b.loai_phong?.suc_chua_tre_em || 0);
+      }
+
+      if (typeof valA === "string" && typeof valB === "string") {
+        const cmp = valA.localeCompare(valB, "vi", { numeric: true });
+        return sortOrder === "asc" ? cmp : -cmp;
+      }
+
+      if (valA < valB) return sortOrder === "asc" ? -1 : 1;
+      if (valA > valB) return sortOrder === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [rooms, sortField, sortOrder, getHotelName]);
 
   const getStatusBadge = (status: TrangThaiPhong) => {
     switch (status) {
@@ -463,28 +502,67 @@ export default function RoomsPage() {
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
+            <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold select-none">
               <tr>
                 <th className="px-5 py-3.5">ID</th>
-                <th className="px-5 py-3.5">Khách sạn</th>
                 <th
-                  className="px-5 py-3.5 cursor-pointer hover:bg-slate-100"
+                  className="px-5 py-3.5 cursor-pointer hover:bg-slate-100 transition-colors"
+                  onClick={() => handleSort("hotel")}
+                >
+                  <div className="flex items-center gap-1">
+                    Khách sạn
+                    {sortField === "hotel" &&
+                      (sortOrder === "asc" ? (
+                        <ChevronUp className="w-4 h-4 text-blue-600" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-blue-600" />
+                      ))}
+                  </div>
+                </th>
+                <th
+                  className="px-5 py-3.5 cursor-pointer hover:bg-slate-100 transition-colors"
                   onClick={() => handleSort("so_phong")}
                 >
                   <div className="flex items-center gap-1">
                     Số phòng
                     {sortField === "so_phong" &&
                       (sortOrder === "asc" ? (
-                        <ChevronUp className="w-4 h-4" />
+                        <ChevronUp className="w-4 h-4 text-blue-600" />
                       ) : (
-                        <ChevronDown className="w-4 h-4" />
+                        <ChevronDown className="w-4 h-4 text-blue-600" />
                       ))}
                   </div>
                 </th>
                 <th className="px-5 py-3.5">Hạng phòng</th>
-                <th className="px-5 py-3.5">Giá / Đêm</th>
+                <th
+                  className="px-5 py-3.5 cursor-pointer hover:bg-slate-100 transition-colors"
+                  onClick={() => handleSort("price")}
+                >
+                  <div className="flex items-center gap-1">
+                    Giá / Đêm
+                    {sortField === "price" &&
+                      (sortOrder === "asc" ? (
+                        <ChevronUp className="w-4 h-4 text-blue-600" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-blue-600" />
+                      ))}
+                  </div>
+                </th>
                 <th className="px-5 py-3.5">Sức chứa</th>
-                <th className="px-5 py-3.5">Trạng thái</th>
+                <th
+                  className="px-5 py-3.5 cursor-pointer hover:bg-slate-100 transition-colors"
+                  onClick={() => handleSort("status")}
+                >
+                  <div className="flex items-center gap-1">
+                    Trạng thái
+                    {sortField === "status" &&
+                      (sortOrder === "asc" ? (
+                        <ChevronUp className="w-4 h-4 text-blue-600" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-blue-600" />
+                      ))}
+                  </div>
+                </th>
                 <th className="px-5 py-3.5 text-center">Đổi Trạng Thái Nhanh</th>
                 <th className="px-5 py-3.5 text-center">Hành động</th>
               </tr>
@@ -497,14 +575,14 @@ export default function RoomsPage() {
                     Đang tải danh sách phòng...
                   </td>
                 </tr>
-              ) : rooms.length === 0 ? (
+              ) : sortedRooms.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="px-5 py-12 text-center text-slate-500">
                     Không tìm thấy phòng nào phù hợp với bộ lọc.
                   </td>
                 </tr>
               ) : (
-                rooms.map((room) => {
+                sortedRooms.map((room) => {
                   const price =
                     room.loai_phong?.gia_co_ban_mot_dem !== undefined
                       ? Number(room.loai_phong.gia_co_ban_mot_dem).toLocaleString("vi-VN") +

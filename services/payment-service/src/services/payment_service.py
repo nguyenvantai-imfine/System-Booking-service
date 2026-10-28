@@ -1,10 +1,12 @@
+import hashlib
 import math
 import secrets
 import uuid
+from decimal import Decimal
 from datetime import datetime, timedelta
 from typing import List, Optional, Tuple
 from fastapi import HTTPException, status
-from sqlalchemy import func, desc
+from sqlalchemy import func, desc, cast, Date
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from src.core.config import settings
@@ -24,7 +26,13 @@ from src.schemas import (
     OtpResponse,
 )
 
+def hash_otp(raw_otp: str) -> str:
+    """Băm mã OTP bằng SHA-256 (kết quả chuỗi hex 64 ký tự)."""
+    return hashlib.sha256(raw_otp.encode("utf-8")).hexdigest()
+
 class PaymentService:
+    hash_otp = staticmethod(hash_otp)
+
     @staticmethod
     async def generate_otp(
         db: Session, payload: GenerateOtpRequest
@@ -54,9 +62,9 @@ class PaymentService:
         ).update({"da_su_dung": True}, synchronize_session=False)
 
         # 3. Sinh mã 6 chữ số bằng module secrets (secrets.randbelow), giữ số 0 đứng đầu bằng zfill(6)
-        otp_code = str(secrets.randbelow(1_000_000)).zfill(6)
+        raw_otp = str(secrets.randbelow(1_000_000)).zfill(6)
 
-        # 4. Hạn dùng 3 phút (now + timedelta(minutes=3)); lưu DB
+        # 4. Hạn dùng 3 phút (now + timedelta(minutes=3)); lưu DB dạng SHA-256 hash (64 ký tự)
         now_utc = datetime.utcnow()
         expires_at = now_utc + timedelta(minutes=3)
         expires_in_seconds = 180
@@ -64,7 +72,7 @@ class PaymentService:
         otp_record = GiaoDichOtpModel(
             ma_giao_dich_gateway=payload.ma_giao_dich_gateway,
             email=str(payload.email),
-            otp_code=otp_code,
+            otp_code=hash_otp(raw_otp),
             thoi_gian_tao=now_utc,
             thoi_gian_het_han=expires_at,
             da_su_dung=False,
@@ -79,7 +87,7 @@ class PaymentService:
         try:
             publish_otp_event("notification.otp.generated", {
                 "email": str(payload.email),
-                "otp_code": otp_code,
+                "otp_code": raw_otp,
                 "ma_giao_dich_gateway": payload.ma_giao_dich_gateway,
                 "ma_booking": payment.ma_booking,
                 "expires_in_seconds": expires_in_seconds,
@@ -94,6 +102,64 @@ class PaymentService:
             ma_giao_dich_gateway=payload.ma_giao_dich_gateway,
             expires_in_seconds=expires_in_seconds,
         )
+
+    @staticmethod
+    def confirm_booking_with_retry(
+        id_dat_phong: int,
+        note: str,
+        max_retries: int = 3,
+        initial_delay: float = 0.2,
+    ) -> bool:
+        """
+        Gọi PATCH /api/v1/bookings/{id_dat_phong}/confirm với cơ chế Exponential Backoff Retry (3 lần).
+        Trả về True nếu Booking Service xác nhận thành công (status 200/204).
+        Trả về False nếu sau max_retries lần vẫn không gọi được Booking Service.
+        """
+        import time
+        import urllib.request
+        import urllib.parse
+        from src.core.correlation import get_correlation_id
+
+        note_encoded = urllib.parse.quote(note)
+        booking_url = getattr(settings, "BOOKING_SERVICE_URL", "http://localhost:8003/api/v1").rstrip("/")
+        confirm_url = f"{booking_url}/bookings/{id_dat_phong}/confirm?note={note_encoded}"
+
+        cid = get_correlation_id()
+        headers = {
+            "User-Agent": "payment-service",
+            "Accept": "application/json",
+        }
+        if cid:
+            headers["X-Correlation-ID"] = cid
+
+        delay = initial_delay
+        for attempt in range(1, max_retries + 1):
+            try:
+                try:
+                    import httpx
+                    with httpx.Client(timeout=3.0) as client:
+                        resp = client.patch(confirm_url, headers=headers)
+                        if resp.status_code in (200, 204):
+                            print(f">>> [Payment Service] Booking {id_dat_phong} confirmed successfully on attempt {attempt}.")
+                            return True
+                        elif 400 <= resp.status_code < 500:
+                            print(f">>> [Payment Service] Booking {id_dat_phong} confirm rejected with status {resp.status_code}: {resp.text}")
+                            return False
+                except ImportError:
+                    req = urllib.request.Request(confirm_url, method="PATCH", headers=headers)
+                    with urllib.request.urlopen(req, timeout=3.0) as resp:
+                        if resp.status in (200, 204):
+                            print(f">>> [Payment Service] Booking {id_dat_phong} confirmed successfully on attempt {attempt}.")
+                            return True
+            except Exception as e:
+                print(f">>> [Payment Service] Attempt {attempt}/{max_retries} confirming booking {id_dat_phong} failed: {e}")
+
+            if attempt < max_retries:
+                time.sleep(delay)
+                delay *= 2
+
+        print(f">>> [Payment Service] CRITICAL: Failed after {max_retries} attempts confirming booking {id_dat_phong}.")
+        return False
 
     @staticmethod
     async def verify_otp(
@@ -156,8 +222,14 @@ class PaymentService:
                 detail="Mã OTP đã hết thời hạn hiệu lực (3 phút). Vui lòng tạo mã OTP mới.",
             )
 
-        # So sánh mã bằng secrets.compare_digest
-        if not secrets.compare_digest(otp_record.otp_code, payload.otp_code):
+        # So sánh mã bằng secrets.compare_digest trên SHA-256 hash của mã OTP người dùng nhập vào
+        hash_input = hash_otp(payload.otp_code)
+        is_match = secrets.compare_digest(otp_record.otp_code, hash_input)
+        # Fallback cho OTP 6 ký tự cũ chưa băm nếu còn trong hạn (3 phút)
+        if not is_match and len(otp_record.otp_code) == 6:
+            is_match = secrets.compare_digest(otp_record.otp_code, payload.otp_code)
+
+        if not is_match:
             otp_record.so_lan_thu += 1
             db.commit()
             remaining = 3 - otp_record.so_lan_thu
@@ -171,50 +243,53 @@ class PaymentService:
                 detail=f"Mã OTP không chính xác. Bạn còn {remaining} lần thử.",
             )
 
-        # Đúng mã: da_su_dung = 1, cập nhật thanh_toan sang SUCCESS, commit nguyên tử
+        # Đúng mã: da_su_dung = 1
         otp_record.da_su_dung = True
-        payment.trang_thai = TrangThaiThanhToanEnum.SUCCESS.value
+
+        # Gọi đồng bộ sang Booking Service kèm retry (exponential backoff)
+        note = f"Xác nhận tự động qua cổng {payment.phuong_thuc} OTP ({payment.ma_giao_dich_gateway})"
+        is_synced = PaymentService.confirm_booking_with_retry(payment.id_dat_phong, note, max_retries=3)
+
         payment.ngay_thanh_toan = datetime.utcnow()
-        payment.ghi_chu = f"Thanh toán xác thực OTP thành công ({otp_record.email})"
+        if is_synced:
+            payment.trang_thai = TrangThaiThanhToanEnum.SUCCESS.value
+            payment.ghi_chu = f"Thanh toán xác thực OTP thành công ({otp_record.email})"
+        else:
+            payment.trang_thai = TrangThaiThanhToanEnum.SYNC_FAILED.value
+            payment.ghi_chu = "Thanh toán thành công nhưng chưa thể cập nhật Booking Service. Chờ đối soát tự động."
+            print(f">>> [Payment Service] ALERT: Giao dịch {payment.ma_giao_dich_gateway} chuyển trạng thái SYNC_FAILED.")
 
         db.commit()
         db.refresh(payment)
 
-        # Sau commit: gọi đồng bộ PATCH sang Booking Service để chuyển đơn sang CONFIRMED
-        try:
-            import urllib.request
-            import urllib.parse
-            note_encoded = urllib.parse.quote(
-                f"Xác nhận tự động qua cổng {payment.phuong_thuc} OTP ({payment.ma_giao_dich_gateway})"
-            )
-            from src.core.correlation import get_correlation_id
-            cid = get_correlation_id()
-            headers = {"User-Agent": "payment-service"}
-            if cid:
-                headers["X-Correlation-ID"] = cid
-
-            confirm_url = f"{settings.BOOKING_SERVICE_URL}/bookings/{payment.id_dat_phong}/confirm?note={note_encoded}"
-            req = urllib.request.Request(confirm_url, method="PATCH", headers=headers)
-            with urllib.request.urlopen(req, timeout=10.0) as resp:
-                print(
-                    f">>> [Payment Service] Booking {payment.id_dat_phong} confirmed successfully via OTP (status {resp.status})."
-                )
-        except Exception as e:
-            print(f">>> [Payment Service] Error contacting booking-service: {str(e)}")
-
-        # Publish event notification.payment.success để gửi vé điện tử kèm QR
-        try:
-            publish_payment_event("notification.payment.success", {
-                "ma_booking": payment.ma_booking,
-                "id_dat_phong": payment.id_dat_phong,
-                "id_thanh_toan": payment.id_thanh_toan,
-                "so_tien": float(payment.so_tien),
-                "phuong_thuc": payment.phuong_thuc,
-                "ma_giao_dich_gateway": payment.ma_giao_dich_gateway,
-                "email": otp_record.email,
-            })
-        except Exception as mq_err:
-            print(f">>> [Payment Service] MQ Warning: {mq_err}")
+        # Publish event
+        if is_synced:
+            try:
+                publish_payment_event("notification.payment.success", {
+                    "ma_booking": payment.ma_booking,
+                    "id_dat_phong": payment.id_dat_phong,
+                    "id_thanh_toan": payment.id_thanh_toan,
+                    "so_tien": float(payment.so_tien),
+                    "phuong_thuc": payment.phuong_thuc,
+                    "ma_giao_dich_gateway": payment.ma_giao_dich_gateway,
+                    "email": otp_record.email,
+                })
+            except Exception as mq_err:
+                print(f">>> [Payment Service] MQ Warning: {mq_err}")
+        else:
+            try:
+                publish_payment_event("notification.payment.sync_failed", {
+                    "ma_booking": payment.ma_booking,
+                    "id_dat_phong": payment.id_dat_phong,
+                    "id_thanh_toan": payment.id_thanh_toan,
+                    "so_tien": float(payment.so_tien),
+                    "phuong_thuc": payment.phuong_thuc,
+                    "ma_giao_dich_gateway": payment.ma_giao_dich_gateway,
+                    "email": otp_record.email,
+                    "ghi_chu": payment.ghi_chu,
+                })
+            except Exception as mq_err:
+                print(f">>> [Payment Service] MQ Warning on sync_failed: {mq_err}")
 
         return payment
 
@@ -291,6 +366,15 @@ class PaymentService:
                         raise HTTPException(
                             status_code=status.HTTP_400_BAD_REQUEST,
                             detail=f"Đơn đặt phòng {payload.ma_booking} đã bị hủy hoặc hết hạn ({bk_status}). Không thể tạo thanh toán.",
+                        )
+
+                    # 2.2.1 Đối soát số tiền thanh toán (P1.3)
+                    booking_total = Decimal(str(bk_data.get("tong_tien", 0)))
+                    req_amount = Decimal(str(payload.so_tien))
+                    if req_amount != booking_total:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Số tiền thanh toán ({req_amount:,.0f} đ) không khớp với giá trị đơn đặt phòng ({booking_total:,.0f} đ).",
                         )
 
                     # Kiểm tra hạn giữ chỗ (han_giu_cho)
@@ -401,58 +485,59 @@ class PaymentService:
             )
 
         old_status = payment.trang_thai
-        payment.trang_thai = payload.trang_thai.value
 
         if payload.trang_thai == TrangThaiThanhToanEnum.SUCCESS:
-            payment.ngay_thanh_toan = datetime.utcnow()
-            payment.ghi_chu = payload.note or "Thanh toán thành công qua IPN Callback"
+            note = payload.note or f"Xác nhận tự động qua cổng {payment.phuong_thuc} IPN ({payment.ma_giao_dich_gateway})"
+            is_synced = PaymentService.confirm_booking_with_retry(payment.id_dat_phong, note, max_retries=3)
 
-            # 1. Đảm bảo commit trạng thái nguyên tử trong database TRƯỚC
+            payment.ngay_thanh_toan = datetime.utcnow()
+            if is_synced:
+                payment.trang_thai = TrangThaiThanhToanEnum.SUCCESS.value
+                payment.ghi_chu = payload.note or "Thanh toán thành công qua IPN Callback"
+            else:
+                payment.trang_thai = TrangThaiThanhToanEnum.SYNC_FAILED.value
+                payment.ghi_chu = "Thanh toán thành công nhưng chưa thể cập nhật Booking Service. Chờ đối soát tự động."
+                print(f">>> [Payment Service] ALERT: Giao dịch IPN {payment.ma_giao_dich_gateway} chuyển trạng thái SYNC_FAILED.")
+
             db.commit()
             db.refresh(payment)
 
-            # 2. CHỈ gọi Booking Service và publish event SAU khi commit thành công, và chỉ thực hiện đúng một lần
-            try:
-                import urllib.request
-                import urllib.parse
-                note_encoded = urllib.parse.quote(
-                    f"Xác nhận tự động qua cổng {payment.phuong_thuc} ({payment.ma_giao_dich_gateway})"
-                )
-                from src.core.correlation import get_correlation_id
-                cid = get_correlation_id()
-                headers = {"User-Agent": "payment-service"}
-                if cid:
-                    headers["X-Correlation-ID"] = cid
-
-                confirm_url = f"{settings.BOOKING_SERVICE_URL}/bookings/{payment.id_dat_phong}/confirm?note={note_encoded}"
-                req = urllib.request.Request(confirm_url, method="PATCH", headers=headers)
-                with urllib.request.urlopen(req, timeout=10.0) as resp:
-                    print(
-                        f">>> [Payment Service] Booking {payment.id_dat_phong} confirmed successfully via IPN (status {resp.status})."
-                    )
-            except Exception as e:
-                print(f">>> [Payment Service] Error contacting booking-service: {str(e)}")
-
-            try:
-                publish_payment_event("notification.payment.success", {
-                    "ma_booking": payment.ma_booking,
-                    "id_dat_phong": payment.id_dat_phong,
-                    "id_thanh_toan": payment.id_thanh_toan,
-                    "so_tien": float(payment.so_tien),
-                    "phuong_thuc": payment.phuong_thuc,
-                    "ma_giao_dich_gateway": payment.ma_giao_dich_gateway,
-                })
-            except Exception as mq_err:
-                print(f">>> [Payment Service] MQ Warning: {mq_err}")
+            if is_synced:
+                try:
+                    publish_payment_event("notification.payment.success", {
+                        "ma_booking": payment.ma_booking,
+                        "id_dat_phong": payment.id_dat_phong,
+                        "id_thanh_toan": payment.id_thanh_toan,
+                        "so_tien": float(payment.so_tien),
+                        "phuong_thuc": payment.phuong_thuc,
+                        "ma_giao_dich_gateway": payment.ma_giao_dich_gateway,
+                    })
+                except Exception as mq_err:
+                    print(f">>> [Payment Service] MQ Warning: {mq_err}")
+            else:
+                try:
+                    publish_payment_event("notification.payment.sync_failed", {
+                        "ma_booking": payment.ma_booking,
+                        "id_dat_phong": payment.id_dat_phong,
+                        "id_thanh_toan": payment.id_thanh_toan,
+                        "so_tien": float(payment.so_tien),
+                        "phuong_thuc": payment.phuong_thuc,
+                        "ma_giao_dich_gateway": payment.ma_giao_dich_gateway,
+                        "ghi_chu": payment.ghi_chu,
+                    })
+                except Exception as mq_err:
+                    print(f">>> [Payment Service] MQ Warning on sync_failed: {mq_err}")
 
             return payment
 
         elif payload.trang_thai == TrangThaiThanhToanEnum.FAILED:
+            payment.trang_thai = TrangThaiThanhToanEnum.FAILED.value
             payment.ghi_chu = payload.note or "Giao dịch thanh toán thất bại"
             db.commit()
             db.refresh(payment)
             return payment
         else:
+            payment.trang_thai = payload.trang_thai.value
             db.commit()
             db.refresh(payment)
             return payment
@@ -494,9 +579,23 @@ class PaymentService:
 
     @staticmethod
     def get_stats(db: Session) -> PaymentStatsResponse:
+        today = datetime.utcnow().date()
+        today_date_filter = cast(ThanhToanModel.thoi_gian_tao, Date) == today
+        if db.bind and getattr(db.bind, "dialect", None) and db.bind.dialect.name == "sqlite":
+            today_date_filter = func.date(ThanhToanModel.thoi_gian_tao) == str(today)
+
         total_rev = (
             db.query(func.coalesce(func.sum(ThanhToanModel.so_tien), 0))
             .filter(ThanhToanModel.trang_thai == TrangThaiThanhToanEnum.SUCCESS.value)
+            .scalar()
+        )
+
+        today_rev = (
+            db.query(func.coalesce(func.sum(ThanhToanModel.so_tien), 0))
+            .filter(
+                ThanhToanModel.trang_thai == TrangThaiThanhToanEnum.SUCCESS.value,
+                today_date_filter,
+            )
             .scalar()
         )
 
@@ -519,13 +618,21 @@ class PaymentService:
             .scalar()
             or 0
         )
+        sync_failed_count = (
+            db.query(func.count(ThanhToanModel.id_thanh_toan))
+            .filter(ThanhToanModel.trang_thai == TrangThaiThanhToanEnum.SYNC_FAILED.value)
+            .scalar()
+            or 0
+        )
 
         return PaymentStatsResponse(
             total_revenue=float(total_rev),
+            today_revenue=float(today_rev or 0),
             total_transactions=total_tx,
             success_count=success_count,
             pending_count=pending_count,
             failed_count=failed_count,
+            sync_failed_count=sync_failed_count,
         )
 
     @staticmethod

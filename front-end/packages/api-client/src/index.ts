@@ -58,7 +58,7 @@ import type {
 } from "@repo/types";
 
 export interface ApiClientConfig {
-  baseUrl: string;
+  baseUrl?: string;
   userServiceUrl?: string;
   roomServiceUrl?: string;
   bookingServiceUrl?: string;
@@ -91,13 +91,15 @@ export class ApiClient {
   private getAuthToken?: () => string | null | Promise<string | null>;
 
   constructor(config: ApiClientConfig) {
-    this.baseUrl = config.baseUrl.replace(/\/$/, "");
-    this.userServiceUrl = (config.userServiceUrl || "http://localhost:8001/api/v1").replace(/\/$/, "");
-    this.roomServiceUrl = (config.roomServiceUrl || "http://localhost:8002/api/v1").replace(/\/$/, "");
-    this.bookingServiceUrl = (config.bookingServiceUrl || "http://localhost:8003/api/v1").replace(/\/$/, "");
-    this.paymentServiceUrl = (config.paymentServiceUrl || "http://localhost:8004/api/v1").replace(/\/$/, "");
-    this.notificationServiceUrl = (config.notificationServiceUrl || "http://localhost:8005/api/v1").replace(/\/$/, "");
     this.gatewayUrl = config.gatewayUrl?.replace(/\/$/, "");
+    const defaultUrl = this.gatewayUrl || config.baseUrl?.replace(/\/$/, "") || "http://localhost:8080/api/v1";
+
+    this.baseUrl = (config.baseUrl || defaultUrl).replace(/\/$/, "");
+    this.userServiceUrl = (config.userServiceUrl || defaultUrl).replace(/\/$/, "");
+    this.roomServiceUrl = (config.roomServiceUrl || defaultUrl).replace(/\/$/, "");
+    this.bookingServiceUrl = (config.bookingServiceUrl || defaultUrl).replace(/\/$/, "");
+    this.paymentServiceUrl = (config.paymentServiceUrl || defaultUrl).replace(/\/$/, "");
+    this.notificationServiceUrl = (config.notificationServiceUrl || defaultUrl).replace(/\/$/, "");
     this.getAuthToken = config.getAuthToken;
   }
 
@@ -116,7 +118,7 @@ export class ApiClient {
       headers["Authorization"] = `Bearer ${token}`;
     }
 
-    const base = customBaseUrl || this.baseUrl;
+    const base = this.gatewayUrl || customBaseUrl || this.baseUrl;
     const url = `${base}${endpoint.startsWith("/") ? "" : "/"}${endpoint}`;
 
     const response = await fetch(url, {
@@ -759,3 +761,5 @@ export class ApiClient {
 export function createApiClient(config: ApiClientConfig): ApiClient {
   return new ApiClient(config);
 }
+
+export { PhuongThucThanhToan } from "@repo/types";

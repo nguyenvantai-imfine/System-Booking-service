@@ -19,6 +19,8 @@ import {
   Home,
   Clock,
   Sparkles,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 
 export default function BookingSuccessPage({
@@ -29,15 +31,18 @@ export default function BookingSuccessPage({
   const { code } = use(params);
   const [booking, setBooking] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  useEffect(() => {
-    async function fetchBooking() {
-      try {
-        const data = await apiClient.getBookingDetail(code);
-        setBooking(data);
-      } catch (err) {
-        console.warn("Could not fetch real booking detail, using code reference:", err);
-        // Fallback representation using the booking code
+  const fetchBooking = async () => {
+    if (!code) return;
+    setIsLoading(true);
+    setErrorMessage("");
+    try {
+      const data = await apiClient.getBookingDetail(code);
+      setBooking(data);
+    } catch (err: any) {
+      console.error("Could not fetch real booking detail:", err);
+      if (process.env.NEXT_PUBLIC_DEMO_MODE === "true") {
         setBooking({
           ma_booking: code,
           trang_thai: "CONFIRMED",
@@ -45,7 +50,7 @@ export default function BookingSuccessPage({
           ngay_nhan_phong: "2026-11-01",
           ngay_tra_phong: "2026-11-03",
           khach_san: {
-            ten_khach_san: "Test JWT Grand Hotel",
+            ten_khach_san: "Test JWT Grand Hotel (Demo)",
             dia_chi: "123 Võ Nguyên Giáp, Sơn Trà, Đà Nẵng",
           },
           thong_tin_khach: {
@@ -61,14 +66,17 @@ export default function BookingSuccessPage({
             },
           ],
         });
-      } finally {
-        setIsLoading(false);
+      } else {
+        setErrorMessage("Không thể kết nối đến máy chủ để tải thông tin đơn đặt phòng. Vui lòng thử lại sau.");
+        setBooking(null);
       }
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    if (code) {
-      fetchBooking();
-    }
+  useEffect(() => {
+    fetchBooking();
   }, [code]);
 
   const handlePrintTicket = () => {
@@ -86,7 +94,36 @@ export default function BookingSuccessPage({
     );
   }
 
-  const guest = booking?.thong_tin_khach || {};
+  if (errorMessage || !booking) {
+    return (
+      <div className="max-w-2xl mx-auto my-20 p-8 rounded-3xl bg-white border border-rose-200 text-center space-y-4 shadow-sm">
+        <div className="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center mx-auto text-rose-500">
+          <AlertCircle className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-900">Không thể kết nối đến máy chủ</h2>
+        <p className="text-sm text-slate-500">
+          {errorMessage || "Không thể kết nối đến máy chủ để tải thông tin đơn đặt phòng."}
+        </p>
+        <div className="flex items-center justify-center gap-3 pt-2">
+          <button
+            onClick={() => fetchBooking()}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md transition-all hover:scale-105"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Thử lại
+          </button>
+          <Link
+            href="/"
+            className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors"
+          >
+            Về trang chủ
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const guest = booking?.khach_o || booking?.thong_tin_khach || {};
   const room = booking?.chi_tiet?.[0] || {};
   const hotel = booking?.khach_san || {};
 

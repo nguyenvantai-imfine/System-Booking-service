@@ -52,7 +52,7 @@ app = FastAPI(
 # ─────────────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],     # Thay bằng danh sách domain cụ thể trong môi trường production
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

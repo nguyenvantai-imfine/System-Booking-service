@@ -20,6 +20,45 @@ from src.schemas import (
 
 class BookingService:
     @staticmethod
+    def get_booked_room_ids(
+        db: Session,
+        hotel_id: int,
+        check_in: date,
+        check_out: date,
+    ) -> List[int]:
+        """
+        Truy vấn tất cả id_phong thuộc các đơn đặt phòng tại hotel_id có điều kiện giao thoa ngày:
+          (ngay_nhan_phong < check_out) AND (ngay_tra_phong > check_in)
+        và trạng thái là CONFIRMED, COMPLETED hoặc PENDING_PAYMENT còn trong hạn giữ chỗ (han_giu_cho > now_utc).
+        """
+        BookingService.release_expired_holds(db)
+        now_utc = datetime.utcnow()
+
+        rows = (
+            db.query(ChiTietDatPhongModel.id_phong)
+            .join(DatPhongModel, ChiTietDatPhongModel.id_dat_phong == DatPhongModel.id_dat_phong)
+            .filter(
+                DatPhongModel.id_khach_san == hotel_id,
+                DatPhongModel.ngay_nhan_phong < check_out,
+                DatPhongModel.ngay_tra_phong > check_in,
+                or_(
+                    DatPhongModel.trang_thai.in_([
+                        TrangThaiBookingEnum.CONFIRMED.value,
+                        TrangThaiBookingEnum.COMPLETED.value,
+                    ]),
+                    and_(
+                        DatPhongModel.trang_thai == TrangThaiBookingEnum.PENDING_PAYMENT.value,
+                        DatPhongModel.han_giu_cho.isnot(None),
+                        DatPhongModel.han_giu_cho > now_utc,
+                    ),
+                ),
+            )
+            .distinct()
+            .all()
+        )
+        return [r[0] for r in rows if r[0] is not None]
+
+    @staticmethod
     def release_expired_holds(db: Session) -> int:
         """Tự động hủy các đơn PENDING_PAYMENT đã quá hạn 15 phút giữ chỗ."""
         now_utc = datetime.utcnow()
@@ -50,6 +89,115 @@ class BookingService:
             print(f">>> [Booking Service] Released {released_count} expired booking holds.")
 
         return released_count
+
+    @staticmethod
+    def _verify_and_get_room_info(
+        id_phong: int,
+        id_khach_san: int,
+        id_loai_phong: Optional[int] = None,
+    ) -> Optional[dict]:
+        """
+        Gọi sang Room Service để kiểm tra phòng:
+        - Kiểm tra phòng có tồn tại không (404 nếu không tồn tại).
+        - Kiểm tra phòng có thuộc đúng id_khach_san không (400 nếu sai khách sạn).
+        - Kiểm tra trạng thái phòng có phải AVAILABLE không (400 nếu không khả dụng).
+        - Trả về thông tin gốc từ Room Service:
+          {"gia_co_ban_mot_dem": float, "so_phong": str, "ten_loai_phong": str, "id_loai_phong": int}
+        """
+        room_service_url = getattr(settings, "ROOM_SERVICE_URL", "http://localhost:8002/api/v1").rstrip("/")
+        url = f"{room_service_url}/rooms/{id_phong}"
+        headers = {"User-Agent": "booking-service", "Accept": "application/json"}
+
+        try:
+            from src.core.correlation import get_correlation_id
+            cid = get_correlation_id()
+            if cid:
+                headers["X-Correlation-ID"] = cid
+        except Exception:
+            pass
+
+        data = None
+        try:
+            import httpx
+            with httpx.Client(timeout=4.0) as client:
+                resp = client.get(url, headers=headers)
+                if resp.status_code == 404:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"Phòng ID {id_phong} không tồn tại trong hệ thống.",
+                    )
+                if resp.status_code == 200:
+                    data = resp.json()
+        except HTTPException:
+            raise
+        except Exception as e:
+            try:
+                import urllib.request
+                import json
+                req = urllib.request.Request(url, headers=headers)
+                with urllib.request.urlopen(req, timeout=4.0) as resp:
+                    if resp.status == 200:
+                        data = json.loads(resp.read().decode())
+            except urllib.error.HTTPError as he:
+                if he.code == 404:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"Phòng ID {id_phong} không tồn tại trong hệ thống.",
+                    )
+            except HTTPException:
+                raise
+            except Exception as conn_err:
+                print(f">>> [Booking Service] Warning: Không thể kết nối tới Room Service để xác thực phòng #{id_phong}: {conn_err}")
+                return None
+
+        if not data:
+            return None
+
+        # 1. Kiểm tra khách sạn
+        room_hotel_id = data.get("id_khach_san")
+        if room_hotel_id is not None and int(room_hotel_id) != int(id_khach_san):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Phòng #{id_phong} không thuộc khách sạn ID {id_khach_san}.",
+            )
+
+        # 2. Kiểm tra trạng thái phòng
+        room_status = str(data.get("trang_thai", "")).upper()
+        if room_status and room_status != "AVAILABLE":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Phòng #{id_phong} hiện không khả dụng (Trạng thái: {room_status}).",
+            )
+
+        # 3. Lấy giá niêm yết gốc & thông tin loại phòng
+        loai_phong = data.get("loai_phong") or {}
+        listed_price = loai_phong.get("gia_co_ban_mot_dem")
+        ten_loai_phong = loai_phong.get("ten_loai_phong")
+        actual_type_id = data.get("id_loai_phong")
+        so_phong = data.get("so_phong")
+
+        # Nếu endpoint /rooms/{id} chưa populate loai_phong, gọi tiếp /room-types/{id_loai_phong}
+        if listed_price is None and (actual_type_id or id_loai_phong):
+            target_type_id = actual_type_id or id_loai_phong
+            try:
+                type_url = f"{room_service_url}/room-types/{target_type_id}"
+                import httpx
+                with httpx.Client(timeout=4.0) as client:
+                    resp_type = client.get(type_url, headers=headers)
+                    if resp_type.status_code == 200:
+                        type_data = resp_type.json()
+                        listed_price = type_data.get("gia_co_ban_mot_dem")
+                        if not ten_loai_phong:
+                            ten_loai_phong = type_data.get("ten_loai_phong")
+            except Exception:
+                pass
+
+        return {
+            "gia_co_ban_mot_dem": float(listed_price) if listed_price is not None else None,
+            "so_phong": so_phong,
+            "ten_loai_phong": ten_loai_phong,
+            "id_loai_phong": actual_type_id,
+        }
 
     @staticmethod
     def create_booking(
@@ -84,6 +232,42 @@ class BookingService:
         nights = (ngay_tra - ngay_nhan).days
         if nights < 1:
             nights = 1
+
+        # 0. Xác thực thông tin phòng và giá niêm yết từ Room Service (Data Trust Protection)
+        verified_rooms = []
+        for r in payload.rooms:
+            room_info = BookingService._verify_and_get_room_info(
+                id_phong=r.id_phong,
+                id_khach_san=payload.id_khach_san,
+                id_loai_phong=r.id_loai_phong,
+            )
+            if room_info and room_info.get("gia_co_ban_mot_dem") is not None:
+                listed_price = float(room_info["gia_co_ban_mot_dem"])
+                client_price = float(r.gia)
+
+                # Chặn gian lận giá: Nếu giá client gửi lên chênh lệch quá mức với giá niêm yết
+                if abs(client_price - listed_price) > 0.01:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Giá phòng đã thay đổi, vui lòng tải lại trang.",
+                    )
+
+                verified_rooms.append({
+                    "id_phong": r.id_phong,
+                    "id_loai_phong": room_info.get("id_loai_phong") or r.id_loai_phong,
+                    "so_phong": room_info.get("so_phong") or r.so_phong,
+                    "ten_loai_phong": room_info.get("ten_loai_phong") or r.ten_loai_phong,
+                    "gia": listed_price,
+                })
+            else:
+                # Fallback khi Room Service offline/chưa kết nối trong môi trường unit test
+                verified_rooms.append({
+                    "id_phong": r.id_phong,
+                    "id_loai_phong": r.id_loai_phong,
+                    "so_phong": r.so_phong,
+                    "ten_loai_phong": r.ten_loai_phong,
+                    "gia": float(r.gia),
+                })
 
         # Sắp xếp danh sách id_phong tăng dần để triệt tiêu hoàn toàn khả năng Deadlock giữa các transaction (Canonical Ordering)
         sorted_phong_ids = sorted(list(set(r.id_phong for r in payload.rooms)))
@@ -153,9 +337,11 @@ class BookingService:
                     detail=f"Phòng đã có người đặt trong thời gian này: {conflicted_names}",
                 )
 
-            # 4. Tính tổng tiền
-            total_price_per_night = sum(float(r.gia) for r in payload.rooms)
-            tong_tien = total_price_per_night * nights
+            # 4. Tính toán tiền phòng và thuế/phí (VAT 10%)
+            total_price_per_night = sum(float(item["gia"]) for item in verified_rooms)
+            tien_phong = total_price_per_night * nights
+            thue_phi = round(tien_phong * 0.10)
+            tong_tien = tien_phong + thue_phi
 
             # Sinh mã booking duy nhất: BK-YYYYMM-XXXX
             random_suffix = uuid.uuid4().hex[:6].upper()
@@ -163,7 +349,12 @@ class BookingService:
 
             # Thiết lập thời hạn giữ chỗ 15 phút
             han_giu_cho = now_utc + timedelta(minutes=settings.HOLD_MINUTES)
-            user_id = payload.id_tai_khoan or current_user_id or 1
+            if current_user_id is None:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Yêu cầu xác thực tài khoản để đặt phòng.",
+                )
+            user_id = current_user_id
 
             # 5. Khởi tạo toàn bộ dữ liệu trong cùng một transaction nguyên tử
             db_booking = DatPhongModel(
@@ -172,20 +363,22 @@ class BookingService:
                 id_khach_san=payload.id_khach_san,
                 ngay_nhan_phong=ngay_nhan,
                 ngay_tra_phong=ngay_tra,
+                tien_phong=tien_phong,
+                thue_phi=thue_phi,
                 tong_tien=tong_tien,
                 trang_thai=TrangThaiBookingEnum.PENDING_PAYMENT.value,
                 han_giu_cho=han_giu_cho,
             )
 
-            # Thêm chi tiết các phòng
-            for r in payload.rooms:
+            # Thêm chi tiết các phòng (giá và thông tin đã đối chiếu niêm yết)
+            for item in verified_rooms:
                 db_booking.chi_tiet.append(
                     ChiTietDatPhongModel(
-                        id_phong=r.id_phong,
-                        id_loai_phong=r.id_loai_phong,
-                        so_phong=r.so_phong,
-                        ten_loai_phong=r.ten_loai_phong,
-                        gia_tai_thoi_diem_dat=r.gia,
+                        id_phong=item["id_phong"],
+                        id_loai_phong=item["id_loai_phong"],
+                        so_phong=item["so_phong"],
+                        ten_loai_phong=item["ten_loai_phong"],
+                        gia_tai_thoi_diem_dat=item["gia"],
                     )
                 )
 
@@ -228,6 +421,7 @@ class BookingService:
         hotel_id: Optional[int] = None,
         status_filter: Optional[str] = None,
         keyword: Optional[str] = None,
+        user_id: Optional[int] = None,
         page: int = 1,
         page_size: int = 20,
     ) -> Tuple[List[DatPhongModel], int, int]:
@@ -242,6 +436,9 @@ class BookingService:
                 selectinload(DatPhongModel.nhat_ky),
             )
         )
+
+        if user_id is not None:
+            query = query.filter(DatPhongModel.id_tai_khoan == user_id)
 
         if hotel_id is not None:
             query = query.filter(DatPhongModel.id_khach_san == hotel_id)

@@ -2,7 +2,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Header, Query, status
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
-from src.api.v1.dependencies import get_db
+from src.api.v1.dependencies import get_db, get_current_user_payload, require_admin
 from src.schemas import (
     CreatePaymentRequest,
     SimulateIpnRequest,
@@ -32,6 +32,7 @@ def create_payment(
         description="Khóa chống trùng lặp giao dịch (Idempotency Key)",
     ),
     db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user_payload),
 ):
     return PaymentService.create_payment(
         db=db, payload=payload, idempotency_key=x_idempotency_key
@@ -48,6 +49,7 @@ def create_payment(
 async def generate_otp(
     payload: GenerateOtpRequest,
     db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user_payload),
 ):
     return await PaymentService.generate_otp(db, payload)
 
@@ -62,6 +64,7 @@ async def generate_otp(
 async def verify_otp(
     payload: VerifyOtpRequest,
     db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user_payload),
 ):
     return await PaymentService.verify_otp(db, payload)
 
@@ -69,19 +72,24 @@ async def verify_otp(
 @router.post(
     "/simulate-ipn",
     response_model=PaymentResponse,
-    summary="Mô phỏng IPN Callback cổng thanh toán (Tự động kích hoạt CONFIRMED đơn booking)",
+    summary="Mô phỏng IPN Callback cổng thanh toán (Sandbox Testing / IPN Secret)",
 )
 async def simulate_ipn(
     payload: SimulateIpnRequest,
     db: Session = Depends(get_db),
+    x_ipn_secret: Optional[str] = Header(
+        None,
+        alias="X-IPN-Secret",
+        description="Khóa bí mật IPN Webhook (nếu có cấu hình)",
+    ),
 ):
     return await PaymentService.simulate_ipn(db, payload)
 
-# 3. Lấy danh sách toàn bộ giao dịch thanh toán
+# 5. Lấy danh sách toàn bộ giao dịch thanh toán
 @router.get(
     "",
     response_model=PaymentPaginatedResponse,
-    summary="Danh sách giao dịch thanh toán (kèm phân trang & bộ lọc)",
+    summary="Danh sách giao dịch thanh toán (kèm phân trang & bộ lọc - Yêu cầu ADMIN)",
 )
 def get_payments(
     status: Optional[str] = Query(None, description="PENDING, SUCCESS, FAILED, REFUNDED"),
@@ -90,6 +98,7 @@ def get_payments(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
+    current_user: dict = Depends(require_admin),
 ):
     items, total, total_pages = PaymentService.get_payments(
         db=db,
@@ -107,13 +116,16 @@ def get_payments(
         "total_pages": total_pages,
     }
 
-# 4. Thống kê tổng doanh thu & giao dịch
+# 6. Thống kê tổng doanh thu & giao dịch
 @router.get(
     "/stats",
     response_model=PaymentStatsResponse,
-    summary="Thống kê tổng doanh thu và số lượng giao dịch",
+    summary="Thống kê tổng doanh thu và số lượng giao dịch (Yêu cầu ADMIN)",
 )
-def get_payment_stats(db: Session = Depends(get_db)):
+def get_payment_stats(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_admin),
+):
     return PaymentService.get_stats(db)
 
 # 5. Giao diện Sandbox Checkout HTML

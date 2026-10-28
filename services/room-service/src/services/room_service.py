@@ -301,7 +301,8 @@ class RoomService:
         num_guests: int = 1,
     ) -> List[PhongModel]:
         """
-        Truy vấn danh sách phòng khả dụng theo khách sạn và số lượng khách.
+        Truy vấn danh sách phòng khả dụng theo khách sạn và số lượng khách trong khoảng ngày.
+        Đối chiếu với Booking Service để loại trừ các phòng đã được đặt hoặc đang giữ chỗ.
         """
         if check_in >= check_out:
             raise HTTPException(
@@ -309,6 +310,50 @@ class RoomService:
                 detail="Ngày nhận phòng (check_in) phải trước ngày trả phòng (check_out).",
             )
 
+        # 1. Truy vấn danh sách phòng đã được đặt / giữ chỗ từ Booking Service
+        booked_ids: List[int] = []
+        try:
+            from src.core.config import settings
+            from src.core.correlation import get_correlation_id
+            import urllib.request
+            import urllib.parse
+            import json
+
+            booking_url = getattr(settings, "BOOKING_SERVICE_URL", "http://localhost:8003/api/v1").rstrip("/")
+            params = urllib.parse.urlencode({
+                "hotel_id": hotel_id,
+                "check_in": check_in.isoformat(),
+                "check_out": check_out.isoformat(),
+            })
+            target_url = f"{booking_url}/bookings/booked-room-ids?{params}"
+
+            cid = get_correlation_id()
+            headers = {
+                "User-Agent": "room-service",
+                "Accept": "application/json",
+            }
+            if cid:
+                headers["X-Correlation-ID"] = cid
+
+            # Sử dụng httpx nếu có, hoặc fallback về urllib.request
+            try:
+                import httpx
+                with httpx.Client(timeout=4.0) as client:
+                    resp = client.get(target_url, headers=headers)
+                    if resp.status_code == 200:
+                        booked_ids = resp.json()
+                    else:
+                        print(f">>> [Room Service] Warning: Booking Service returned HTTP {resp.status_code} for booked-room-ids")
+            except ImportError:
+                req = urllib.request.Request(target_url, headers=headers)
+                with urllib.request.urlopen(req, timeout=4.0) as resp:
+                    if resp.status == 200:
+                        booked_ids = json.loads(resp.read().decode())
+        except Exception as e:
+            # Fallback an toàn: Ghi warning, không crash ứng dụng khi Booking Service tạm thời gián đoạn
+            print(f">>> [Room Service] Warning: Không thể đối chiếu đơn đặt phòng từ Booking Service ({str(e)}).")
+
+        # 2. Xây dựng truy vấn lọc phòng khả dụng
         query = (
             db.query(PhongModel)
             .join(PhongModel.loai_phong)
@@ -319,6 +364,10 @@ class RoomService:
                 (LoaiPhongModel.suc_chua_nguoi_lon + LoaiPhongModel.suc_chua_tre_em)
                 >= num_guests,
             )
-            .order_by(PhongModel.so_phong.asc())
         )
-        return query.all()
+
+        # 3. Lọc bỏ các phòng đã có khách đặt / giữ chỗ trong khoảng ngày
+        if booked_ids:
+            query = query.filter(PhongModel.id_phong.notin_(booked_ids))
+
+        return query.order_by(PhongModel.so_phong.asc()).all()

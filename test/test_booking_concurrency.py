@@ -27,6 +27,15 @@ from src.core.database import SessionLocal
 from src.models import DatPhongModel, ChiTietDatPhongModel, TrangThaiBookingEnum
 
 def test_overbooking_and_concurrency_protection():
+    import jwt
+    jwt_secret = "booking_super_secret_jwt_key_2026_xyz!@#"
+    jwt_token = jwt.encode(
+        {"sub": "1", "role": "CUSTOMER", "exp": datetime.utcnow() + timedelta(hours=2)},
+        jwt_secret,
+        algorithm="HS256",
+    )
+    auth_headers = {"Authorization": f"Bearer {jwt_token}"}
+
     client = TestClient(app)
     db = SessionLocal()
 
@@ -61,7 +70,7 @@ def test_overbooking_and_concurrency_protection():
             "ghi_chu_dac_biet": "Check-in sớm nếu có thể",
         },
     }
-    res1 = client.post("/api/v1/bookings", json=payload_1)
+    res1 = client.post("/api/v1/bookings", json=payload_1, headers=auth_headers)
     assert res1.status_code == 201, f"Lỗi tạo booking 1: {res1.text}"
     bk1_data = res1.json()
     bk1_code = bk1_data["ma_booking"]
@@ -75,7 +84,7 @@ def test_overbooking_and_concurrency_protection():
     payload_overlap_mid = dict(payload_1)
     payload_overlap_mid["ngay_nhan_phong"] = "2026-11-12"
     payload_overlap_mid["ngay_tra_phong"] = "2026-11-14"
-    res_overlap_mid = client.post("/api/v1/bookings", json=payload_overlap_mid)
+    res_overlap_mid = client.post("/api/v1/bookings", json=payload_overlap_mid, headers=auth_headers)
     assert res_overlap_mid.status_code == 409, f"Kỳ vọng 409, nhận: {res_overlap_mid.status_code}"
     print(f" -> Giao thoa giữa kỳ (12-14) bị từ chối 409: {res_overlap_mid.json().get('detail')}")
 
@@ -83,7 +92,7 @@ def test_overbooking_and_concurrency_protection():
     payload_overlap_start = dict(payload_1)
     payload_overlap_start["ngay_nhan_phong"] = "2026-11-08"
     payload_overlap_start["ngay_tra_phong"] = "2026-11-12"
-    res_overlap_start = client.post("/api/v1/bookings", json=payload_overlap_start)
+    res_overlap_start = client.post("/api/v1/bookings", json=payload_overlap_start, headers=auth_headers)
     assert res_overlap_start.status_code == 409
     print(f" -> Giao thoa đầu kỳ (08-12) bị từ chối 409: {res_overlap_start.json().get('detail')}")
 
@@ -91,7 +100,7 @@ def test_overbooking_and_concurrency_protection():
     payload_overlap_end = dict(payload_1)
     payload_overlap_end["ngay_nhan_phong"] = "2026-11-14"
     payload_overlap_end["ngay_tra_phong"] = "2026-11-18"
-    res_overlap_end = client.post("/api/v1/bookings", json=payload_overlap_end)
+    res_overlap_end = client.post("/api/v1/bookings", json=payload_overlap_end, headers=auth_headers)
     assert res_overlap_end.status_code == 409
     print(f" -> Giao thoa cuối kỳ (14-18) bị từ chối 409: {res_overlap_end.json().get('detail')}")
 
@@ -99,7 +108,7 @@ def test_overbooking_and_concurrency_protection():
     payload_adjacent = dict(payload_1)
     payload_adjacent["ngay_nhan_phong"] = "2026-11-15"
     payload_adjacent["ngay_tra_phong"] = "2026-11-20"
-    res_adjacent = client.post("/api/v1/bookings", json=payload_adjacent)
+    res_adjacent = client.post("/api/v1/bookings", json=payload_adjacent, headers=auth_headers)
     assert res_adjacent.status_code == 201, f"Lỗi ngày liền kề: {res_adjacent.text}"
     print(f" -> Ngày liền kề hợp lệ (15/11 -> 20/11) thành công: {res_adjacent.json()['ma_booking']}")
     print("[PASS] Test 2: Logic điều kiện giao thoa ngày CheckIn < CheckOut_old AND CheckOut > CheckIn_old chuẩn xác.")
@@ -152,7 +161,7 @@ def test_overbooking_and_concurrency_protection():
 
     def send_booking(payload):
         c = TestClient(app)
-        return c.post("/api/v1/bookings", json=payload)
+        return c.post("/api/v1/bookings", json=payload, headers=auth_headers)
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
         f1 = executor.submit(send_booking, conc_payload_a)
@@ -196,7 +205,7 @@ def test_overbooking_and_concurrency_protection():
             "gia": 900000,
         }],
         "khach_o": {"ho_ten": "Khach Het Han", "email": "hethan@test.com", "sdt": "0900000000"},
-    })
+    }, headers=auth_headers)
     assert res_exp.status_code == 201
     exp_bk_id = res_exp.json()["id_dat_phong"]
 
@@ -219,7 +228,7 @@ def test_overbooking_and_concurrency_protection():
             "gia": 900000,
         }],
         "khach_o": {"ho_ten": "Khach Dat Lai", "email": "datlai@test.com", "sdt": "0911111111"},
-    })
+    }, headers=auth_headers)
     assert res_rebook.status_code == 201, f"Lỗi đặt lại phòng đã hết hạn giữ chỗ: {res_rebook.text}"
     
     # Kiểm tra đơn cũ đã chuyển sang CANCELLED

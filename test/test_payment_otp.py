@@ -26,6 +26,10 @@ from src.models import ThanhToanModel, GiaoDichOtpModel
 
 def test_otp_flow():
     client = TestClient(app)
+    import jwt
+    from src.core.config import settings
+    token = jwt.encode({"sub": "1", "role": "CUSTOMER", "type": "access"}, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+    client.headers["Authorization"] = f"Bearer {token}"
 
     # 1. Kiem tra OpenAPI schema
     openapi = client.get('/openapi.json').json()
@@ -46,6 +50,21 @@ def test_otp_flow():
     payment_data = create_res.json()
     gateway_txn = payment_data['ma_giao_dich_gateway']
     print(f"[PASS] Check 2: Created payment {gateway_txn} with status PENDING.")
+
+    # Hook publish_otp_event để bắt mã raw_otp 6 chữ số gửi qua event
+    captured_otps = {}
+    import src.services.payment_service as ps_module
+    orig_publish_otp = ps_module.publish_otp_event
+
+    def hook_publish_otp(event_name, data):
+        if "otp_code" in data and "ma_giao_dich_gateway" in data:
+            captured_otps[data["ma_giao_dich_gateway"]] = data["otp_code"]
+        try:
+            orig_publish_otp(event_name, data)
+        except Exception:
+            pass
+
+    ps_module.publish_otp_event = hook_publish_otp
 
     # 3. Goi generate-otp
     gen_res = client.post('/api/v1/payments/generate-otp', json={
@@ -68,9 +87,12 @@ def test_otp_flow():
         .first()
     )
     assert otp_record is not None
-    assert len(otp_record.otp_code) == 6
-    real_otp = otp_record.otp_code
-    print(f"[PASS] Check 4: Stored OTP in DB has 6 digits: {real_otp}")
+    assert len(otp_record.otp_code) == 64, f"DB OTP phai la SHA-256 hash 64 ky tu, thuc te: {len(otp_record.otp_code)}"
+    real_otp = captured_otps.get(gateway_txn)
+    assert real_otp is not None and len(real_otp) == 6
+    import hashlib
+    assert otp_record.otp_code == hashlib.sha256(real_otp.encode('utf-8')).hexdigest()
+    print(f"[PASS] Check 4: Stored OTP in DB is SHA-256 hash (64 hex): {otp_record.otp_code[:12]}... Matches raw OTP: {real_otp}")
 
     # 5. Kiem tra validate pattern (khong dung 6 so)
     for bad_code in ['12345', '1234567', 'abcdef', '12a456']:
@@ -92,13 +114,18 @@ def test_otp_flow():
     print(f"[PASS] Check 6: Wrong OTP rejected (400), remaining attempts notified: {wrong_code_res.json()['detail']}")
 
     # 7. Nhap dung ma
-    correct_res = client.post('/api/v1/payments/verify-otp', json={
-        'ma_giao_dich_gateway': gateway_txn,
-        'otp_code': real_otp
-    })
-    assert correct_res.status_code == 200, f'Loi verify-otp dung: {correct_res.text}'
-    assert correct_res.json()['trang_thai'] == 'SUCCESS'
-    print("[PASS] Check 7: Correct OTP verified successfully, payment status -> SUCCESS.")
+    orig_confirm = ps_module.PaymentService.confirm_booking_with_retry
+    ps_module.PaymentService.confirm_booking_with_retry = staticmethod(lambda id_dp, note, max_retries=3, initial_delay=0.2: True)
+    try:
+        correct_res = client.post('/api/v1/payments/verify-otp', json={
+            'ma_giao_dich_gateway': gateway_txn,
+            'otp_code': real_otp
+        })
+        assert correct_res.status_code == 200, f'Loi verify-otp dung: {correct_res.text}'
+        assert correct_res.json()['trang_thai'] == 'SUCCESS'
+        print("[PASS] Check 7: Correct OTP verified successfully, payment status -> SUCCESS.")
+    finally:
+        ps_module.PaymentService.confirm_booking_with_retry = orig_confirm
 
     # 8. Thu dung lai ma lan 2
     reuse_res = client.post('/api/v1/payments/verify-otp', json={
@@ -122,10 +149,10 @@ def test_otp_flow():
     })
     db.commit()
 
-    exp_otp_rec = db.query(GiaoDichOtpModel).filter(GiaoDichOtpModel.ma_giao_dich_gateway == exp_txn).first()
+    exp_otp = captured_otps.get(exp_txn, "123456")
     exp_verify_res = client.post('/api/v1/payments/verify-otp', json={
         'ma_giao_dich_gateway': exp_txn,
-        'otp_code': exp_otp_rec.otp_code
+        'otp_code': exp_otp
     })
     assert exp_verify_res.status_code == 400
     print(f"[PASS] Check 9: Expired OTP rejected with 400: {exp_verify_res.json()['detail']}")

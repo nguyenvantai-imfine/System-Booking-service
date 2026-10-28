@@ -60,8 +60,11 @@ def publish_payment_event(queue_name: str, payload: dict):
                 "du_lieu": payload,
             }, ensure_ascii=False).encode("utf-8")
 
-            url = f"{settings.NOTIFICATION_SERVICE_URL}/notifications/send"
-            req_headers = {"Content-Type": "application/json"}
+            url = f"{settings.NOTIFICATION_SERVICE_URL}/notifications/internal-send"
+            req_headers = {
+                "Content-Type": "application/json",
+                "X-Internal-Secret": getattr(settings, "INTERNAL_SERVICE_SECRET", "booking_internal_secret_key_2026"),
+            }
             if cid:
                 req_headers["X-Correlation-ID"] = cid
             req = urllib.request.Request(url, data=data, headers=req_headers)
@@ -132,8 +135,11 @@ def publish_otp_event(queue_name: str, payload: dict):
                 },
             }, ensure_ascii=False).encode("utf-8")
 
-            url = f"{settings.NOTIFICATION_SERVICE_URL}/notifications/send"
-            req_headers = {"Content-Type": "application/json"}
+            url = f"{settings.NOTIFICATION_SERVICE_URL}/notifications/internal-send"
+            req_headers = {
+                "Content-Type": "application/json",
+                "X-Internal-Secret": getattr(settings, "INTERNAL_SERVICE_SECRET", "booking_internal_secret_key_2026"),
+            }
             if cid:
                 req_headers["X-Correlation-ID"] = cid
             req = urllib.request.Request(url, data=data, headers=req_headers)

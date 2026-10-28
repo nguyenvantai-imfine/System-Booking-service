@@ -23,11 +23,112 @@ Toàn bộ ứng dụng Client (Web Khách hàng, Mobile App, Admin Dashboard) c
 
 - 🔹 `/api/v1/auth/**`, `/api/v1/users/**`, `/api/v1/admin/**` ➔ `http://user-service:8001`
 - 🔹 `/api/v1/hotels/**` ➔ `http://hotel-service:8000`
-- 🔹 `/api/v1/rooms/**` ➔ `http://room-service:8002`
+- 🔹 `/api/v1/rooms/**`, `/api/v1/room-types/**` ➔ `http://room-service:8002`
+- 🔹 `/api/v1/hotels/{hotel_id}/rooms/**`, `/api/v1/hotels/{hotel_id}/room-types/**` ➔ `http://room-service:8002` *(Định tuyến ưu tiên)*
 - 🔹 `/api/v1/bookings/**` ➔ `http://booking-service:8003`
 - 🔹 `/api/v1/payments/**` ➔ `http://payment-service:8004`
 - 🔹 `/api/v1/notifications/**` ➔ `http://notification-service:8005`
 - 🔹 Gateway Health Check tổng quan: `GET http://localhost:8080/health`
+
+> **Lợi ích kiến trúc Gateway**:
+> - Khách hàng và Dashboard không cần biết địa chỉ IP/Port nội bộ của từng microservice.
+> - Gateway tự động bảo lưu và chuyển tiếp Header `Authorization: Bearer <token>` cùng `X-Correlation-ID` qua tất cả microservice để phục vụ **Distributed Tracing**.
+> - Chặn các yêu cầu truy cập trái phép trực tiếp vào các cổng dịch vụ nội bộ.
+
+---
+
+## 🔒 TỔNG KẾT CƠ CHẾ BẢO MẬT & TOÀN VẸN NGHIỆP VỤ (SECURITY & DATA TRUST)
+
+Hệ thống được thiết kế theo tiêu chuẩn bảo mật doanh nghiệp nhiều lớp (Defense-in-depth):
+
+### 1. Mã hóa mật khẩu Bcrypt & Kiểm soát trạng thái tài khoản
+- Toàn bộ mật khẩu người dùng được băm an toàn bằng giải thuật **Bcrypt** thông qua thư viện `passlib.context.CryptContext(schemes=["bcrypt"])`. Mật khẩu dạng plain text tuyệt đối không xuất hiện trong cơ sở dữ liệu.
+- Quá trình đăng nhập luôn kiểm tra trạng thái hoạt động `is_active`. Các tài khoản bị Admin vô hiệu hóa/khóa tạm thời sẽ bị từ chối đăng nhập với thông báo lỗi rõ ràng.
+
+### 2. Xác thực giao dịch OTP & Băm bảo mật SHA-256
+- **Ẩn mã OTP thô khỏi Response**: Mã OTP 6 chữ số sinh ngẫu nhiên chỉ được chuyển phát qua kênh gửi thông báo (Email / SMS) và **tuyệt đối không trả về trong JSON Response** của API.
+- **Băm SHA-256 trong CSDL**: Trong bảng `thanh_toan`, cột `otp_hash` chỉ lưu chuỗi băm 64 ký tự hex `hashlib.sha256(otp.encode()).hexdigest()`. Kẻ tấn công đọc được database cũng không thể khôi phục mã OTP.
+- **Giới hạn thời gian (TTL) & Số lần thử**: Mã OTP chỉ có hiệu lực trong vòng **3 phút**. Nếu nhập sai quá **3 lần**, phiên xác thực OTP sẽ bị hủy bỏ ngay lập tức.
+- **Che giấu dữ liệu nhạy cảm (Data Masking)**: Khi lưu trữ vết thông báo trong CSDL (`noi_dung_thong_bao`) hoặc xuất ra màn hình console, mã OTP được tự động che theo định dạng `84****` để phòng ngừa rò rỉ dữ liệu qua nhật ký vận hành.
+
+### 3. API Gateway Routing tập trung & Kiểm soát CORS
+- **Chặn truy cập trực tiếp**: Các ứng dụng frontend kết nối qua Reverse Proxy `:8080`, tránh lộ mạng lưới dịch vụ phía sau.
+- **CORS Thắt chặt**: Thay vì mở `*` (wildcard) với `allow_credentials=True`, cấu hình CORS trên Gateway và 6 microservice được giới hạn nghiêm ngặt chỉ chấp nhận các domain chỉ định (`localhost:3000`, `localhost:3001`).
+- **Giao tiếp nội bộ an toàn (Server-to-Server Secret)**: Các endpoint nội bộ (như REST Fallback `/api/v1/notifications/internal-send`) được bảo vệ bằng header `X-Internal-Secret`, ngăn ngừa người dùng bên ngoài kích hoạt trái phép.
+
+### 4. Bảo vệ dữ liệu tin cậy (Data Trust Protection) & Đối soát tài chính
+- **Chống thao túng giá phòng (Room Price Trust)**: Khi tạo đơn đặt phòng, `booking-service` không dựa vào giá tiền do client gửi lên mà tự động truy vấn giá niêm yết gốc từ `room-service`. Nếu phát hiện giá bị làm sai lệch, giao dịch sẽ bị từ chối ngay lập tức.
+- **Đối soát số tiền thanh toán (Payment Amount Reconciliation)**: `payment-service` đối chiếu số tiền thanh toán với đơn đặt phòng thực tế (bao gồm 10% thuế VAT được đồng bộ chuẩn giữa Frontend và Backend) trước khi mở cổng thanh toán.
+- **Chống Overbooking & Khóa giữ chỗ**: Áp dụng khóa phân tán / `sp_getapplock` trong SQL Server cùng thời gian giữ chỗ 15 phút, tự động giải phóng phòng nếu khách không hoàn tất thanh toán.
+- **Chống thanh toán trùng lặp (Idempotency Key)**: Ngăn chặn lỗi double payment khi người dùng nhấn nút thanh toán nhiều lần hoặc mạng chập chờn.
+
+---
+
+## 🧪 CHẠY BỘ KIỂM THỬ TỰ ĐỘNG TOÀN DIỆN (AUTOMATED TEST SUITE)
+
+Dự án cung cấp script PowerShell tự động kiểm tra hạ tầng và thực thi tuần tự **6 bài test chuyên sâu** bao quát toàn bộ các luồng nghiệp vụ cốt lõi và tiêu chuẩn an toàn bảo mật:
+
+```powershell
+.\run-tests.ps1
+```
+
+### 📋 Danh sách 6 bài kiểm thử được thực thi tự động:
+
+| STT | File kịch bản kiểm thử | Tên bài test & Mục tiêu kiểm tra | Thời gian TB |
+| :---: | :--- | :--- | :---: |
+| **1** | `test/test_booking_concurrency.py` | **Chống Overbooking & Khóa Concurrency**: Giả lập nhiều luồng tranh chấp cùng 1 phòng, đảm bảo chỉ 1 giao dịch thành công. | ~18s |
+| **2** | `test/test_payment_idempotency.py` | **Idempotency Key & Chống Thanh Toán Trùng Lặp**: Kiểm tra việc gọi liên tiếp cùng một yêu cầu thanh toán không tạo ra nhiều bản ghi trừ tiền. | ~18s |
+| **3** | `test/test_payment_otp.py` | **Xác Thực Thanh Toán OTP & Băm SHA-256**: Kiểm tra kiểm tra băm SHA-256, hạn 3 phút, khóa sau 3 lần sai. | ~18s |
+| **4** | `test/test_notification_otp.py` | **Email Template OTP, Che Mã CSDL & Chống XSS**: Kiểm tra render template HTML, che mã `84****` trong CSDL, an toàn trước mã độc HTML. | ~18s |
+| **5** | `test/test_correlation_tracing.py` | **Distributed Tracing với Header `X-Correlation-ID`**: Kiểm tra việc truyền vết request ID xuyên suốt các microservice. | ~23s |
+| **6** | `test/test_gateway_flow.py` | **Định Tuyến Động & Toàn Diện Luồng Nghiệp Vụ Gateway**: Kiểm tra trọn vẹn luồng từ User ➔ Booking ➔ Payment qua API Gateway `:8080`. | ~28s |
+
+> **Tính năng của `run-tests.ps1`**:
+> - Tự động ping và kiểm tra trạng thái **API Gateway (:8080)**, **RabbitMQ (:5672)** và **SQL Server Database**.
+> - Nếu một số service chưa bật, script tự động chuyển sang cơ chế kiểm thử giả lập (`TestClient` / In-Memory Mock) để bảo đảm việc kiểm thử luôn hoàn tất 100%.
+> - Xuất bảng tổng hợp trực quan với trạng thái `PASS` và đo lường thời gian thực thi của từng bài test.
+
+---
+
+## 📧 CẤU HÌNH GỬI EMAIL SMTP THỰC TẾ (REAL SMTP SETUP)
+
+Mặc định, `notification-service` chạy ở chế độ mô phỏng (`USE_MOCK_EMAIL=True`), nội dung email sẽ được ghi trực tiếp ra console terminal để phục vụ việc phát triển và kiểm thử mà không cần tài khoản email thật.
+
+Để kích hoạt tính năng **gửi email HTML thật** (kèm mã QR check-in trực tuyến và hóa đơn điện tử) qua máy chủ SMTP (Gmail, Outlook, Amazon SES, SendGrid,...):
+
+### 1. Cấu hình biến môi trường trong `services/notification-service/.env`
+
+Chỉnh sửa hoặc tạo mới file `.env` tại thư mục `services/notification-service/`:
+
+```env
+# Chuyển đổi sang gửi email thật qua SMTP
+USE_MOCK_EMAIL=False
+MOCK_EMAIL_SEND=False
+
+# Cấu hình SMTP Server (Ví dụ với Gmail)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_TLS=True
+SMTP_USER=your_email@gmail.com
+SMTP_PASSWORD=xxxx xxxx xxxx xxxx
+SMTP_FROM_EMAIL=your_email@gmail.com
+SMTP_FROM_NAME="LuxeStay Booking Service"
+
+# Cổng SSL thay thế (Nếu dùng cổng 465)
+# SMTP_PORT=465
+# SMTP_TLS=False
+```
+
+### 2. Hướng dẫn lấy Mật khẩu ứng dụng (App Password) cho Gmail:
+1. Đăng nhập vào tài khoản Google của bạn và bật **Xác minh 2 bước (2-Step Verification)**.
+2. Truy cập [Google Account Security ➔ App Passwords](https://myaccount.google.com/apppasswords).
+3. Đặt tên ứng dụng (ví dụ: `HotelBooking`) và nhấn **Tạo (Create)**.
+4. Copy chuỗi 16 ký tự vừa được cấp và dán vào biến `SMTP_PASSWORD` trong file `.env`.
+
+### 3. Cơ chế chịu lỗi (Fault-Tolerant Email Delivery):
+- **Ưu tiên RabbitMQ Message Broker**: Các dịch vụ gửi sự kiện vào hàng đợi `notification.booking.confirmed`, consumer của `notification-service` xử lý bất đồng bộ.
+- **Tự động chuyển đổi REST Fallback**: Khi RabbitMQ gặp sự cố mạng hoặc bị tắt, `booking-service` và `payment-service` tự động fallback gọi trực tiếp HTTP endpoint nội bộ:
+  `POST http://localhost:8005/api/v1/notifications/internal-send` kèm header `X-Internal-Secret`, đảm bảo **không bao giờ bị mất email xác nhận** của khách hàng.
 
 ---
 
@@ -164,9 +265,9 @@ Nếu bạn muốn debug từng microservice độc lập, hãy mở các termin
 
 | Nhóm vai trò | Email tài khoản | Mật khẩu | Quyền hạn & Chức năng |
 | :--- | :--- | :---: | :--- |
-| **Quản trị viên (Admin)** | `admin@hotel.com` | `123456` | Toàn quyền quản trị hệ thống, duyệt khách sạn, quản lý người dùng, xem doanh thu |
+| **Quản trị viên (Admin)** | `admin@hotel.com` | `123456` | Toàn quyền quản trị hệ thống, duyệt khách sạn, quản lý người dùng, xem doanh thu thực tế |
 | **Đối tác (Partner)** | `partner@hotel.com` | `123456` | Quản lý khách sạn sở hữu, thêm hạng phòng, cập nhật phòng trống |
-| **Khách hàng (Customer)** | `customer@hotel.com` | `123456` | Tìm kiếm phòng, đặt phòng trực tuyến, thanh toán, xem vé điện tử |
+| **Khách hàng (Customer)** | `customer@hotel.com` | `123456` | Tìm kiếm phòng, đặt phòng trực tuyến, thanh toán OTP, quản lý vé điện tử |
 
 ---
 
@@ -176,11 +277,13 @@ Nếu bạn muốn debug từng microservice độc lập, hãy mở các termin
 - 🏠 **Trang chủ & Tìm kiếm thông minh**: [http://localhost:3001](http://localhost:3001)
 - 🔍 **Trang Kết quả tìm kiếm & Bộ lọc**: [http://localhost:3001/search](http://localhost:3001/search)
 - 🏨 **Chi tiết khách sạn & Chọn phòng**: [http://localhost:3001/hotels/5](http://localhost:3001/hotels/5)
-- 💳 **Trang Checkout / Đặt phòng**: [http://localhost:3001/booking/checkout](http://localhost:3001/booking/checkout)
+- 💳 **Trang Checkout / Đặt phòng & Thanh toán**: [http://localhost:3001/booking/checkout](http://localhost:3001/booking/checkout)
+- 📋 **Quản lý đơn đặt phòng của tôi (E-Ticket & Tra cứu QR)**: [http://localhost:3001/my-bookings](http://localhost:3001/my-bookings)
 
 ### 2. Trang Quản trị (Admin Dashboard - Port 3000):
+- 📊 **Trang Tổng quan & Doanh thu thực tế**: [http://localhost:3000](http://localhost:3000)
 - 🏨 **Quản lý Khách sạn**: [http://localhost:3000/Hotels](http://localhost:3000/Hotels)
-- 🛏️ **Quản lý Hạng phòng & Phòng vật lý**: [http://localhost:3000/Rooms](http://localhost:3000/Rooms)
+- 🛏️ **Quản lý Hạng phòng & Phòng vật lý (Hỗ trợ Sắp xếp đa cột)**: [http://localhost:3000/Rooms](http://localhost:3000/Rooms)
 - 👥 **Quản lý Người dùng & Khóa tài khoản**: [http://localhost:3000/Users](http://localhost:3000/Users)
 - 📅 **Quản lý Đơn đặt phòng**: [http://localhost:3000/Bookings](http://localhost:3000/Bookings)
 - 💳 **Lịch sử Giao dịch & Dòng tiền**: [http://localhost:3000/Payments](http://localhost:3000/Payments)
@@ -197,4 +300,4 @@ Nếu bạn muốn debug từng microservice độc lập, hãy mở các termin
 2. **Notification Service tiêu thụ và gửi Email**:
    - Background consumer lắng nghe các queue, giải mã payload và render template HTML email cao cấp.
    - Template tích hợp sẵn mã QR check-in trực tuyến, mã booking, tên và địa chỉ khách sạn, ngày nhận/trả phòng, chi tiết giá và quy định lưu trú.
-   - Lưu trữ vết lịch sử thông báo vào bảng `thong_bao` và `noi_dung_thong_bao` trong SQL Server.
+   - Lưu trữ vết lịch sử thông báo vào bảng `thong_bao` và `noi_dung_thong_bao` trong SQL Server (đã được che dữ liệu nhạy cảm).

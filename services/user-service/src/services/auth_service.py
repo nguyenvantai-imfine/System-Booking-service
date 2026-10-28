@@ -103,6 +103,19 @@ class AuthService:
                 detail="Tài khoản của bạn đã bị khóa. Vui lòng liên hệ Quản trị viên.",
             )
 
+        if tai_khoan.trang_thai == TrangThaiTaiKhoanEnum.INACTIVE:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Tài khoản chưa được kích hoạt hoặc đã ngừng hoạt động.",
+            )
+
+        # Tự động nâng cấp hash: Khi người dùng đăng nhập thành công bằng mật khẩu plaintext cũ,
+        # tự động băm lại mật khẩu và cập nhật mat_khau_hash vào CSDL.
+        if tai_khoan.mat_khau_hash and not tai_khoan.mat_khau_hash.startswith("$2"):
+            tai_khoan.mat_khau_hash = hash_password(req.mat_khau)
+            db.commit()
+            db.refresh(tai_khoan)
+
         profile = tai_khoan.nguoi_dung
         ho_va_ten = profile.ho_va_ten if profile else "Chưa đặt tên"
         avatar = profile.avatar if profile else None
@@ -149,10 +162,10 @@ class AuthService:
             )
 
         tai_khoan = db.query(TaiKhoanModel).filter(TaiKhoanModel.id_tai_khoan == user_id).first()
-        if not tai_khoan or tai_khoan.trang_thai == TrangThaiTaiKhoanEnum.LOCKED:
+        if not tai_khoan or tai_khoan.trang_thai in [TrangThaiTaiKhoanEnum.LOCKED, TrangThaiTaiKhoanEnum.INACTIVE]:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Tài khoản không tồn tại hoặc đã bị khóa.",
+                detail="Tài khoản không tồn tại, đã bị khóa hoặc chưa được kích hoạt.",
             )
 
         profile = tai_khoan.nguoi_dung

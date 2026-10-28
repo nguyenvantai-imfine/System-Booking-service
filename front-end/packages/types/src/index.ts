@@ -521,6 +521,8 @@ export interface DatPhongItem {
   id_khach_san: number;
   ngay_nhan_phong: string;
   ngay_tra_phong: string;
+  tien_phong?: number;
+  thue_phi?: number;
   tong_tien: number;
   trang_thai: TrangThaiBooking;
   han_giu_cho: string;
@@ -550,7 +552,12 @@ export interface GetBookingsParams {
 // ==============================================================================
 // PAYMENT SERVICE SPECIFIC TYPES (Microservice Payment API)
 // ==============================================================================
-export type PhuongThucThanhToan = "VNPAY" | "MOMO" | "CREDIT_CARD" | "CASH";
+export enum PhuongThucThanhToan {
+  VNPAY = "VNPAY",
+  MOMO = "MOMO",
+  CREDIT_CARD = "CREDIT_CARD",
+  CASH = "CASH",
+}
 export type TrangThaiThanhToan = "PENDING" | "SUCCESS" | "FAILED" | "REFUNDED";
 
 export interface GenerateOtpRequest {
@@ -611,6 +618,7 @@ export interface PaginatedPayments {
 
 export interface PaymentStats {
   total_revenue: number;
+  today_revenue?: number;
   total_transactions: number;
   success_count: number;
   pending_count: number;

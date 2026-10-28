@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from typing import List, Optional
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, model_validator
 from src.models.dat_phong import TrangThaiBookingEnum
 
 # Thông tin khách ở
@@ -65,6 +65,8 @@ class BookingResponse(BaseModel):
     id_khach_san: int
     ngay_nhan_phong: date
     ngay_tra_phong: date
+    tien_phong: Optional[float] = Field(None, description="Tổng tiền phòng trước thuế/phí")
+    thue_phi: Optional[float] = Field(0.0, description="Thuế và phí VAT 10%")
     tong_tien: float
     trang_thai: TrangThaiBookingEnum
     han_giu_cho: datetime
@@ -75,6 +77,13 @@ class BookingResponse(BaseModel):
     nhat_ky: List[NhatKyBookingResponse] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="after")
+    def ensure_tax_and_room_amount(self):
+        if self.tien_phong is None and self.tong_tien is not None:
+            tax = self.thue_phi or 0.0
+            self.tien_phong = round(float(self.tong_tien) - float(tax), 2)
+        return self
 
 # Danh sách phân trang
 class BookingPaginatedResponse(BaseModel):

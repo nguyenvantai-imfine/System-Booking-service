@@ -20,7 +20,33 @@ export function AuthModal() {
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
+  // Forgot password mode
+  const [isForgotMode, setIsForgotMode] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [isForgotSubmitting, setIsForgotSubmitting] = useState(false);
+
   if (!isAuthModalOpen) return null;
+
+  const handleForgotSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg("");
+    setSuccessMsg("");
+    if (!forgotEmail.trim()) {
+      setErrorMsg("Vui lòng nhập địa chỉ email đã đăng ký!");
+      return;
+    }
+    setIsForgotSubmitting(true);
+    try {
+      await new Promise((r) => setTimeout(r, 600));
+      setSuccessMsg(
+        "Yêu cầu đã được tiếp nhận! Nếu email khớp với tài khoản, hướng dẫn đặt lại mật khẩu đã được gửi đến hòm thư của bạn. Bạn cũng có thể liên hệ tổng đài 1900 8888 để được hỗ trợ trực tiếp."
+      );
+    } catch {
+      setErrorMsg("Không thể gửi yêu cầu khôi phục. Vui lòng thử lại sau.");
+    } finally {
+      setIsForgotSubmitting(false);
+    }
+  };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,36 +107,57 @@ export function AuthModal() {
 
         {/* Header Tabs */}
         <div className="p-6 pb-0">
-          <div className="flex border-b border-slate-200">
-            <button
-              onClick={() => {
-                setErrorMsg("");
-                setSuccessMsg("");
-                openAuthModal("login");
-              }}
-              className={`flex-1 pb-3 text-sm font-bold transition-all relative ${
-                authModalMode === "login"
-                  ? "text-indigo-600 border-b-2 border-indigo-600"
-                  : "text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              Đăng nhập
-            </button>
-            <button
-              onClick={() => {
-                setErrorMsg("");
-                setSuccessMsg("");
-                openAuthModal("register");
-              }}
-              className={`flex-1 pb-3 text-sm font-bold transition-all relative ${
-                authModalMode === "register"
-                  ? "text-indigo-600 border-b-2 border-indigo-600"
-                  : "text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              Đăng ký thành viên
-            </button>
-          </div>
+          {isForgotMode ? (
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <h3 className="text-base font-bold text-slate-900">
+                Khôi phục mật khẩu
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setErrorMsg("");
+                  setSuccessMsg("");
+                  setIsForgotMode(false);
+                }}
+                className="text-xs font-bold text-indigo-600 hover:underline"
+              >
+                Quay lại
+              </button>
+            </div>
+          ) : (
+            <div className="flex border-b border-slate-200">
+              <button
+                onClick={() => {
+                  setErrorMsg("");
+                  setSuccessMsg("");
+                  setIsForgotMode(false);
+                  openAuthModal("login");
+                }}
+                className={`flex-1 pb-3 text-sm font-bold transition-all relative ${
+                  authModalMode === "login"
+                    ? "text-indigo-600 border-b-2 border-indigo-600"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                Đăng nhập
+              </button>
+              <button
+                onClick={() => {
+                  setErrorMsg("");
+                  setSuccessMsg("");
+                  setIsForgotMode(false);
+                  openAuthModal("register");
+                }}
+                className={`flex-1 pb-3 text-sm font-bold transition-all relative ${
+                  authModalMode === "register"
+                    ? "text-indigo-600 border-b-2 border-indigo-600"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                Đăng ký thành viên
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Form Body */}
@@ -129,7 +176,60 @@ export function AuthModal() {
             </div>
           )}
 
-          {authModalMode === "login" ? (
+          {isForgotMode ? (
+            <form onSubmit={handleForgotSubmit} className="space-y-4">
+              <div className="text-xs text-slate-600 leading-relaxed bg-indigo-50/70 p-3.5 rounded-xl border border-indigo-100">
+                Nhập địa chỉ email tài khoản của bạn để nhận hướng dẫn khôi phục mật khẩu hoặc liên hệ tổng đài 24/7.
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">
+                  Email tài khoản
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <Mail className="w-4 h-4" />
+                  </div>
+                  <input
+                    type="email"
+                    required
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    placeholder="customer@hotel.com"
+                    className="w-full pl-10 pr-3.5 py-2.5 text-sm rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div className="text-xs text-slate-500 pt-1">
+                Hotline hỗ trợ khẩn cấp: <strong className="text-indigo-700">1900 8888</strong>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isForgotSubmitting}
+                className="w-full mt-2 flex items-center justify-center gap-2 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md shadow-indigo-600/25 transition-all disabled:opacity-60"
+              >
+                {isForgotSubmitting ? (
+                  <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <span>Gửi hướng dẫn khôi phục</span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setErrorMsg("");
+                  setSuccessMsg("");
+                  setIsForgotMode(false);
+                }}
+                className="w-full py-2 text-xs font-bold text-slate-600 hover:text-indigo-600 transition-colors text-center"
+              >
+                ← Quay lại Đăng nhập
+              </button>
+            </form>
+          ) : authModalMode === "login" ? (
             <form onSubmit={handleLoginSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">
@@ -171,9 +271,17 @@ export function AuthModal() {
 
               <div className="flex items-center justify-between text-xs pt-1">
                 <span className="text-slate-500">Gợi ý test: customer / 123456</span>
-                <a href="#forgot" className="text-indigo-600 hover:underline font-semibold">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setErrorMsg("");
+                    setSuccessMsg("");
+                    setIsForgotMode(true);
+                  }}
+                  className="text-indigo-600 hover:underline font-semibold"
+                >
                   Quên mật khẩu?
-                </a>
+                </button>
               </div>
 
               <button

@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Numeric, DateTime, Index, text
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Integer, String, Numeric, DateTime, Index, text, Unicode
+from sqlalchemy.orm import relationship, synonym
 from src.core.database import Base
 
 class PhuongThucThanhToanEnum(str, enum.Enum):
@@ -15,6 +15,7 @@ class TrangThaiThanhToanEnum(str, enum.Enum):
     SUCCESS = "SUCCESS"
     FAILED = "FAILED"
     REFUNDED = "REFUNDED"
+    SYNC_FAILED = "SYNC_FAILED"
 
 class ThanhToanModel(Base):
     __tablename__ = "thanh_toan"
@@ -38,8 +39,9 @@ class ThanhToanModel(Base):
     payment_url = Column(String(500), nullable=True)
     idempotency_key = Column(String(100), nullable=True)
     ngay_tao = Column(DateTime, default=datetime.utcnow, nullable=False)
+    thoi_gian_tao = synonym("ngay_tao")
     ngay_thanh_toan = Column(DateTime, nullable=True)
-    ghi_chu = Column(String(255), nullable=True)
+    ghi_chu = Column(Unicode(255), nullable=True)
 
     hoan_tien = relationship(
         "HoanTienModel",

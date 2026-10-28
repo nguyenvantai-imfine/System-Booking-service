@@ -7,6 +7,7 @@ import { apiClient } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { formatVND, calculateNights } from "@/lib/utils";
 import { OtpModal } from "@/components/OtpModal";
+import { PhuongThucThanhToan } from "@repo/types";
 import {
   ShieldCheck,
   CreditCard,
@@ -50,7 +51,7 @@ function CheckoutContent() {
   const [specialNotes, setSpecialNotes] = useState("");
 
   // Payment Method
-  const [paymentMethod, setPaymentMethod] = useState<"VNPAY" | "MOMO" | "ATM_CARD" | "TIEN_MAT">("VNPAY");
+  const [paymentMethod, setPaymentMethod] = useState<PhuongThucThanhToan>(PhuongThucThanhToan.VNPAY);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -94,7 +95,7 @@ function CheckoutContent() {
             id_loai_phong: roomTypeId,
             so_phong: roomNumber,
             ten_loai_phong: roomTypeName,
-            gia: roomTotal,
+            gia: pricePerNight,
           },
         ],
         khach_o: {
@@ -120,8 +121,8 @@ function CheckoutContent() {
         {
           id_dat_phong: bookingId,
           ma_booking: bookingCode,
-          so_tien: finalTotal,
-          phuong_thuc: paymentMethod as any,
+          so_tien: bookingRes.tong_tien,
+          phuong_thuc: paymentMethod,
           ghi_chu: `Thanh toán cho đơn ${bookingCode}`,
         },
         idempotencyKey
@@ -329,9 +330,9 @@ function CheckoutContent() {
             <div className="space-y-3">
               {/* VNPAY */}
               <label
-                onClick={() => setPaymentMethod("VNPAY")}
+                onClick={() => setPaymentMethod(PhuongThucThanhToan.VNPAY)}
                 className={`flex items-center gap-4 p-4 rounded-2xl border cursor-pointer transition-all ${
-                  paymentMethod === "VNPAY"
+                  paymentMethod === PhuongThucThanhToan.VNPAY
                     ? "border-indigo-600 bg-indigo-50/40 ring-1 ring-indigo-600"
                     : "border-slate-200 hover:border-slate-300"
                 }`}
@@ -339,8 +340,8 @@ function CheckoutContent() {
                 <input
                   type="radio"
                   name="paymentMethod"
-                  checked={paymentMethod === "VNPAY"}
-                  onChange={() => setPaymentMethod("VNPAY")}
+                  checked={paymentMethod === PhuongThucThanhToan.VNPAY}
+                  onChange={() => setPaymentMethod(PhuongThucThanhToan.VNPAY)}
                   className="w-4 h-4 text-indigo-600"
                 />
                 <div className="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center font-black text-xs shrink-0">
@@ -359,9 +360,9 @@ function CheckoutContent() {
 
               {/* MoMo */}
               <label
-                onClick={() => setPaymentMethod("MOMO")}
+                onClick={() => setPaymentMethod(PhuongThucThanhToan.MOMO)}
                 className={`flex items-center gap-4 p-4 rounded-2xl border cursor-pointer transition-all ${
-                  paymentMethod === "MOMO"
+                  paymentMethod === PhuongThucThanhToan.MOMO
                     ? "border-indigo-600 bg-indigo-50/40 ring-1 ring-indigo-600"
                     : "border-slate-200 hover:border-slate-300"
                 }`}
@@ -369,26 +370,26 @@ function CheckoutContent() {
                 <input
                   type="radio"
                   name="paymentMethod"
-                  checked={paymentMethod === "MOMO"}
-                  onChange={() => setPaymentMethod("MOMO")}
+                  checked={paymentMethod === PhuongThucThanhToan.MOMO}
+                  onChange={() => setPaymentMethod(PhuongThucThanhToan.MOMO)}
                   className="w-4 h-4 text-indigo-600"
                 />
                 <div className="w-10 h-10 rounded-xl bg-pink-50 text-pink-600 flex items-center justify-center font-black text-xs shrink-0">
                   <Wallet className="w-5 h-5" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-bold text-slate-900">Ví điện tử MoMo</p>
+                  <p className="text-sm font-bold text-slate-900">Ví MoMo</p>
                   <p className="text-xs text-slate-500">
                     Thanh toán nhanh chóng qua ứng dụng ví MoMo
                   </p>
                 </div>
               </label>
 
-              {/* ATM Card */}
+              {/* CREDIT_CARD */}
               <label
-                onClick={() => setPaymentMethod("ATM_CARD")}
+                onClick={() => setPaymentMethod(PhuongThucThanhToan.CREDIT_CARD)}
                 className={`flex items-center gap-4 p-4 rounded-2xl border cursor-pointer transition-all ${
-                  paymentMethod === "ATM_CARD"
+                  paymentMethod === PhuongThucThanhToan.CREDIT_CARD
                     ? "border-indigo-600 bg-indigo-50/40 ring-1 ring-indigo-600"
                     : "border-slate-200 hover:border-slate-300"
                 }`}
@@ -396,28 +397,28 @@ function CheckoutContent() {
                 <input
                   type="radio"
                   name="paymentMethod"
-                  checked={paymentMethod === "ATM_CARD"}
-                  onChange={() => setPaymentMethod("ATM_CARD")}
+                  checked={paymentMethod === PhuongThucThanhToan.CREDIT_CARD}
+                  onChange={() => setPaymentMethod(PhuongThucThanhToan.CREDIT_CARD)}
                   className="w-4 h-4 text-indigo-600"
                 />
-                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-xs shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-xs shrink-0">
                   <CreditCard className="w-5 h-5" />
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-bold text-slate-900">
-                    Thẻ ATM Nội địa / Internet Banking
+                    Thẻ tín dụng quốc tế (CREDIT_CARD)
                   </p>
                   <p className="text-xs text-slate-500">
-                    Hỗ trợ tất cả các ngân hàng tại Việt Nam
+                    Hỗ trợ thanh toán bảo mật bằng thẻ Visa, MasterCard, JCB
                   </p>
                 </div>
               </label>
 
-              {/* Pay at Hotel */}
+              {/* CASH */}
               <label
-                onClick={() => setPaymentMethod("TIEN_MAT")}
+                onClick={() => setPaymentMethod(PhuongThucThanhToan.CASH)}
                 className={`flex items-center gap-4 p-4 rounded-2xl border cursor-pointer transition-all ${
-                  paymentMethod === "TIEN_MAT"
+                  paymentMethod === PhuongThucThanhToan.CASH
                     ? "border-indigo-600 bg-indigo-50/40 ring-1 ring-indigo-600"
                     : "border-slate-200 hover:border-slate-300"
                 }`}
@@ -425,8 +426,8 @@ function CheckoutContent() {
                 <input
                   type="radio"
                   name="paymentMethod"
-                  checked={paymentMethod === "TIEN_MAT"}
-                  onChange={() => setPaymentMethod("TIEN_MAT")}
+                  checked={paymentMethod === PhuongThucThanhToan.CASH}
+                  onChange={() => setPaymentMethod(PhuongThucThanhToan.CASH)}
                   className="w-4 h-4 text-indigo-600"
                 />
                 <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black text-xs shrink-0">
@@ -434,7 +435,7 @@ function CheckoutContent() {
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-bold text-slate-900">
-                    Thanh toán khi nhận phòng (Pay at hotel)
+                    Tiền mặt tại khách sạn (CASH)
                   </p>
                   <p className="text-xs text-slate-500">
                     Giữ phòng trước, thanh toán trực tiếp tại quầy lễ tân
@@ -498,7 +499,7 @@ function CheckoutContent() {
                 </span>
               </div>
               <div className="flex items-center justify-between text-slate-600">
-                <span>Thuế VAT & Phí phục vụ (10%)</span>
+                <span>Thuế VAT (10%)</span>
                 <span className="font-bold text-slate-900">
                   {formatVND(taxAndFee)}
                 </span>
@@ -512,8 +513,8 @@ function CheckoutContent() {
             {/* Final Total */}
             <div className="pt-4 border-t border-slate-200 flex items-baseline justify-between">
               <div>
-                <p className="text-xs text-slate-500 font-medium">Tổng tiền thanh toán</p>
-                <p className="text-[10px] text-slate-400">Đã bao gồm toàn bộ thuế phí</p>
+                <p className="text-xs text-slate-500 font-medium">Tổng thanh toán cuối cùng</p>
+                <p className="text-[10px] text-slate-400">Đã bao gồm thuế VAT (10%) và phí</p>
               </div>
               <span className="text-2xl font-black text-indigo-700">
                 {formatVND(finalTotal)}

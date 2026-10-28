@@ -67,8 +67,16 @@ def publish_notification_event(queue_name: str, payload: dict):
                 "du_lieu": payload,
             }, ensure_ascii=False).encode("utf-8")
 
-            url = f"{settings.NOTIFICATION_SERVICE_URL}/notifications/send"
-            req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
+            url = f"{settings.NOTIFICATION_SERVICE_URL}/notifications/internal-send"
+            from src.core.correlation import get_correlation_id
+            cid = get_correlation_id() or payload.get("correlation_id") or ""
+            req_headers = {
+                "Content-Type": "application/json",
+                "X-Internal-Secret": getattr(settings, "INTERNAL_SERVICE_SECRET", "booking_internal_secret_key_2026"),
+            }
+            if cid:
+                req_headers["X-Correlation-ID"] = cid
+            req = urllib.request.Request(url, data=data, headers=req_headers)
             with urllib.request.urlopen(req, timeout=3) as res:
                 if res.status in (200, 201):
                     print(f">>> [NOTIFICATION FALLBACK API] Gửi thông báo trực tiếp thành công cho {email}!")

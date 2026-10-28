@@ -20,9 +20,24 @@ security_scheme = HTTPBearer(
 )
 
 
+class PartnerUser(int):
+    """
+    Đối tượng biểu diễn Partner/Admin, kế thừa int để tương thích hoàn toàn
+    với mọi biểu thức SQL / so sánh số nguyên, đồng thời lưu trữ role.
+    """
+    id: int
+    role: str
+
+    def __new__(cls, val, role: str = "PARTNER"):
+        obj = super().__new__(cls, int(val))
+        obj.id = int(val)
+        obj.role = str(role).upper()
+        return obj
+
+
 def get_current_partner_id(
     credentials: HTTPAuthorizationCredentials = Depends(security_scheme),
-) -> int:
+) -> PartnerUser:
     """
     Dependency: Xác thực JWT Bearer Token, trích xuất partner_id (sub) và kiểm tra
     vai trò người dùng (phải là PARTNER hoặc ADMIN).
@@ -73,7 +88,7 @@ def get_current_partner_id(
                 detail="Chỉ tài khoản Đối tác (Partner) hoặc Quản trị viên (Admin) mới có quyền thực hiện thao tác này.",
             )
 
-        return partner_id
+        return PartnerUser(partner_id, role=role)
 
     except jwt.ExpiredSignatureError:
         raise HTTPException(
@@ -86,7 +101,7 @@ def get_current_partner_id(
         try:
             demo_id = int(token)
             if demo_id > 0:
-                return demo_id
+                return PartnerUser(demo_id, role="PARTNER")
         except (ValueError, TypeError):
             pass
 
@@ -104,9 +119,10 @@ def get_current_partner_id(
 
 
 # ─────────────────────────────────────────────
-# Re-export tiện ích: DB Session
+# Re-export tiện ích: DB Session & PartnerUser
 # ─────────────────────────────────────────────
 __all__ = [
     "get_db",
     "get_current_partner_id",
+    "PartnerUser",
 ]

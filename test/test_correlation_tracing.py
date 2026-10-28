@@ -17,7 +17,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(CURRENT_DIR, ".."))
 def run_isolated_test(title, script_code, cwd):
     print(f"\n[{title}]")
     cmd = [sys.executable, "-c", script_code]
-    res = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, encoding="utf-8")
+    res = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, encoding="utf-8", errors="replace")
     if res.returncode != 0:
         print(f"FAILED (Exit Code {res.returncode}):")
         print("STDOUT:", res.stdout)
@@ -139,7 +139,7 @@ try:
     with patch('urllib.request.urlopen') as mock_url:
         mock_resp = MagicMock()
         mock_resp.status = 200
-        mock_resp.read.return_value = b'{{"trang_thai": "PENDING_PAYMENT"}}'
+        mock_resp.read.return_value = b'{{"trang_thai": "PENDING_PAYMENT", "tong_tien": 2000000}}'
         mock_url.return_value.__enter__.return_value = mock_resp
 
         PaymentService.create_payment(
@@ -158,6 +158,9 @@ try:
         assert sent_cid == trace_id, f'Loi: sent_cid={{sent_cid}} != expected={{trace_id}}'
         print(f' -> Payment Service da tu dong forward X-Correlation-ID: {{sent_cid}} khi goi Booking Service!')
 finally:
+    from src.models import ThanhToanModel
+    db.query(ThanhToanModel).filter(ThanhToanModel.ma_booking == 'BK-PROP-TEST').delete()
+    db.commit()
     db.close()
 """
     run_isolated_test(

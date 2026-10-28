@@ -23,6 +23,8 @@ BEGIN
         id_khach_san INT NOT NULL,
         ngay_nhan_phong DATE NOT NULL,
         ngay_tra_phong DATE NOT NULL,
+        tien_phong DECIMAL(18, 2) NOT NULL DEFAULT 0,
+        thue_phi DECIMAL(18, 2) NOT NULL DEFAULT 0,
         tong_tien DECIMAL(18, 2) NOT NULL,
         trang_thai NVARCHAR(20) NOT NULL DEFAULT 'PENDING_PAYMENT',
         han_giu_cho DATETIME NOT NULL,
@@ -36,6 +38,17 @@ BEGIN
     CREATE INDEX idx_dat_phong_khach_san ON dat_phong(id_khach_san);
     CREATE INDEX idx_dat_phong_ngay ON dat_phong(ngay_nhan_phong, ngay_tra_phong);
     CREATE INDEX idx_dat_phong_trang_thai ON dat_phong(trang_thai);
+END
+ELSE
+BEGIN
+    IF COL_LENGTH('dat_phong', 'tien_phong') IS NULL
+    BEGIN
+        ALTER TABLE dat_phong ADD tien_phong DECIMAL(18, 2) NULL;
+    END
+    IF COL_LENGTH('dat_phong', 'thue_phi') IS NULL
+    BEGIN
+        ALTER TABLE dat_phong ADD thue_phi DECIMAL(18, 2) NOT NULL CONSTRAINT df_dat_phong_thue_phi DEFAULT 0;
+    END
 END
 GO
 

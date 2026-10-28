@@ -15,6 +15,15 @@ class KhachSanModel(Base):
 
     id_khach_san = Column(Integer, primary_key=True, index=True, autoincrement=True)
     id_tai_khoan = Column(Integer, nullable=False, index=True)  # ID Partner từ user-service
+    
+    @property
+    def id_chu_so_huu(self) -> int:
+        return self.id_tai_khoan
+
+    @id_chu_so_huu.setter
+    def id_chu_so_huu(self, value: int) -> None:
+        self.id_tai_khoan = value
+
     ten_khach_san = Column(String(255), nullable=False, index=True)
     email_khach_san = Column(String(100), nullable=True)
     sdt_khach_san = Column(String(20), nullable=True)

@@ -23,6 +23,8 @@ import {
   ArrowLeft,
   Share2,
   Heart,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 
 function HotelDetailContent({ hotelId }: { hotelId: number }) {
@@ -37,20 +39,23 @@ function HotelDetailContent({ hotelId }: { hotelId: number }) {
   const [roomTypes, setRoomTypes] = useState<any[]>([]);
   const [availableRooms, setAvailableRooms] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [bookingWarning, setBookingWarning] = useState("");
   const [selectedRoomType, setSelectedRoomType] = useState<any>(null);
 
-  useEffect(() => {
-    async function fetchHotelDetail() {
-      setIsLoading(true);
+  const fetchHotelDetail = async () => {
+    setIsLoading(true);
+    setErrorMessage("");
+    try {
+      // 1. Fetch Hotel info
+      let hotelData: any = null;
       try {
-        // 1. Fetch Hotel info
-        let hotelData: any = null;
-        try {
-          hotelData = await apiClient.getHotelById(hotelId);
-        } catch {
+        hotelData = await apiClient.getHotelById(hotelId);
+      } catch (err: any) {
+        if (process.env.NEXT_PUBLIC_DEMO_MODE === "true") {
           hotelData = {
             id_khach_san: hotelId,
-            ten_khach_san: "Test JWT Grand Hotel",
+            ten_khach_san: "Test JWT Grand Hotel (Demo)",
             dia_chi: "123 Võ Nguyên Giáp",
             quan_huyen: "Sơn Trà",
             thanh_pho: "Đà Nẵng",
@@ -61,17 +66,20 @@ function HotelDetailContent({ hotelId }: { hotelId: number }) {
             tien_nghi: [],
             quy_tac: [],
           };
+        } else {
+          throw err;
         }
-        setHotel(hotelData);
+      }
+      setHotel(hotelData);
 
-        // 2. Fetch Room Types for this hotel
-        try {
-          const types = await apiClient.getRoomTypesByHotel(hotelId);
-          if (types && types.length > 0) {
-            setRoomTypes(types);
-            setSelectedRoomType(types[0]);
-          } else {
-            // Default room types
+      // 2. Fetch Room Types for this hotel
+      try {
+        const types = await apiClient.getRoomTypesByHotel(hotelId);
+        if (types && types.length > 0) {
+          setRoomTypes(types);
+          setSelectedRoomType(types[0]);
+        } else {
+          if (process.env.NEXT_PUBLIC_DEMO_MODE === "true") {
             setRoomTypes([
               {
                 id_loai_phong: 4,
@@ -87,49 +95,42 @@ function HotelDetailContent({ hotelId }: { hotelId: number }) {
                   { ten_tien_ich: "Bữa sáng buffet miễn phí" },
                 ],
               },
-              {
-                id_loai_phong: 5,
-                ten_loai_phong: "Executive King Room",
-                mo_ta: "Phòng Executive sang trọng tầng cao, giường King-size êm ái cùng phòng khách mini.",
-                suc_chua_nguoi_lon: 2,
-                suc_chua_tre_em: 0,
-                dien_tich_m2: 38,
-                gia_co_ban_mot_dem: 1450000,
-                tien_ich: [
-                  { ten_tien_ich: "Giường King Size" },
-                  { ten_tien_ich: "Wifi 100Mbps" },
-                  { ten_tien_ich: "Miễn phí hủy phòng" },
-                ],
-              },
             ]);
             setSelectedRoomType({
               id_loai_phong: 4,
               ten_loai_phong: "Premier Oceanfront Suite",
               gia_co_ban_mot_dem: 1800000,
             });
+          } else {
+            setRoomTypes([]);
           }
-        } catch (e) {
-          console.warn("Could not fetch room types:", e);
         }
-
-        // 3. Fetch Available physical rooms
-        try {
-          const rooms = await apiClient.getAvailableRooms({
-            hotel_id: hotelId,
-            check_in: checkIn,
-            check_out: checkOut,
-          });
-          setAvailableRooms(rooms || []);
-        } catch (e) {
-          console.warn("Could not fetch available rooms:", e);
-        }
-      } catch (err) {
-        console.error("Error loading hotel details:", err);
-      } finally {
-        setIsLoading(false);
+      } catch (e) {
+        console.warn("Could not fetch room types:", e);
+        setRoomTypes([]);
       }
-    }
 
+      // 3. Fetch Available physical rooms
+      try {
+        const rooms = await apiClient.getAvailableRooms({
+          hotel_id: hotelId,
+          check_in: checkIn,
+          check_out: checkOut,
+        });
+        setAvailableRooms(rooms || []);
+      } catch (e) {
+        console.warn("Could not fetch available rooms:", e);
+        setAvailableRooms([]);
+      }
+    } catch (err: any) {
+      console.error("Error loading hotel details:", err);
+      setErrorMessage("Không thể kết nối đến máy chủ. Vui lòng thử lại sau.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchHotelDetail();
   }, [hotelId, checkIn, checkOut]);
 
@@ -142,11 +143,18 @@ function HotelDetailContent({ hotelId }: { hotelId: number }) {
   ];
 
   const handleBookNow = (roomType: any) => {
+    setBookingWarning("");
     // Find matching physical room ID if available
     const matchingRoom = availableRooms.find(
       (r) => r.id_loai_phong === roomType.id_loai_phong
     );
-    const roomId = matchingRoom ? matchingRoom.id_phong : 21;
+    if (!matchingRoom) {
+      setBookingWarning(
+        `Loại phòng "${roomType.ten_loai_phong}" hiện không còn phòng trống trong khoảng thời gian ${checkIn} đến ${checkOut}. Vui lòng chọn ngày khác hoặc loại phòng khác!`
+      );
+      return;
+    }
+    const roomId = matchingRoom.id_phong;
 
     const query = new URLSearchParams({
       hotel_id: hotelId.toString(),
@@ -154,7 +162,7 @@ function HotelDetailContent({ hotelId }: { hotelId: number }) {
       room_type_id: roomType.id_loai_phong.toString(),
       room_type_name: roomType.ten_loai_phong,
       room_id: roomId.toString(),
-      room_number: matchingRoom?.so_phong || "P.401",
+      room_number: matchingRoom?.so_phong || `P.${roomId}`,
       price_per_night: roomType.gia_co_ban_mot_dem.toString(),
       check_in: checkIn,
       check_out: checkOut,
@@ -169,6 +177,35 @@ function HotelDetailContent({ hotelId }: { hotelId: number }) {
       <div className="max-w-7xl mx-auto px-4 py-16 text-center">
         <div className="inline-block w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4" />
         <p className="text-slate-500 font-medium">Đang tải thông tin khách sạn & phòng trống...</p>
+      </div>
+    );
+  }
+
+  if (errorMessage || !hotel) {
+    return (
+      <div className="max-w-2xl mx-auto my-20 p-8 rounded-3xl bg-white border border-rose-200 text-center space-y-4 shadow-sm">
+        <div className="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center mx-auto text-rose-500">
+          <AlertCircle className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-900">Không thể kết nối đến máy chủ</h2>
+        <p className="text-sm text-slate-500">
+          {errorMessage || "Không thể kết nối đến máy chủ. Vui lòng thử lại sau."}
+        </p>
+        <div className="flex items-center justify-center gap-3 pt-2">
+          <button
+            onClick={() => fetchHotelDetail()}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md transition-all hover:scale-105"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Thử lại
+          </button>
+          <Link
+            href="/search"
+            className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors"
+          >
+            Quay lại danh sách
+          </Link>
+        </div>
       </div>
     );
   }
@@ -211,6 +248,13 @@ function HotelDetailContent({ hotelId }: { hotelId: number }) {
           </button>
         </div>
       </div>
+
+      {bookingWarning && (
+        <div className="flex items-center gap-2.5 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-sm font-semibold">
+          <AlertCircle className="w-5 h-5 shrink-0 text-amber-600" />
+          <span>{bookingWarning}</span>
+        </div>
+      )}
 
       {/* Hotel Title & Header Overview */}
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">

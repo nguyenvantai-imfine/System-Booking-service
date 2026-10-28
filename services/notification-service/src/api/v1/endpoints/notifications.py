@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Header
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from typing import Optional
 import math
 
+from src.core.config import settings
 from src.core.database import get_db
 from src.core.security import get_current_user_id
 from src.schemas.notification_schema import (
@@ -24,6 +25,24 @@ def send_notification(
 ):
     """Tạo thông báo cho tài khoản đang đăng nhập."""
     req = req.model_copy(update={"id_tai_khoan": user_id})
+    return NotificationService.send_notification(db, req)
+
+@router.post("/internal-send", response_model=ThongBaoResponse, status_code=status.HTTP_201_CREATED)
+def internal_send_notification(
+    req: SendNotificationRequest,
+    db: Session = Depends(get_db),
+    x_internal_secret: Optional[str] = Header(None, alias="X-Internal-Secret"),
+):
+    """
+    Endpoint nội bộ dành riêng cho Booking Service & Payment Service gửi thông báo qua REST Fallback.
+    Xác thực bằng Header X-Internal-Secret thay vì JWT Token người dùng.
+    """
+    expected_secret = getattr(settings, "INTERNAL_SERVICE_SECRET", "booking_internal_secret_key_2026")
+    if not x_internal_secret or x_internal_secret != expected_secret:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Khóa xác thực dịch vụ nội bộ (X-Internal-Secret) không hợp lệ.",
+        )
     return NotificationService.send_notification(db, req)
 
 @router.get("/stats", response_model=NotificationStats)

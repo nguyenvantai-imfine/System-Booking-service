@@ -107,16 +107,14 @@ export function Navbar() {
                     </div>
 
                     <div className="py-1">
-                      <button
-                        onClick={() => {
-                          setUserDropdownOpen(false);
-                          alert("Chức năng đang mở rộng. Bạn có thể tra cứu đơn đặt phòng qua mã booking!");
-                        }}
-                        className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                      <Link
+                        href="/my-bookings"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 font-medium"
                       >
                         <Ticket className="w-4 h-4 text-indigo-600" />
                         Đơn đặt phòng của tôi
-                      </button>
+                      </Link>
                     </div>
 
                     <div className="pt-1 border-t border-slate-100">
@@ -192,6 +190,14 @@ export function Navbar() {
                   <p className="text-xs text-slate-500">Xin chào</p>
                   <p className="font-semibold text-slate-900">{user?.ho_ten}</p>
                 </div>
+                <Link
+                  href="/my-bookings"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 font-medium hover:bg-slate-100"
+                >
+                  <Ticket className="w-4 h-4 text-indigo-600" />
+                  Đơn đặt phòng của tôi
+                </Link>
                 <button
                   onClick={() => {
                     logout();

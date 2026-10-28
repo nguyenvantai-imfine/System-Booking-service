@@ -28,6 +28,8 @@ class DatPhongModel(Base):
     id_khach_san = Column(Integer, nullable=False, index=True)
     ngay_nhan_phong = Column(Date, nullable=False)
     ngay_tra_phong = Column(Date, nullable=False)
+    tien_phong = Column(Numeric(18, 2), nullable=True, default=0)
+    thue_phi = Column(Numeric(18, 2), nullable=False, default=0)
     tong_tien = Column(Numeric(18, 2), nullable=False)
     trang_thai = Column(
         String(20),

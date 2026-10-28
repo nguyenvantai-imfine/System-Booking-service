@@ -15,6 +15,7 @@ import {
   MapPin,
   RefreshCw,
   SearchX,
+  AlertCircle,
 } from "lucide-react";
 
 function SearchContent() {
@@ -30,26 +31,27 @@ function SearchContent() {
 
   const [hotels, setHotels] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
 
   // Filter States
   const [selectedStars, setSelectedStars] = useState<number[]>([]);
   const [selectedPriceRange, setSelectedPriceRange] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("popular");
 
-  useEffect(() => {
-    async function fetchHotels() {
-      setIsLoading(true);
-      try {
-        const queryParams: any = { page: 1, page_size: 30 };
-        if (city) queryParams.city = city;
-        if (keyword) queryParams.keyword = keyword;
+  const fetchHotels = async () => {
+    setIsLoading(true);
+    setErrorMessage("");
+    try {
+      const queryParams: any = { page: 1, page_size: 30 };
+      if (city) queryParams.city = city;
+      if (keyword) queryParams.keyword = keyword;
 
-        const res = await apiClient.getHotels(queryParams);
+      const res = await apiClient.getHotels(queryParams);
 
-        if (res?.items && res.items.length > 0) {
-          setHotels(res.items);
-        } else {
-          // If city search returned empty or database has only few items, generate helpful sample results matching the searched city
+      if (res?.items && res.items.length > 0) {
+        setHotels(res.items);
+      } else {
+        if (process.env.NEXT_PUBLIC_DEMO_MODE === "true") {
           setHotels([
             {
               id_khach_san: 4,
@@ -61,34 +63,18 @@ function SearchContent() {
               diem_danh_gia: 9.4,
               mo_ta: `Khách sạn 5 sao cao cấp với tầm nhìn toàn cảnh ${city || "bờ biển"}, hồ bơi vô cực và ẩm thực Á-Âu thượng hạng.`,
             },
-            {
-              id_khach_san: 101,
-              ten_khach_san: `The Pearl Heritage Hotel ${city || "Trung Tâm"}`,
-              dia_chi: `88 Đại Lộ Trung Tâm, ${city || "Quận 1"}`,
-              thanh_pho: city || "Đà Nẵng",
-              so_sao: 4,
-              gia_thap_nhat: 1250000,
-              diem_danh_gia: 9.1,
-              mo_ta: "Không gian nghỉ dưỡng thanh bình, phòng suite rộng rãi với ban công riêng biệt và tiện nghi chuẩn quốc tế.",
-            },
-            {
-              id_khach_san: 102,
-              ten_khach_san: `Seaside Diamond Palace ${city || "Bãi Biển"}`,
-              dia_chi: `56 Đường Hoàng Sa, ${city || "Đà Nẵng"}`,
-              thanh_pho: city || "Đà Nẵng",
-              so_sao: 5,
-              gia_thap_nhat: 2850000,
-              diem_danh_gia: 9.6,
-              mo_ta: "Trải nghiệm resort ven biển sang trọng bậc nhất với bãi tắm riêng, spa chăm sóc sức khỏe và quầy bar tầng thượng.",
-            },
           ]);
+        } else {
+          setHotels([]);
         }
-      } catch (err) {
-        console.warn("API search error, using curated hotels:", err);
+      }
+    } catch (err: any) {
+      console.error("API search error:", err);
+      if (process.env.NEXT_PUBLIC_DEMO_MODE === "true") {
         setHotels([
           {
             id_khach_san: 4,
-            ten_khach_san: `Test JWT Grand Hotel ${city || "Đà Nẵng"}`,
+            ten_khach_san: `Test JWT Grand Hotel ${city || "Đà Nẵng"} (Demo)`,
             dia_chi: "123 Võ Nguyên Giáp, Sơn Trà",
             thanh_pho: city || "Đà Nẵng",
             so_sao: 5,
@@ -96,11 +82,16 @@ function SearchContent() {
             diem_danh_gia: 9.4,
           },
         ]);
-      } finally {
-        setIsLoading(false);
+      } else {
+        setErrorMessage("Không thể kết nối đến máy chủ. Vui lòng thử lại sau.");
+        setHotels([]);
       }
+    } finally {
+      setIsLoading(false);
     }
+  };
 
+  useEffect(() => {
     fetchHotels();
   }, [city, keyword]);
 
@@ -308,6 +299,25 @@ function SearchContent() {
                   className="h-56 bg-white rounded-3xl border border-slate-200 animate-pulse"
                 />
               ))}
+            </div>
+          ) : errorMessage ? (
+            <div className="text-center py-16 bg-white rounded-3xl border border-rose-200 p-8 space-y-4 shadow-xs">
+              <div className="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center mx-auto text-rose-500">
+                <AlertCircle className="w-8 h-8" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">
+                Không thể kết nối đến máy chủ
+              </h3>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                {errorMessage}
+              </p>
+              <button
+                onClick={() => fetchHotels()}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-600/20 transition-all hover:scale-105"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Thử lại
+              </button>
             </div>
           ) : filteredHotels.length === 0 ? (
             <div className="text-center py-20 bg-white rounded-3xl border border-slate-200 p-8 space-y-4">

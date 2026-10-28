@@ -9,13 +9,7 @@ import {
   Bed,
   Calendar,
   CreditCard,
-  DollarSign,
-  Star,
-  Gift,
   Bell,
-  BarChart3,
-  Settings,
-  User,
   Menu,
   X,
 } from "lucide-react";
@@ -36,12 +30,7 @@ export default function Navbar() {
     { href: "/Rooms", label: "Phòng", icon: Bed },
     { href: "/Bookings", label: "Đặt Phòng", icon: Calendar },
     { href: "/Payments", label: "Thanh toán", icon: CreditCard },
-    { href: "/Revenue", label: "Doanh thu", icon: DollarSign },
-    { href: "/Reviews", label: "Đánh giá", icon: Star },
-    { href: "/Promotions", label: "Khuyến mãi", icon: Gift },
     { href: "/Notifications", label: "Thông báo", icon: Bell },
-    { href: "/Reports", label: "Báo Cáo", icon: BarChart3 },
-    { href: "/Settings", label: "Cài đặt", icon: Settings },
   ];
 
   return (
@@ -82,15 +71,12 @@ export default function Navbar() {
               })}
             </div>
 
-            {/* User Actions */}
-            <div className="hidden sm:flex items-center flex-shrink-0 ml-2">
-              <Link
-                href="/Profile"
-                className="flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-800 hover:bg-gray-50 hover:opacity-60 transition-all whitespace-nowrap"
-              >
-                <User className="w-4 h-4" />
-                <span>Hồ sơ</span>
-              </Link>
+            {/* Admin Badge */}
+            <div className="hidden sm:flex items-center flex-shrink-0 ml-auto">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 border border-indigo-100 text-xs font-semibold text-indigo-700">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                Quản trị viên
+              </span>
             </div>
 
             {/* Mobile menu button */}
@@ -134,15 +120,11 @@ export default function Navbar() {
                 </Link>
               );
             })}
-            <div className="border-t border-gray-200 pt-2 mt-2 space-y-2">
-              <Link
-                href="/Profile"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="flex items-center space-x-3 px-3 py-3 rounded-xl text-sm font-medium text-gray-800 hover:bg-gray-50 hover:opacity-60 transition-opacity whitespace-nowrap"
-              >
-                <User className="w-5 h-5" />
-                <span>Hồ sơ</span>
-              </Link>
+            <div className="border-t border-gray-200 pt-3 mt-2">
+              <span className="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 rounded-xl w-full">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                Đang trực tuyến: Quản trị viên
+              </span>
             </div>
           </div>
         </div>

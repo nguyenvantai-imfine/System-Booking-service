@@ -51,6 +51,12 @@ def get_current_user(
             detail="Tài khoản đã bị khóa. Vui lòng liên hệ Quản trị viên.",
         )
 
+    if user.trang_thai == TrangThaiTaiKhoanEnum.INACTIVE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tài khoản chưa được kích hoạt hoặc đã ngừng hoạt động.",
+        )
+
     return user
 
 def require_admin(

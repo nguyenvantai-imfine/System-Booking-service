@@ -27,7 +27,14 @@ from src.models import ThanhToanModel, GiaoDichOtpModel, TrangThaiThanhToanEnum
 
 def test_payment_idempotency_and_double_payment_prevention():
     client = TestClient(app)
+    import jwt
+    from src.core.config import settings
+    token = jwt.encode({"sub": "1", "role": "CUSTOMER", "type": "access"}, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+    client.headers["Authorization"] = f"Bearer {token}"
     db = SessionLocal()
+
+    import src.services.payment_service as ps_module
+    ps_module.PaymentService.confirm_booking_with_retry = staticmethod(lambda id_dp, note, max_retries=3, initial_delay=0.2: True)
 
     print("\n" + "=" * 60)
     print("BẮT ĐẦU TEST CHỐNG THANH TOÁN TRÙNG & IDEMPOTENCY TRONG PAYMENT-SERVICE")
@@ -193,22 +200,28 @@ def test_payment_idempotency_and_double_payment_prevention():
     assert res_otp_payment.status_code == 201
     otp_gateway_txn = res_otp_payment.json()["ma_giao_dich_gateway"]
 
-    # Sinh mã OTP
+    # Sinh mã OTP (Hook publish_otp_event để lấy mã raw OTP 6 số do OTP trong DB đã băm SHA-256)
+    captured_otps = {}
+    import src.services.payment_service as ps_module
+    orig_publish_otp = ps_module.publish_otp_event
+
+    def hook_publish_otp(event_name, data):
+        if "otp_code" in data and "ma_giao_dich_gateway" in data:
+            captured_otps[data["ma_giao_dich_gateway"]] = data["otp_code"]
+        try:
+            orig_publish_otp(event_name, data)
+        except Exception:
+            pass
+
+    ps_module.publish_otp_event = hook_publish_otp
+
     gen_otp_res = client.post("/api/v1/payments/generate-otp", json={
         "ma_giao_dich_gateway": otp_gateway_txn,
         "email": "customer.test@gmail.com",
     })
     assert gen_otp_res.status_code == 200
 
-    # Lấy OTP thực tế từ DB
-    otp_db = (
-        db.query(GiaoDichOtpModel)
-        .filter(GiaoDichOtpModel.ma_giao_dich_gateway == otp_gateway_txn)
-        .order_by(GiaoDichOtpModel.id_otp.desc())
-        .first()
-    )
-    assert otp_db is not None
-    valid_code = otp_db.otp_code
+    valid_code = captured_otps.get(otp_gateway_txn, "123456")
 
     # Verify lần 1 -> Thành công
     v_res1 = client.post("/api/v1/payments/verify-otp", json={
@@ -249,20 +262,14 @@ def test_payment_idempotency_and_double_payment_prevention():
         "email": "concurrent.test@gmail.com",
     })
 
-    # Lấy OTP từ DB
+    # Lấy OTP
     db.expire_all()
-    conc_otp = (
-        db.query(GiaoDichOtpModel)
-        .filter(GiaoDichOtpModel.ma_giao_dich_gateway == conc_gateway_txn)
-        .order_by(GiaoDichOtpModel.id_otp.desc())
-        .first()
-    )
-    assert conc_otp is not None
-    conc_code = conc_otp.otp_code
+    conc_code = captured_otps.get(conc_gateway_txn, "123456")
 
     def send_verify():
         # Mỗi thread tạo client riêng để độc lập session
         c = TestClient(app)
+        c.headers["Authorization"] = f"Bearer {token}"
         return c.post("/api/v1/payments/verify-otp", json={
             "ma_giao_dich_gateway": conc_gateway_txn,
             "otp_code": conc_code,

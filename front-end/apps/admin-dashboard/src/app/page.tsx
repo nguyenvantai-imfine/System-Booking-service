@@ -167,16 +167,26 @@ export default function AdminDashboardPage() {
           paymentStats.tong_doanh_thu ||
           0;
 
-        // Nếu có đơn thanh toán thành công
-        todayRevenue = Math.round(totalRevenue * 0.35); // Giả lập tỷ lệ trong ngày
+        // Lấy doanh thu hôm nay thực tế từ backend stats API
+        todayRevenue =
+          paymentStats.today_revenue ??
+          paymentStats.doanh_thu_hom_nay ??
+          0;
         monthRevenue = totalRevenue;
       } catch (e) {
         console.warn("Không thể tải doanh thu:", e);
         // Fallback: tính tổng tiền các đơn CONFIRMED / COMPLETED
-        totalRevenue = bookingsList
-          .filter((b: any) => ["CONFIRMED", "COMPLETED"].includes(b.trang_thai))
+        const todayStr = new Date().toISOString().split("T")[0];
+        const validBookings = bookingsList.filter((b: any) =>
+          ["CONFIRMED", "COMPLETED"].includes(b.trang_thai)
+        );
+        totalRevenue = validBookings.reduce(
+          (sum: number, b: any) => sum + (Number(b.tong_tien) || 0),
+          0
+        );
+        todayRevenue = validBookings
+          .filter((b: any) => (b.ngay_tao || "").startsWith(todayStr))
           .reduce((sum: number, b: any) => sum + (Number(b.tong_tien) || 0), 0);
-        todayRevenue = Math.round(totalRevenue * 0.35);
         monthRevenue = totalRevenue;
       }
 

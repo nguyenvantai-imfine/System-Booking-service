@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from src.core.database import get_db
-from src.models import TaiKhoanModel
+from src.models import TaiKhoanModel, VaiTroEnum
 from src.schemas.user_schema import TaiKhoanResponse, NguoiDungUpdate, UserActionResponse
 from src.services.user_service import UserService
 from src.api.dependencies import get_current_user
@@ -56,5 +56,10 @@ def get_user_by_id(
     current_user: TaiKhoanModel = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    if current_user.id_tai_khoan != user_id and current_user.vai_tro != VaiTroEnum.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bạn không có quyền truy cập thông tin của tài khoản khác.",
+        )
     return UserService.get_me(db, user_id)
 
