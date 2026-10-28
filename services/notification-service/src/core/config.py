@@ -1,11 +1,7 @@
 import os
 import urllib.parse
-<<<<<<< HEAD
 from typing import List, Union
-from pydantic import field_validator
-=======
-from pydantic import AliasChoices, Field
->>>>>>> 2708e038e84913f727dc4c52b8e5cfe91426ba6b
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
@@ -67,18 +63,14 @@ class Settings(BaseSettings):
     SMTP_TLS: bool = True
     SMTP_FROM_EMAIL: str = "no-reply@hotelbooking.com"
     SMTP_FROM_NAME: str = "Hệ Thống Đặt Phòng Khách Sạn"
-<<<<<<< HEAD
-    MOCK_EMAIL_SEND: bool = True
+    MOCK_EMAIL_SEND: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("EMAIL_MOCK", "MOCK_EMAIL_SEND", "USE_MOCK_EMAIL"),
+    )
     USE_MOCK_EMAIL: bool = True
 
     # Internal Server-to-Server Secret
     INTERNAL_SERVICE_SECRET: str = "booking_internal_secret_key_2026"
-=======
-    MOCK_EMAIL_SEND: bool = Field(
-        default=True,
-        validation_alias=AliasChoices("EMAIL_MOCK", "MOCK_EMAIL_SEND"),
-    )
->>>>>>> 2708e038e84913f727dc4c52b8e5cfe91426ba6b
 
     @property
     def DATABASE_URL(self) -> str:

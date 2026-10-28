@@ -463,18 +463,8 @@ class RoomService:
             )
         )
 
-<<<<<<< HEAD
         # 3. Lọc bỏ các phòng đã có khách đặt / giữ chỗ trong khoảng ngày
         if booked_ids:
             query = query.filter(PhongModel.id_phong.notin_(booked_ids))
 
         return query.order_by(PhongModel.so_phong.asc()).all()
-=======
-        booked_room_ids = RoomService._get_booked_room_ids(
-            hotel_id, check_in, check_out
-        )
-        if booked_room_ids:
-            query = query.filter(~PhongModel.id_phong.in_(booked_room_ids))
-
-        return query.all()
->>>>>>> 2708e038e84913f727dc4c52b8e5cfe91426ba6b

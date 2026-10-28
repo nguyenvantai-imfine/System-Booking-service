@@ -20,7 +20,6 @@ from src.schemas import (
 
 class BookingService:
     @staticmethod
-<<<<<<< HEAD
     def get_booked_room_ids(
         db: Session,
         hotel_id: int,
@@ -60,10 +59,7 @@ class BookingService:
         return [r[0] for r in rows if r[0] is not None]
 
     @staticmethod
-    def release_expired_holds(db: Session) -> int:
-=======
     def release_expired_holds(db: Session, commit: bool = True) -> int:
->>>>>>> 2708e038e84913f727dc4c52b8e5cfe91426ba6b
         """Tự động hủy các đơn PENDING_PAYMENT đã quá hạn 15 phút giữ chỗ."""
         now_utc = datetime.utcnow()
         expired_bookings = (
