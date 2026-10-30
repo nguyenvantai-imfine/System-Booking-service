@@ -1,71 +1,133 @@
+
 from datetime import date
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
-from src.api.v1.dependencies import get_db, get_current_user_payload
-from src.schemas import (
-    BookingCreateRequest,
-    BookingResponse,
-    BookingPaginatedResponse,
-    BookingStatusUpdate,
+from typing import Optional
+
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    status,
 )
-from src.services import BookingService
+from sqlalchemy.orm import Session
 
-router = APIRouter(prefix="/bookings", tags=["📋 Quản lý Đặt Phòng"])
+from src.api.v1.dependencies import (
+    get_current_user_or_internal_service,
+    get_current_user_payload,
+    require_internal_service,
+)
+from src.core.database import get_db
+from src.schemas.booking_schema import (
+    BookingCreateRequest,
+    BookingPaginatedResponse,
+    BookingResponse,
+)
+from src.services.booking_service import BookingService
 
-# 1. Tạo đơn đặt phòng mới (Chống trùng phòng + Giữ chỗ 15 phút)
+
+router = APIRouter(
+    prefix="/bookings",
+    tags=["Bookings"],
+)
+
+
+# =========================================================
+# 1. CAC HAM HO TRO
+# =========================================================
+
+def get_user_id(user_payload: dict) -> int:
+    try:
+        user_id = int(user_payload.get("sub"))
+    except (TypeError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Thong tin tai khoan trong token khong hop le.",
+        )
+
+    if user_id <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="ID tai khoan khong hop le.",
+        )
+
+    return user_id
+
+
+def get_user_role(user_payload: dict) -> str:
+    return str(user_payload.get("role", "USER")).upper()
+
+
+# =========================================================
+# 2. TAO BOOKING
+# =========================================================
+
 @router.post(
     "",
     response_model=BookingResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Tạo đơn đặt phòng mới (Giữ chỗ 15 phút)",
 )
 def create_booking(
     payload: BookingCreateRequest,
     db: Session = Depends(get_db),
     user_payload: dict = Depends(get_current_user_payload),
 ):
-    current_user_id = int(user_payload["sub"])
-    role = str(user_payload.get("role", "")).upper()
+    role = get_user_role(user_payload)
+    current_user_id = get_user_id(user_payload)
 
-    # Bỏ qua id_tai_khoan từ body trừ khi caller có vai trò ADMIN
-    if role == "ADMIN" and payload.id_tai_khoan:
-        effective_user_id = payload.id_tai_khoan
+    if role == "ADMIN" and payload.id_tai_khoan is not None:
+        booking_user_id = payload.id_tai_khoan
     else:
-        effective_user_id = current_user_id
+        booking_user_id = current_user_id
 
     return BookingService.create_booking(
-        db=db, payload=payload, current_user_id=effective_user_id
+        db=db,
+        payload=payload,
+        current_user_id=booking_user_id,
     )
 
-# 2. Danh sách đơn đặt phòng kèm phân trang & lọc (Lọc theo user nếu là khách thông thường, ADMIN xem toàn bộ)
+
+# =========================================================
+# 3. LAY DANH SACH BOOKING
+# =========================================================
+
 @router.get(
     "",
     response_model=BookingPaginatedResponse,
-    summary="Danh sách đơn đặt phòng",
 )
 def get_bookings(
-    hotel_id: Optional[int] = Query(None, description="Lọc theo khách sạn"),
-    status: Optional[str] = Query(None, description="Lọc theo trạng thái: PENDING_PAYMENT, CONFIRMED, CANCELLED..."),
-    keyword: Optional[str] = Query(None, description="Tìm theo mã booking, tên khách, email, SĐT"),
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=10, ge=1, le=100),
+    status_filter: Optional[str] = Query(
+        default=None,
+        alias="status",
+    ),
+    id_khach_san: Optional[int] = Query(
+        default=None,
+        ge=1,
+    ),
+    keyword: Optional[str] = Query(default=None),
     db: Session = Depends(get_db),
-    user_payload: dict = Depends(get_current_user_payload),
+    user_payload: dict = Depends(
+        get_current_user_or_internal_service
+    ),
 ):
-    current_user_id = int(user_payload["sub"])
-    role = str(user_payload.get("role", "")).upper()
-    user_id_filter = None if role == "ADMIN" else current_user_id
+    role = get_user_role(user_payload)
+
+    if role in ("ADMIN", "SERVICE"):
+        current_user_id = None
+    else:
+        current_user_id = get_user_id(user_payload)
 
     items, total, total_pages = BookingService.get_all_bookings(
         db=db,
-        hotel_id=hotel_id,
-        status_filter=status,
-        keyword=keyword,
-        user_id=user_id_filter,
         page=page,
         page_size=page_size,
+        user_id=current_user_id,
+        hotel_id=id_khach_san,
+        status_filter=status_filter,
+        keyword=keyword,
     )
+
     return {
         "items": items,
         "total": total,
@@ -74,90 +136,129 @@ def get_bookings(
         "total_pages": total_pages,
     }
 
-# 2.1. Tra cứu các phòng đã được đặt hoặc giữ chỗ theo khoảng ngày (phục vụ room-service)
-@router.get(
-    "/booked-room-ids",
-    response_model=List[int],
-    summary="Lấy danh sách ID các phòng đã được đặt hoặc giữ chỗ theo khoảng ngày",
-)
+
+# =========================================================
+# 4. LAY DANH SACH PHONG DA DUOC DAT
+# =========================================================
+
+@router.get("/booked-room-ids")
 def get_booked_room_ids(
-    hotel_id: int = Query(..., description="ID khách sạn"),
-    check_in: date = Query(..., description="Ngày nhận phòng (YYYY-MM-DD)"),
-    check_out: date = Query(..., description="Ngày trả phòng (YYYY-MM-DD)"),
+    id_khach_san: int = Query(..., ge=1),
+    ngay_nhan_phong: date = Query(...),
+    ngay_tra_phong: date = Query(...),
     db: Session = Depends(get_db),
+    _: None = Depends(require_internal_service),
 ):
-    if check_in >= check_out:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Ngày nhận phòng (check_in) phải trước ngày trả phòng (check_out).",
-        )
     return BookingService.get_booked_room_ids(
-        db=db, hotel_id=hotel_id, check_in=check_in, check_out=check_out
+        db=db,
+        hotel_id=id_khach_san,
+        check_in=ngay_nhan_phong,
+        check_out=ngay_tra_phong,
     )
 
-# 3. Xem chi tiết đơn đặt phòng theo ID hoặc mã Booking (Chỉ chủ sở hữu hoặc ADMIN)
+
+# =========================================================
+# 5. LAY CHI TIET BOOKING
+# =========================================================
+
 @router.get(
     "/{id_or_code}",
     response_model=BookingResponse,
-    summary="Xem chi tiết đơn đặt phòng",
 )
 def get_booking_detail(
     id_or_code: str,
     db: Session = Depends(get_db),
-    user_payload: dict = Depends(get_current_user_payload),
+    user_payload: dict = Depends(
+        get_current_user_or_internal_service
+    ),
 ):
-    current_user_id = int(user_payload["sub"])
-    role = str(user_payload.get("role", "")).upper()
+    booking = BookingService.get_booking_by_id_or_code(
+        db=db,
+        id_or_code=id_or_code,
+    )
 
-    bk = BookingService.get_booking_by_id_or_code(db, id_or_code)
-    if role != "ADMIN" and bk.id_tai_khoan != current_user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Bạn không có quyền xem thông tin đơn đặt phòng này.",
-        )
-    return bk
+    role = get_user_role(user_payload)
 
-# 4. Xác nhận đơn sau khi thanh toán thành công
+    if role not in ("ADMIN", "SERVICE"):
+        current_user_id = get_user_id(user_payload)
+
+        if booking.id_tai_khoan != current_user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Ban khong co quyen xem don dat phong nay.",
+            )
+
+    return booking
+
+
+# =========================================================
+# 6. XAC NHAN BOOKING
+# =========================================================
+
 @router.patch(
     "/{id_or_code}/confirm",
     response_model=BookingResponse,
-    summary="Xác nhận thanh toán thành công (CONFIRMED)",
 )
 def confirm_booking(
     id_or_code: str,
-    note: Optional[str] = Query(None, description="Ghi chú xác nhận"),
     db: Session = Depends(get_db),
+    _: None = Depends(require_internal_service),
 ):
-    return BookingService.confirm_booking(db, id_or_code, note=note)
+    return BookingService.confirm_booking(
+        db=db,
+        id_or_code=id_or_code,
+    )
 
-# 5. Hủy đơn đặt phòng và nhả phòng (Chỉ chủ sở hữu hoặc ADMIN)
+
+# =========================================================
+# 7. HUY BOOKING
+# =========================================================
+
 @router.patch(
     "/{id_or_code}/cancel",
     response_model=BookingResponse,
-    summary="Hủy đơn đặt phòng và giải phóng phòng (CANCELLED)",
 )
 def cancel_booking(
     id_or_code: str,
-    reason: Optional[str] = Query(None, description="Lý do hủy đơn"),
     db: Session = Depends(get_db),
     user_payload: dict = Depends(get_current_user_payload),
 ):
-    current_user_id = int(user_payload["sub"])
-    role = str(user_payload.get("role", "")).upper()
+    booking = BookingService.get_booking_by_id_or_code(
+        db=db,
+        id_or_code=id_or_code,
+    )
 
-    bk = BookingService.get_booking_by_id_or_code(db, id_or_code)
-    if role != "ADMIN" and bk.id_tai_khoan != current_user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Bạn không có quyền hủy đơn đặt phòng này.",
-        )
-    return BookingService.cancel_booking(db, id_or_code, reason=reason)
+    role = get_user_role(user_payload)
 
-# 6. Kích hoạt giải phóng các đơn giữ chỗ đã hết hạn
-@router.post(
-    "/release-expired",
-    summary="Kích hoạt quét và nhả các phòng giữ chỗ quá 15 phút",
-)
-def release_expired_holds(db: Session = Depends(get_db)):
-    count = BookingService.release_expired_holds(db)
-    return {"message": f"Đã giải phóng {count} đơn giữ chỗ hết hạn.", "released_count": count}
+    if role != "ADMIN":
+        current_user_id = get_user_id(user_payload)
+
+        if booking.id_tai_khoan != current_user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Ban khong co quyen huy don dat phong nay.",
+            )
+
+    return BookingService.cancel_booking(
+        db=db,
+        id_or_code=id_or_code,
+    )
+
+
+# =========================================================
+# 8. GIAI PHONG BOOKING HET HAN
+# =========================================================
+
+@router.post("/release-expired")
+def release_expired_bookings(
+    db: Session = Depends(get_db),
+    _: None = Depends(require_internal_service),
+):
+    released_count = BookingService.release_expired_holds(
+        db=db,
+    )
+
+    return {
+        "message": "Da xu ly booking het han giu cho.",
+        "released_count": released_count,
+    }
