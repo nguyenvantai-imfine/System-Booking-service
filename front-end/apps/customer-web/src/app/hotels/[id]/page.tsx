@@ -8,12 +8,6 @@ import { formatVND, getTodayDateString, calculateNights } from "@/lib/utils";
 import {
   Star,
   MapPin,
-  Wifi,
-  Waves,
-  Utensils,
-  Sparkles,
-  ShieldCheck,
-  Clock,
   Maximize2,
   Users,
   Bed,
@@ -41,73 +35,25 @@ function HotelDetailContent({ hotelId }: { hotelId: number }) {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [bookingWarning, setBookingWarning] = useState("");
-  const [selectedRoomType, setSelectedRoomType] = useState<any>(null);
+  const [roomTypeError, setRoomTypeError] = useState("");
+  const [availabilityError, setAvailabilityError] = useState("");
 
   const fetchHotelDetail = async () => {
     setIsLoading(true);
     setErrorMessage("");
+    setRoomTypeError("");
+    setAvailabilityError("");
     try {
-      // 1. Fetch Hotel info
-      let hotelData: any = null;
-      try {
-        hotelData = await apiClient.getHotelById(hotelId);
-      } catch (err: any) {
-        if (process.env.NEXT_PUBLIC_DEMO_MODE === "true") {
-          hotelData = {
-            id_khach_san: hotelId,
-            ten_khach_san: "Test JWT Grand Hotel (Demo)",
-            dia_chi: "123 Võ Nguyên Giáp",
-            quan_huyen: "Sơn Trà",
-            thanh_pho: "Đà Nẵng",
-            so_sao: 5,
-            mo_ta:
-              "Khách sạn nghỉ dưỡng 5 sao sang trọng tọa lạc tại bãi biển Mỹ Khê, Đà Nẵng. Sở hữu vị trí đắc địa với tầm nhìn toàn cảnh biển Đông ngoạn mục, hồ bơi chân mây tầng thượng, chuỗi nhà hàng cao cấp và dịch vụ spa chăm sóc sức khỏe chuẩn quốc tế.",
-            hinh_anh: [],
-            tien_nghi: [],
-            quy_tac: [],
-          };
-        } else {
-          throw err;
-        }
-      }
+      const hotelData = await apiClient.getHotelById(hotelId);
       setHotel(hotelData);
 
       // 2. Fetch Room Types for this hotel
       try {
         const types = await apiClient.getRoomTypesByHotel(hotelId);
-        if (types && types.length > 0) {
-          setRoomTypes(types);
-          setSelectedRoomType(types[0]);
-        } else {
-          if (process.env.NEXT_PUBLIC_DEMO_MODE === "true") {
-            setRoomTypes([
-              {
-                id_loai_phong: 4,
-                ten_loai_phong: "Premier Oceanfront Suite",
-                mo_ta: "Phòng Suite cao cấp nhìn thẳng ra biển Mỹ Khê, ban công riêng đón bình minh.",
-                suc_chua_nguoi_lon: 2,
-                suc_chua_tre_em: 1,
-                dien_tich_m2: 45,
-                gia_co_ban_mot_dem: 1800000,
-                tien_ich: [
-                  { ten_tien_ich: "Ban công view biển" },
-                  { ten_tien_ich: "Bồn tắm Jacuzzi" },
-                  { ten_tien_ich: "Bữa sáng buffet miễn phí" },
-                ],
-              },
-            ]);
-            setSelectedRoomType({
-              id_loai_phong: 4,
-              ten_loai_phong: "Premier Oceanfront Suite",
-              gia_co_ban_mot_dem: 1800000,
-            });
-          } else {
-            setRoomTypes([]);
-          }
-        }
-      } catch (e) {
-        console.warn("Could not fetch room types:", e);
+        setRoomTypes(Array.isArray(types) ? types : []);
+      } catch {
         setRoomTypes([]);
+        setRoomTypeError("Không thể tải danh sách hạng phòng. Vui lòng thử lại.");
       }
 
       // 3. Fetch Available physical rooms
@@ -117,10 +63,12 @@ function HotelDetailContent({ hotelId }: { hotelId: number }) {
           check_in: checkIn,
           check_out: checkOut,
         });
-        setAvailableRooms(rooms || []);
-      } catch (e) {
-        console.warn("Could not fetch available rooms:", e);
+        setAvailableRooms(Array.isArray(rooms) ? rooms : []);
+      } catch {
         setAvailableRooms([]);
+        setAvailabilityError(
+          "Không thể xác minh tình trạng phòng theo ngày đã chọn. Vui lòng thử lại trước khi đặt.",
+        );
       }
     } catch (err: any) {
       console.error("Error loading hotel details:", err);
@@ -144,6 +92,10 @@ function HotelDetailContent({ hotelId }: { hotelId: number }) {
 
   const handleBookNow = (roomType: any) => {
     setBookingWarning("");
+    if (availabilityError) {
+      setBookingWarning(availabilityError);
+      return;
+    }
     // Find matching physical room ID if available
     const matchingRoom = availableRooms.find(
       (r) => r.id_loai_phong === roomType.id_loai_phong
@@ -263,10 +215,12 @@ function HotelDetailContent({ hotelId }: { hotelId: number }) {
             <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
               {hotel?.ten_khach_san}
             </h1>
-            <div className="flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-xs font-bold">
-              <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
-              <span>{hotel?.so_sao || 5} Sao</span>
-            </div>
+            {hotel?.so_sao != null && (
+              <div className="flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-xs font-bold">
+                <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+                <span>{hotel.so_sao} Sao</span>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-600">
             <MapPin className="w-4 h-4 text-indigo-600 shrink-0" />
@@ -277,15 +231,19 @@ function HotelDetailContent({ hotelId }: { hotelId: number }) {
         </div>
 
         {/* Rating Score Badge */}
-        <div className="flex items-center gap-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-xs shrink-0">
-          <div className="text-right">
-            <p className="text-sm font-extrabold text-slate-900">Xuất sắc</p>
-            <p className="text-xs text-slate-500">128 khách đã đánh giá</p>
-          </div>
-          <div className="w-12 h-12 rounded-xl bg-indigo-600 text-white font-black text-lg flex items-center justify-center shadow-md shadow-indigo-600/30">
-            9.4
-          </div>
+        {hotel?.diem_danh_gia != null && (
+          <div className="flex items-center gap-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-xs shrink-0">
+        <div className="text-right">
+          <p className="text-sm font-extrabold text-slate-900">Đánh giá</p>
+          <p className="text-xs text-slate-500">
+            {hotel.so_luong_danh_gia ?? 0} lượt đánh giá
+          </p>
         </div>
+        <div className="w-12 h-12 rounded-xl bg-indigo-600 text-white font-black text-lg flex items-center justify-center shadow-md shadow-indigo-600/30">
+          {hotel.diem_danh_gia}
+        </div>
+          </div>
+        )}
       </div>
 
       {/* PHOTO GALLERY (Airbnb Style 5-photo grid) */}
@@ -338,25 +296,21 @@ function HotelDetailContent({ hotelId }: { hotelId: number }) {
           <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs space-y-4">
             <h3 className="text-lg font-bold text-slate-900">Giới thiệu khách sạn</h3>
             <p className="text-sm text-slate-600 leading-relaxed">
-              {hotel?.mo_ta ||
-                "Trải nghiệm kỳ nghỉ hoàn mỹ tại khách sạn chuẩn 5 sao với tầm nhìn toàn cảnh biển Đông ngoạn mục. Mỗi phòng nghỉ được thiết kế tinh tế theo phong cách kiến trúc hiện đại, trang bị đầy đủ tiện nghi đẳng cấp và ban công riêng biệt để bạn đón trọn làn gió biển mát lành."}
+              {hotel?.mo_ta || "Khách sạn chưa cung cấp mô tả."}
             </p>
 
-            {/* Hotel Highlights */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-slate-100">
-              <div className="flex items-center gap-2.5 text-xs font-semibold text-slate-700">
-                <Waves className="w-4 h-4 text-sky-500" /> Bể bơi vô cực
+            {Array.isArray(hotel?.tien_nghi) && hotel.tien_nghi.length > 0 && (
+              <div className="flex flex-wrap gap-2 pt-4 border-t border-slate-100">
+                {hotel.tien_nghi.map((amenity: any) => (
+                  <span
+                    key={amenity.id_tien_nghi ?? amenity.ten_tien_nghi}
+                    className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 text-xs"
+                  >
+                    {amenity.ten_tien_nghi}
+                  </span>
+                ))}
               </div>
-              <div className="flex items-center gap-2.5 text-xs font-semibold text-slate-700">
-                <Wifi className="w-4 h-4 text-indigo-500" /> Wifi tốc độ cao
-              </div>
-              <div className="flex items-center gap-2.5 text-xs font-semibold text-slate-700">
-                <Utensils className="w-4 h-4 text-amber-500" /> Buffet Á - Âu
-              </div>
-              <div className="flex items-center gap-2.5 text-xs font-semibold text-slate-700">
-                <Sparkles className="w-4 h-4 text-emerald-500" /> Trung tâm Spa
-              </div>
-            </div>
+            )}
           </div>
 
           {/* ROOM TYPES LIST (Hạng phòng còn trống) */}
@@ -364,25 +318,51 @@ function HotelDetailContent({ hotelId }: { hotelId: number }) {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-xl font-extrabold text-slate-900">
-                  Các hạng phòng còn trống
+                  Hạng phòng
                 </h3>
                 <p className="text-xs text-slate-500 mt-1">
                   Giá đã bao gồm bữa sáng buffet và thuế phí dịch vụ
                 </p>
               </div>
-              <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold">
-                ✓ Sẵn sàng nhận khách
+              <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                availabilityError
+                  ? "bg-rose-100 text-rose-800"
+                  : availableRooms.length > 0
+                    ? "bg-emerald-100 text-emerald-800"
+                    : "bg-slate-100 text-slate-700"
+              }`}>
+                {availabilityError
+                  ? "Chưa xác minh được"
+                  : availableRooms.length > 0
+                    ? `${availableRooms.length} phòng khả dụng`
+                    : "Không có phòng khả dụng"}
               </span>
             </div>
 
+            {availabilityError && (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+                {availabilityError}
+                <button
+                  type="button"
+                  onClick={() => void fetchHotelDetail()}
+                  className="ml-2 font-semibold underline"
+                >
+                  Thử lại
+                </button>
+              </div>
+            )}
+            {roomTypeError && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                {roomTypeError}
+              </div>
+            )}
+
             <div className="space-y-6">
               {roomTypes.map((type, index) => {
-                const roomImages = [
-                  "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=800&q=80",
-                  "https://images.unsplash.com/photo-1591088398332-8a7791972843?auto=format&fit=crop&w=800&q=80",
-                  "https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=800&q=80",
-                ];
-                const roomCover = roomImages[index % roomImages.length];
+                const availableForType = availableRooms.filter(
+                  (room) => room.id_loai_phong === type.id_loai_phong,
+                );
+                const roomCover = type.anh_dai_dien || hotelImages[index % hotelImages.length];
 
                 return (
                   <div
@@ -398,7 +378,7 @@ function HotelDetailContent({ hotelId }: { hotelId: number }) {
                           className="w-full h-full object-cover"
                         />
                         <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-black/60 text-white text-[11px] font-medium">
-                          {type.dien_tich_m2 || 40} m²
+                          {type.dien_tich_m2 != null ? `${type.dien_tich_m2} m²` : "Chưa cập nhật diện tích"}
                         </div>
                       </div>
 
@@ -409,42 +389,44 @@ function HotelDetailContent({ hotelId }: { hotelId: number }) {
                             {type.ten_loai_phong}
                           </h4>
                           <p className="text-xs text-slate-500 mt-1 line-clamp-2">
-                            {type.mo_ta || "Phòng nghỉ hiện đại với cửa sổ kính chạm trần, nội thất cao cấp mang lại cảm giác thư thái tối đa."}
+                            {type.mo_ta || "Hạng phòng chưa có mô tả."}
                           </p>
 
                           {/* Room Specs */}
                           <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-700 mt-3 pt-3 border-t border-slate-100">
                             <span className="flex items-center gap-1.5">
                               <Users className="w-4 h-4 text-slate-400" />
-                              {type.suc_chua_nguoi_lon || 2} Người lớn
+                              {type.suc_chua_nguoi_lon} Người lớn
                               {type.suc_chua_tre_em ? `, ${type.suc_chua_tre_em} Trẻ em` : ""}
                             </span>
                             <span className="flex items-center gap-1.5">
                               <Bed className="w-4 h-4 text-slate-400" /> 1 Giường đôi lớn
                             </span>
                             <span className="flex items-center gap-1.5">
-                              <Maximize2 className="w-4 h-4 text-slate-400" /> {type.dien_tich_m2 || 40} m²
+                              <Maximize2 className="w-4 h-4 text-slate-400" /> {type.dien_tich_m2 != null ? `${type.dien_tich_m2} m²` : "Chưa cập nhật"}
                             </span>
                           </div>
 
-                          {/* Room Amenities */}
-                          <div className="flex flex-wrap gap-1.5 mt-3">
-                            <span className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 text-[11px] font-medium">
-                              ✓ Ban công view đẹp
-                            </span>
-                            <span className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 text-[11px] font-medium">
-                              ✓ Bồn tắm Jacuzzi
-                            </span>
-                            <span className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 text-[11px] font-medium">
-                              ✓ Bữa sáng miễn phí
-                            </span>
-                          </div>
+                          {Array.isArray(type.tien_ich) && type.tien_ich.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mt-3">
+                              {type.tien_ich.map((amenity: any) => (
+                                <span
+                                  key={amenity.id_tien_ich ?? amenity.ten_tien_ich}
+                                  className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 text-[11px] font-medium"
+                                >
+                                  {amenity.ten_tien_ich}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
 
                         {/* Price & Booking Button */}
                         <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
                           <div>
-                            <p className="text-[11px] text-slate-400">Giá 1 đêm từ</p>
+                            <p className="text-[11px] text-slate-400">
+                              {availableForType.length} phòng phù hợp khoảng ngày
+                            </p>
                             <p className="text-xl font-black text-indigo-700">
                               {formatVND(type.gia_co_ban_mot_dem)}
                             </p>
@@ -452,7 +434,8 @@ function HotelDetailContent({ hotelId }: { hotelId: number }) {
 
                           <button
                             onClick={() => handleBookNow(type)}
-                            className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md shadow-indigo-600/25 hover:scale-105 active:scale-95 transition-all"
+                            disabled={Boolean(availabilityError) || availableForType.length === 0}
+                            className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md shadow-indigo-600/25 hover:scale-105 active:scale-95 transition-all disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             Chọn phòng & Đặt ngay
                           </button>
@@ -538,4 +521,3 @@ export default function HotelDetailPage({
     </Suspense>
   );
 }
-

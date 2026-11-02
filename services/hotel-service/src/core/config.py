@@ -34,12 +34,12 @@ class Settings(BaseSettings):
     DB_PORT: int = 1433                  # Cổng mặc định của SQL Server là 1433
     DB_NAME: str = "hotel_service"    # Tên Database của bạn
     DB_USER: str = "sa"                  # Tài khoản SQL Server
-    DB_PASSWORD: str = "12345678" # Mật khẩu SQL Server
+    DB_PASSWORD: str = ""
     DB_DRIVER: str = "ODBC Driver 18 for SQL Server" # Driver ODBC đã cài trên máy
     DB_TRUSTED_CONNECTION: bool = False  # Bật True nếu dùng Windows Authentication (SQLEXPRESS)
 
     # Cấu hình JWT Auth (đồng bộ với user-service)
-    JWT_SECRET_KEY: str = "booking_super_secret_jwt_key_2026_xyz!@#"
+    JWT_SECRET_KEY: str = ""
     JWT_ALGORITHM: str = "HS256"
 
     @property

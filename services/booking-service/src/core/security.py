@@ -10,6 +10,8 @@ from src.core.config import settings
 def decode_token(token: str) -> Dict[str, Any]:
     if not token or not token.strip():
         raise ValueError("Token khong duoc de trong.")
+    if not settings.JWT_SECRET_KEY.strip():
+        raise ValueError("JWT_SECRET_KEY chua duoc cau hinh.")
 
     try:
         payload = jwt.decode(

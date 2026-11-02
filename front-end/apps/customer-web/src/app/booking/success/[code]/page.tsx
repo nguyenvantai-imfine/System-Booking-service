@@ -42,34 +42,8 @@ export default function BookingSuccessPage({
       setBooking(data);
     } catch (err: any) {
       console.error("Could not fetch real booking detail:", err);
-      if (process.env.NEXT_PUBLIC_DEMO_MODE === "true") {
-        setBooking({
-          ma_booking: code,
-          trang_thai: "CONFIRMED",
-          tong_tien: 1980000,
-          ngay_nhan_phong: "2026-11-01",
-          ngay_tra_phong: "2026-11-03",
-          khach_san: {
-            ten_khach_san: "Test JWT Grand Hotel (Demo)",
-            dia_chi: "123 Võ Nguyên Giáp, Sơn Trà, Đà Nẵng",
-          },
-          thong_tin_khach: {
-            ho_ten: "Khách hàng LuxeStay",
-            email: "khachhang@example.com",
-            sdt: "0901234567",
-          },
-          chi_tiet: [
-            {
-              ten_loai_phong: "Premier Oceanfront Suite",
-              so_phong: "P.401",
-              gia_tai_thoi_diem_dat: 1980000,
-            },
-          ],
-        });
-      } else {
-        setErrorMessage("Không thể kết nối đến máy chủ để tải thông tin đơn đặt phòng. Vui lòng thử lại sau.");
-        setBooking(null);
-      }
+      setErrorMessage("Không thể kết nối đến máy chủ để tải thông tin đơn đặt phòng. Vui lòng thử lại sau.");
+      setBooking(null);
     } finally {
       setIsLoading(false);
     }
@@ -126,24 +100,47 @@ export default function BookingSuccessPage({
   const guest = booking?.khach_o || booking?.thong_tin_khach || {};
   const room = booking?.chi_tiet?.[0] || {};
   const hotel = booking?.khach_san || {};
+  const isBookingConfirmed = booking?.trang_thai === "CONFIRMED";
+  const bookingStatus = typeof booking?.trang_thai === "string"
+    ? booking.trang_thai
+    : "UNKNOWN";
+  const bookingStatusLabel =
+    bookingStatus === "CONFIRMED"
+      ? "ĐÃ XÁC NHẬN"
+      : bookingStatus === "PENDING_PAYMENT"
+        ? "CHỜ THANH TOÁN"
+        : bookingStatus === "CANCELLED"
+          ? "ĐÃ HỦY"
+          : bookingStatus;
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 space-y-8">
       {/* Success Celebration Header */}
       <div className="text-center space-y-3">
-        <div className="w-16 h-16 rounded-3xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20 animate-bounce">
-          <CheckCircle2 className="w-9 h-9" />
+        <div className={`w-16 h-16 rounded-3xl ${isBookingConfirmed ? "bg-emerald-100 text-emerald-600 shadow-emerald-500/20" : "bg-amber-100 text-amber-700 shadow-amber-500/20"} flex items-center justify-center mx-auto shadow-lg`}>
+          {isBookingConfirmed ? (
+            <CheckCircle2 className="w-9 h-9" />
+          ) : (
+            <AlertCircle className="w-9 h-9" />
+          )}
         </div>
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold uppercase tracking-wider">
+        <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full ${isBookingConfirmed ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800"} text-xs font-bold uppercase tracking-wider`}>
           <Sparkles className="w-3.5 h-3.5" />
-          Đặt phòng thành công & Đã xác nhận
+          {isBookingConfirmed
+            ? "Đặt phòng thành công & Đã xác nhận"
+            : "Đơn đặt phòng chưa được xác nhận"}
         </div>
         <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
-          Cảm Ơn Quý Khách Đã Đặt Phòng!
+          {isBookingConfirmed
+            ? "Cảm Ơn Quý Khách Đã Đặt Phòng!"
+            : "Thông Tin Đơn Đặt Phòng"}
         </h1>
         <p className="text-xs sm:text-sm text-slate-500 max-w-lg mx-auto">
-          Vé điện tử và mã QR check-in đã được hệ thống gửi tự động tới email{" "}
-          <strong className="text-slate-800">{guest.email || "của bạn"}</strong>.
+          {isBookingConfirmed
+            ? <>Vé điện tử và mã QR check-in đã được hệ thống gửi tự động tới email{" "}
+                <strong className="text-slate-800">{guest.email || "của bạn"}</strong>.</>
+            : <>Đơn đặt phòng hiện có trạng thái <strong>{bookingStatusLabel}</strong>.
+                Chỉ sử dụng vé check-in sau khi đơn được xác nhận.</>}
         </p>
       </div>
 
@@ -153,14 +150,14 @@ export default function BookingSuccessPage({
         <div className="bg-gradient-to-r from-indigo-900 via-indigo-950 to-slate-900 text-white p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
             <span className="text-[10px] uppercase font-bold tracking-widest text-indigo-300">
-              Vé Đặt Phòng Điện Tử (E-Ticket)
+              {isBookingConfirmed ? "Vé Đặt Phòng Điện Tử (E-Ticket)" : "Thông Tin Đơn Đặt Phòng"}
             </span>
             <h2 className="text-xl sm:text-2xl font-black tracking-tight">
-              {hotel.ten_khach_san || "Test JWT Grand Hotel"}
+              {hotel.ten_khach_san || "Khách sạn"}
             </h2>
             <div className="flex items-center gap-1.5 text-xs text-slate-300">
               <MapPin className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-              <span>{hotel.dia_chi || "123 Võ Nguyên Giáp, Sơn Trà, Đà Nẵng"}</span>
+              <span>{hotel.dia_chi || "Chưa có thông tin địa chỉ"}</span>
             </div>
           </div>
 
@@ -208,19 +205,19 @@ export default function BookingSuccessPage({
               <div className="space-y-1">
                 <span className="text-slate-400 font-medium">Hạng phòng & Số phòng:</span>
                 <p className="text-sm font-bold text-slate-900">
-                  {room.ten_loai_phong || "Premier Oceanfront Suite"}
+                  {room.ten_loai_phong || "Chưa có thông tin"}
                 </p>
                 <p className="text-indigo-600 font-semibold">
-                  Phòng: {room.so_phong || "P.401"}
+                  Phòng: {room.so_phong || "Chưa có thông tin"}
                 </p>
               </div>
 
               <div className="space-y-1">
                 <span className="text-slate-400 font-medium">Khách lưu trú:</span>
                 <p className="text-sm font-bold text-slate-900">
-                  {guest.ho_ten || "Khách hàng LuxeStay"}
+                  {guest.ho_ten || "Chưa có thông tin"}
                 </p>
-                <p className="text-slate-500">{guest.sdt || "0901234567"}</p>
+                <p className="text-slate-500">{guest.sdt || "Chưa có thông tin"}</p>
               </div>
             </div>
 
@@ -229,15 +226,17 @@ export default function BookingSuccessPage({
               <div>
                 <span className="text-xs text-slate-400 font-medium">Tổng tiền thanh toán</span>
                 <p className="text-2xl font-black text-indigo-700">
-                  {formatVND(booking?.tong_tien || 1980000)}
+                  {booking?.tong_tien != null
+                    ? formatVND(Number(booking.tong_tien))
+                    : "Chưa có thông tin"}
                 </p>
               </div>
 
               <div className="text-right">
                 <span className="text-xs text-slate-400 font-medium">Trạng thái</span>
                 <div>
-                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-extrabold mt-0.5">
-                    ✓ ĐÃ XÁC NHẬN
+                  <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full ${isBookingConfirmed ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"} text-xs font-extrabold mt-0.5`}>
+                    {bookingStatusLabel}
                   </span>
                 </div>
               </div>
@@ -246,13 +245,21 @@ export default function BookingSuccessPage({
 
           {/* Right QR Code Check-in Box */}
           <div className="md:col-span-4 flex flex-col items-center justify-center p-6 bg-slate-50/80 rounded-3xl border border-slate-200/80 text-center space-y-3">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-900">
-              Quét mã Check-in
-            </span>
-            <QRCode value={booking?.ma_booking || code} size={150} />
-            <p className="text-[11px] text-slate-500 max-w-[180px] leading-relaxed">
-              Xuất trình mã QR này tại quầy lễ tân để nhận phòng nhanh chóng không cần giấy tờ.
-            </p>
+            {isBookingConfirmed ? (
+              <>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-900">
+                  Quét mã Check-in
+                </span>
+                <QRCode value={booking?.ma_booking || code} size={150} />
+                <p className="text-[11px] text-slate-500 max-w-[180px] leading-relaxed">
+                  Xuất trình mã QR này tại quầy lễ tân để nhận phòng nhanh chóng không cần giấy tờ.
+                </p>
+              </>
+            ) : (
+              <p className="text-sm font-semibold text-amber-800">
+                Mã check-in chỉ được cấp sau khi đơn đặt phòng được xác nhận.
+              </p>
+            )}
           </div>
         </div>
 

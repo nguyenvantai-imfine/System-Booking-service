@@ -15,20 +15,37 @@ from src.core.templates import (
     render_booking_cancelled_email,
     render_otp_email,
 )
-from src.core.email_sender import email_sender
+from src.core.email_sender import (
+    SMTP_RECIPIENT_REJECTED_PERMANENTLY,
+    email_sender,
+)
 from src.core.database import SessionLocal
 from src.services.database_errors import handle_database_errors
 
 logger = logging.getLogger(__name__)
 
+
+class TransientNotificationError(Exception):
+    """Raised when a message should be retried by the RabbitMQ consumer."""
+
+
 class NotificationService:
     @staticmethod
     @handle_database_errors("Không thể tạo thông báo")
-    def send_notification(db: Session, req: SendNotificationRequest) -> ThongBaoModel:
+    def send_notification(
+        db: Session,
+        req: SendNotificationRequest,
+        event_key: Optional[str] = None,
+    ) -> ThongBaoModel:
         """Tạo thông báo trong ứng dụng và gửi Email khi được yêu cầu."""
         loai = req.loai_thong_bao.upper()
         du_lieu = req.du_lieu or {}
         kenh_gui = req.kenh_gui.upper()
+        if event_key is not None and (
+            len(event_key) != 64
+            or any(character not in "0123456789abcdef" for character in event_key)
+        ):
+            raise ValueError("Notification event key is invalid.")
         if kenh_gui not in {"EMAIL", "IN_APP"}:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -51,17 +68,38 @@ class NotificationService:
             html_content = f"<p>{escape_html(message)}</p>"
             text_content = message
 
-        # 2. Tạo bản ghi ThongBao trong DB
-        thong_bao = ThongBaoModel(
-            id_tai_khoan=req.id_tai_khoan,
-            loai_thong_bao=loai,
-            kenh_gui=kenh_gui,
-            nguoi_nhan=req.nguoi_nhan,
-            trang_thai="PENDING",
-            ma_booking=req.ma_booking or du_lieu.get("ma_booking"),
-            ngay_tao=datetime.utcnow(),
-        )
-        db.add(thong_bao)
+        thong_bao = None
+        if event_key:
+            thong_bao = (
+                db.query(ThongBaoModel)
+                .filter(ThongBaoModel.event_key == event_key)
+                .first()
+            )
+            if thong_bao is not None and thong_bao.trang_thai == "SENT":
+                return thong_bao
+
+        if thong_bao is None:
+            thong_bao = ThongBaoModel(
+                id_tai_khoan=req.id_tai_khoan,
+                loai_thong_bao=loai,
+                kenh_gui=kenh_gui,
+                nguoi_nhan=req.nguoi_nhan,
+                trang_thai="PENDING",
+                ma_booking=req.ma_booking or du_lieu.get("ma_booking"),
+                event_key=event_key,
+                ngay_tao=datetime.utcnow(),
+            )
+            db.add(thong_bao)
+        else:
+            thong_bao.id_tai_khoan = req.id_tai_khoan
+            thong_bao.loai_thong_bao = loai
+            thong_bao.kenh_gui = kenh_gui
+            thong_bao.nguoi_nhan = req.nguoi_nhan
+            thong_bao.trang_thai = "PENDING"
+            thong_bao.ma_booking = req.ma_booking or du_lieu.get("ma_booking")
+            thong_bao.ghi_chu_loi = None
+            thong_bao.ngay_gui = None
+
         db.flush()
 
         # 3. Tạo bản ghi NoiDungThongBao (Che mã OTP trước khi lưu trữ lâu dài trong CSDL)
@@ -87,14 +125,29 @@ class NotificationService:
             else:
                 saved_subject = "🔐 Mã OTP xác thực giao dịch thanh toán (Đã bảo mật)"
 
-        noi_dung = NoiDungThongBaoModel(
-            id_thong_bao=thong_bao.id_thong_bao,
-            tieu_de=saved_subject,
-            noi_dung_html=saved_html,
-            noi_dung_text=saved_text,
-            du_lieu_dinh_kem=json.dumps(saved_du_lieu, ensure_ascii=False),
-        )
-        db.add(noi_dung)
+        noi_dung = thong_bao.noi_dung
+        if noi_dung is None:
+            noi_dung = NoiDungThongBaoModel(
+                id_thong_bao=thong_bao.id_thong_bao,
+                tieu_de=saved_subject,
+                noi_dung_html=saved_html,
+                noi_dung_text=saved_text,
+                du_lieu_dinh_kem=json.dumps(saved_du_lieu, ensure_ascii=False),
+            )
+            db.add(noi_dung)
+        else:
+            noi_dung.tieu_de = saved_subject
+            noi_dung.noi_dung_html = saved_html
+            noi_dung.noi_dung_text = saved_text
+            noi_dung.du_lieu_dinh_kem = json.dumps(
+                saved_du_lieu,
+                ensure_ascii=False,
+            )
+
+        # Persist the idempotency record before performing the external email side effect.
+        if kenh_gui == "EMAIL":
+            db.commit()
+            db.refresh(thong_bao)
 
         # 4. Gửi email
         if kenh_gui == "EMAIL":
@@ -139,6 +192,7 @@ class NotificationService:
         """Xử lý sự kiện từ RabbitMQ Consumer trong thread nền"""
         db = SessionLocal()
         try:
+            event_key = payload.pop("_notification_event_key", None)
             loai_map = {
                 "notification.booking.confirmed": "BOOKING_CONFIRMED",
                 "notification.payment.success": "PAYMENT_SUCCESS",
@@ -166,11 +220,30 @@ class NotificationService:
                 ma_booking=payload.get("ma_booking"),
                 du_lieu=payload,
             )
-            cls.send_notification(db, req)
+            thong_bao = cls.send_notification(
+                db,
+                req,
+                event_key=event_key,
+            )
+            if thong_bao.trang_thai == "FAILED":
+                if thong_bao.ghi_chu_loi == SMTP_RECIPIENT_REJECTED_PERMANENTLY:
+                    raise ValueError("SMTP recipient was permanently rejected.")
+                raise TransientNotificationError(
+                    "Notification delivery failed and should be retried."
+                )
             cid = payload.get("correlation_id") or "UNKNOWN"
-            print(f"[CORRELATION_ID: {cid}] >>> [NOTIFICATION SERVICE] Notification processed for {email}!")
-        except Exception as e:
-            logger.error(f"Error handling MQ event {queue_name}: {e}")
+            logger.info(
+                "Notification event processed; id=%s status=%s correlation_id=%s",
+                thong_bao.id_thong_bao,
+                thong_bao.trang_thai,
+                cid,
+            )
+        except Exception as exc:
+            logger.error(
+                "Error handling notification event; queue=%s error_type=%s",
+                queue_name,
+                type(exc).__name__,
+            )
             db.rollback()
             raise
         finally:

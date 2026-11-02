@@ -27,8 +27,6 @@ app = FastAPI(
         "### Xác thực\n"
         "Các endpoint yêu cầu xác thực sử dụng **Bearer Token** trong header:\n"
         "```\nAuthorization: Bearer <partner_id>\n```\n"
-        "> **DEMO MODE**: Token = `id_tai_khoan` (số nguyên). "
-        "Ví dụ: Token `1` = Partner có ID = 1.\n\n"
         "### Nhóm API\n"
         "| Nhóm | Prefix | Mô tả |\n"
         "|------|--------|-------|\n"

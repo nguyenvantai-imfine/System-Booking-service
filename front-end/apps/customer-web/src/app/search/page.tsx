@@ -48,44 +48,11 @@ function SearchContent() {
 
       const res = await apiClient.getHotels(queryParams);
 
-      if (res?.items && res.items.length > 0) {
-        setHotels(res.items);
-      } else {
-        if (process.env.NEXT_PUBLIC_DEMO_MODE === "true") {
-          setHotels([
-            {
-              id_khach_san: 4,
-              ten_khach_san: `Grand Luxury Resort & Spa ${city || "Đà Nẵng"}`,
-              dia_chi: `123 Đường Ven Biển, ${city || "Sơn Trà"}`,
-              thanh_pho: city || "Đà Nẵng",
-              so_sao: 5,
-              gia_thap_nhat: 1800000,
-              diem_danh_gia: 9.4,
-              mo_ta: `Khách sạn 5 sao cao cấp với tầm nhìn toàn cảnh ${city || "bờ biển"}, hồ bơi vô cực và ẩm thực Á-Âu thượng hạng.`,
-            },
-          ]);
-        } else {
-          setHotels([]);
-        }
-      }
+      setHotels(Array.isArray(res?.items) ? res.items : []);
     } catch (err: any) {
       console.error("API search error:", err);
-      if (process.env.NEXT_PUBLIC_DEMO_MODE === "true") {
-        setHotels([
-          {
-            id_khach_san: 4,
-            ten_khach_san: `Test JWT Grand Hotel ${city || "Đà Nẵng"} (Demo)`,
-            dia_chi: "123 Võ Nguyên Giáp, Sơn Trà",
-            thanh_pho: city || "Đà Nẵng",
-            so_sao: 5,
-            gia_thap_nhat: 1800000,
-            diem_danh_gia: 9.4,
-          },
-        ]);
-      } else {
-        setErrorMessage("Không thể kết nối đến máy chủ. Vui lòng thử lại sau.");
-        setHotels([]);
-      }
+      setErrorMessage("Không thể kết nối đến máy chủ. Vui lòng thử lại sau.");
+      setHotels([]);
     } finally {
       setIsLoading(false);
     }
@@ -101,33 +68,53 @@ function SearchContent() {
 
     // Star filter
     if (selectedStars.length > 0) {
-      result = result.filter((h) => selectedStars.includes(h.so_sao || 5));
+      result = result.filter(
+        (hotel) =>
+          typeof hotel.so_sao === "number" &&
+          selectedStars.includes(hotel.so_sao),
+      );
     }
 
     // Price range filter
     if (selectedPriceRange === "under1m") {
-      result = result.filter((h) => (h.gia_thap_nhat || 1800000) < 1000000);
+      result = result.filter(
+        (hotel) => typeof hotel.gia_thap_nhat === "number" && hotel.gia_thap_nhat < 1000000,
+      );
     } else if (selectedPriceRange === "1m-2m") {
       result = result.filter((h) => {
-        const p = h.gia_thap_nhat || 1800000;
-        return p >= 1000000 && p <= 2000000;
+        const price = h.gia_thap_nhat;
+        return typeof price === "number" && price >= 1000000 && price <= 2000000;
       });
     } else if (selectedPriceRange === "2m-4m") {
       result = result.filter((h) => {
-        const p = h.gia_thap_nhat || 1800000;
-        return p > 2000000 && p <= 4000000;
+        const price = h.gia_thap_nhat;
+        return typeof price === "number" && price > 2000000 && price <= 4000000;
       });
     } else if (selectedPriceRange === "above4m") {
-      result = result.filter((h) => (h.gia_thap_nhat || 1800000) > 4000000);
+      result = result.filter(
+        (hotel) => typeof hotel.gia_thap_nhat === "number" && hotel.gia_thap_nhat > 4000000,
+      );
     }
 
     // Sort
     if (sortBy === "price_asc") {
-      result.sort((a, b) => (a.gia_thap_nhat || 0) - (b.gia_thap_nhat || 0));
+      result.sort(
+        (a, b) =>
+          (a.gia_thap_nhat ?? Number.POSITIVE_INFINITY) -
+          (b.gia_thap_nhat ?? Number.POSITIVE_INFINITY),
+      );
     } else if (sortBy === "price_desc") {
-      result.sort((a, b) => (b.gia_thap_nhat || 0) - (a.gia_thap_nhat || 0));
+      result.sort(
+        (a, b) =>
+          (b.gia_thap_nhat ?? Number.NEGATIVE_INFINITY) -
+          (a.gia_thap_nhat ?? Number.NEGATIVE_INFINITY),
+      );
     } else if (sortBy === "rating") {
-      result.sort((a, b) => (b.diem_danh_gia || 0) - (a.diem_danh_gia || 0));
+      result.sort(
+        (a, b) =>
+          (b.diem_danh_gia ?? Number.NEGATIVE_INFINITY) -
+          (a.diem_danh_gia ?? Number.NEGATIVE_INFINITY),
+      );
     }
 
     return result;

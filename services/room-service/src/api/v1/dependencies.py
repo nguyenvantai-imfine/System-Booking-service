@@ -1,8 +1,15 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
+import json
+import logging
+import urllib.error
+import urllib.request
 from src.core.database import get_db
 from src.core.security import decode_token
+from src.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 security_scheme = HTTPBearer(
     scheme_name="BearerToken",
@@ -85,7 +92,7 @@ def check_hotel_ownership(hotel_id: int, user: dict) -> None:
     try:
         current_uid = int(user.get("sub"))
     except (ValueError, TypeError):
-        pass
+        current_uid = None
 
     if current_uid is None:
         raise HTTPException(
@@ -94,36 +101,76 @@ def check_hotel_ownership(hotel_id: int, user: dict) -> None:
         )
 
     # 1. Kiểm tra nếu token có gắn claim id_khach_san / hotel_id
-    token_hotel_id = user.get("id_khach_san") or user.get("hotel_id")
-    if token_hotel_id is not None and int(token_hotel_id) != int(hotel_id):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Bạn không có quyền sửa hoặc thao tác phòng thuộc khách sạn của đối tác khác.",
-        )
+    token_hotel_id = user.get("id_khach_san")
+    if token_hotel_id is None:
+        token_hotel_id = user.get("hotel_id")
+    if token_hotel_id is not None:
+        try:
+            claim_hotel_id = int(token_hotel_id)
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Thông tin khách sạn trong token không hợp lệ.",
+            ) from exc
+        if claim_hotel_id != hotel_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Bạn không có quyền sửa hoặc thao tác phòng thuộc khách sạn của đối tác khác.",
+            )
 
-    # 2. Xác thực với Hotel Service
+    # Verify ownership with Hotel Service even when a hotel claim is present;
+    # an unavailable or malformed response must never grant the operation.
     try:
-        import urllib.request
-        import json
-        from src.core.config import settings
-        hotel_service_url = getattr(settings, "HOTEL_SERVICE_URL", "http://127.0.0.1:8000/api/v1").rstrip("/")
+        hotel_service_url = settings.HOTEL_SERVICE_URL.rstrip("/")
+        if not hotel_service_url:
+            raise ValueError("Hotel Service URL is not configured.")
         req = urllib.request.Request(
             f"{hotel_service_url}/hotels/{hotel_id}",
-            headers={"User-Agent": "room-service", "Accept": "application/json"}
+            headers={"User-Agent": "room-service", "Accept": "application/json"},
         )
         with urllib.request.urlopen(req, timeout=3.0) as resp:
             data = json.loads(resp.read().decode())
-            owner_id = data.get("id_chu_so_huu") or data.get("id_tai_khoan")
-            if owner_id is not None and int(owner_id) != current_uid:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Bạn không có quyền sửa hoặc thao tác phòng thuộc khách sạn của đối tác khác.",
-                )
-    except HTTPException:
-        raise
-    except Exception:
-        # Fallback khi test môi trường độc lập không kết nối được hotel-service
-        pass
+        if not isinstance(data, dict):
+            raise ValueError("Hotel Service response must be an object.")
+        owner_id = data.get("id_tai_khoan")
+        if owner_id is None:
+            owner_id = data.get("id_chu_so_huu")
+        if isinstance(owner_id, bool):
+            raise ValueError("Hotel Service returned an invalid owner ID.")
+        try:
+            owner_id = int(owner_id)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Hotel Service did not return a valid owner ID.") from exc
+        if owner_id <= 0:
+            raise ValueError("Hotel Service returned an invalid owner ID.")
+        if owner_id != current_uid:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Bạn không có quyền sửa hoặc thao tác phòng thuộc khách sạn của đối tác khác.",
+            )
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Không tìm thấy khách sạn.",
+            ) from exc
+        logger.warning(
+            "Could not verify hotel ownership; upstream_status=%s",
+            exc.code,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Không thể xác minh quyền sở hữu khách sạn lúc này.",
+        ) from exc
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError, TypeError) as exc:
+        logger.warning(
+            "Could not verify hotel ownership; error_type=%s",
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Không thể xác minh quyền sở hữu khách sạn lúc này.",
+        ) from exc
 
 
 __all__ = [

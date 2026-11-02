@@ -17,16 +17,9 @@ import {
   RefreshCw,
 } from "lucide-react";
 import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
   PieChart,
   Pie,
   Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
   Tooltip,
   Legend,
   ResponsiveContainer,
@@ -38,6 +31,7 @@ interface StatCard {
   value: string | number;
   icon: React.ElementType;
   color: string;
+  source: string;
 }
 
 const COLORS = [
@@ -60,6 +54,8 @@ const formatVND = (amount: number) => {
 export default function AdminDashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<string>("");
+  const [unavailableServices, setUnavailableServices] = useState<string[]>([]);
+  const [bookingStatusesIncomplete, setBookingStatusesIncomplete] = useState(false);
 
   // Dữ liệu thống kê thời gian thực
   const [statsData, setStatsData] = useState({
@@ -76,17 +72,16 @@ export default function AdminDashboardPage() {
     cancelledBookings: 0,
     totalRevenue: 0,
     todayRevenue: 0,
-    monthRevenue: 0,
+    monthRevenue: null as number | null,
   });
 
-  // Dữ liệu biểu đồ
   const [bookingStatusChart, setBookingStatusChart] = useState<any[]>([]);
-  const [revenueChart, setRevenueChart] = useState<any[]>([]);
-  const [bookingTimeChart, setBookingTimeChart] = useState<any[]>([]);
-  const [hotelRevenueChart, setHotelRevenueChart] = useState<any[]>([]);
 
   const fetchDashboardData = useCallback(async () => {
     setIsLoading(true);
+    setUnavailableServices([]);
+    setBookingStatusesIncomplete(false);
+    const failedServices: string[] = [];
     try {
       // 1. Lấy dữ liệu Người dùng từ user-service
       let usersList: any[] = [];
@@ -104,17 +99,17 @@ export default function AdminDashboardPage() {
         totalAdmins = usersList.filter((u: any) => u.vai_tro === "ADMIN").length;
       } catch (e) {
         console.warn("Không thể tải người dùng:", e);
+        failedServices.push("User");
       }
 
       // 2. Lấy dữ liệu Khách sạn từ hotel-service
       let totalHotels = 0;
-      let hotelsList: any[] = [];
       try {
         const hotelsRes = await apiClient.getHotels({ page: 1, page_size: 50 });
-        hotelsList = hotelsRes.items || [];
-        totalHotels = hotelsRes.total || hotelsList.length;
+        totalHotels = hotelsRes.total ?? hotelsRes.items.length;
       } catch (e) {
         console.warn("Không thể tải khách sạn:", e);
+        failedServices.push("Hotel");
       }
 
       // 3. Lấy dữ liệu Phòng từ room-service
@@ -124,6 +119,7 @@ export default function AdminDashboardPage() {
         totalRooms = roomsRes.total || (roomsRes.items || []).length;
       } catch (e) {
         console.warn("Không thể tải phòng:", e);
+        failedServices.push("Room");
       }
 
       // 4. Lấy dữ liệu Đơn đặt phòng từ booking-service
@@ -137,7 +133,10 @@ export default function AdminDashboardPage() {
       try {
         const bookingsRes = await apiClient.getBookings({ page: 1, page_size: 100 });
         bookingsList = bookingsRes.items || [];
-        totalBookings = bookingsRes.total || bookingsList.length;
+        totalBookings = bookingsRes.total ?? bookingsList.length;
+        if (totalBookings > bookingsList.length) {
+          setBookingStatusesIncomplete(true);
+        }
 
         pendingBookings = bookingsList.filter(
           (b: any) => b.trang_thai === "PENDING_PAYMENT"
@@ -153,12 +152,13 @@ export default function AdminDashboardPage() {
         ).length;
       } catch (e) {
         console.warn("Không thể tải đơn đặt:", e);
+        failedServices.push("Booking");
       }
 
       // 5. Lấy dữ liệu Doanh thu từ payment-service
       let totalRevenue = 0;
       let todayRevenue = 0;
-      let monthRevenue = 0;
+      let monthRevenue: number | null = null;
 
       try {
         const paymentStats: any = await apiClient.getPaymentStats();
@@ -172,23 +172,11 @@ export default function AdminDashboardPage() {
           paymentStats.today_revenue ??
           paymentStats.doanh_thu_hom_nay ??
           0;
-        monthRevenue = totalRevenue;
       } catch (e) {
         console.warn("Không thể tải doanh thu:", e);
-        // Fallback: tính tổng tiền các đơn CONFIRMED / COMPLETED
-        const todayStr = new Date().toISOString().split("T")[0];
-        const validBookings = bookingsList.filter((b: any) =>
-          ["CONFIRMED", "COMPLETED"].includes(b.trang_thai)
-        );
-        totalRevenue = validBookings.reduce(
-          (sum: number, b: any) => sum + (Number(b.tong_tien) || 0),
-          0
-        );
-        todayRevenue = validBookings
-          .filter((b: any) => (b.ngay_tao || "").startsWith(todayStr))
-          .reduce((sum: number, b: any) => sum + (Number(b.tong_tien) || 0), 0);
-        monthRevenue = totalRevenue;
+        failedServices.push("Payment");
       }
+      setUnavailableServices(failedServices);
 
       // Cập nhật State tổng thể
       setStatsData({
@@ -210,49 +198,12 @@ export default function AdminDashboardPage() {
 
       // Tạo dữ liệu biểu đồ trạng thái booking
       const statusChart = [
-        { name: "Đã xác nhận", value: confirmedBookings || 2 },
-        { name: "Chờ thanh toán", value: pendingBookings || 1 },
-        { name: "Đã hoàn thành", value: completedBookings || 1 },
-        { name: "Đã hủy", value: cancelledBookings || 0 },
+        { name: "Đã xác nhận", value: confirmedBookings },
+        { name: "Chờ thanh toán", value: pendingBookings },
+        { name: "Đã hoàn thành", value: completedBookings },
+        { name: "Đã hủy", value: cancelledBookings },
       ].filter((item) => item.value > 0);
       setBookingStatusChart(statusChart);
-
-      // Tạo biểu đồ doanh thu theo ngày
-      setRevenueChart([
-        { date: "T2", revenue: Math.round(totalRevenue * 0.12) },
-        { date: "T3", revenue: Math.round(totalRevenue * 0.18) },
-        { date: "T4", revenue: Math.round(totalRevenue * 0.15) },
-        { date: "T5", revenue: Math.round(totalRevenue * 0.22) },
-        { date: "T6", revenue: Math.round(totalRevenue * 0.25) },
-        { date: "T7", revenue: Math.round(totalRevenue * 0.32) },
-        { date: "CN", revenue: Math.round(totalRevenue * 0.28) },
-      ]);
-
-      // Tạo biểu đồ booking theo ngày
-      setBookingTimeChart([
-        { date: "T2", bookings: 1 },
-        { date: "T3", bookings: 2 },
-        { date: "T4", bookings: 1 },
-        { date: "T5", bookings: 3 },
-        { date: "T6", bookings: 4 },
-        { date: "T7", bookings: 5 },
-        { date: "CN", bookings: 3 },
-      ]);
-
-      // Tạo biểu đồ doanh thu theo khách sạn
-      const hotelChart = hotelsList.slice(0, 4).map((h: any, idx: number) => ({
-        hotel: h.ten_khach_san ? h.ten_khach_san.substring(0, 16) + "..." : `KS #${h.id_khach_san}`,
-        revenue: Math.round(totalRevenue * (0.4 - idx * 0.08)),
-      }));
-      setHotelRevenueChart(
-        hotelChart.length > 0
-          ? hotelChart
-          : [
-              { hotel: "Grand Tourane Ocean", revenue: 4500000 },
-              { hotel: "Sofitel Legend Heritage", revenue: 3800000 },
-              { hotel: "The Reverie Saigon", revenue: 2800000 },
-            ]
-      );
 
       setLastUpdated(new Date().toLocaleTimeString("vi-VN"));
     } finally {
@@ -270,84 +221,98 @@ export default function AdminDashboardPage() {
       value: statsData.totalUsers,
       icon: Users,
       color: "bg-blue-500",
+      source: "User",
     },
     {
       title: "Tổng số khách hàng",
       value: statsData.totalCustomers,
       icon: UserCheck,
       color: "bg-green-500",
+      source: "User",
     },
     {
       title: "Tổng số Partner",
       value: statsData.totalPartners,
       icon: Briefcase,
       color: "bg-purple-500",
+      source: "User",
     },
     {
       title: "Tổng số Admin",
       value: statsData.totalAdmins,
       icon: Shield,
       color: "bg-red-500",
+      source: "User",
     },
     {
       title: "Tổng số khách sạn",
       value: statsData.totalHotels,
       icon: Building2,
       color: "bg-orange-500",
+      source: "Hotel",
     },
     {
       title: "Tổng số phòng",
       value: statsData.totalRooms,
       icon: Bed,
       color: "bg-teal-500",
+      source: "Room",
     },
     {
       title: "Tổng số booking",
       value: statsData.totalBookings,
       icon: Calendar,
       color: "bg-indigo-500",
+      source: "Booking",
     },
     {
       title: "Booking đang chờ xác nhận",
       value: statsData.pendingBookings,
       icon: Clock,
       color: "bg-yellow-500",
+      source: "Booking statuses",
     },
     {
       title: "Booking đã xác nhận",
       value: statsData.confirmedBookings,
       icon: CheckCircle,
       color: "bg-emerald-500",
+      source: "Booking statuses",
     },
     {
       title: "Booking đã hoàn thành",
       value: statsData.completedBookings,
       icon: CheckCircle,
       color: "bg-cyan-500",
+      source: "Booking statuses",
     },
     {
       title: "Booking đã hủy",
       value: statsData.cancelledBookings,
       icon: XCircle,
       color: "bg-rose-500",
+      source: "Booking statuses",
     },
     {
       title: "Tổng doanh thu",
       value: formatVND(statsData.totalRevenue),
       icon: DollarSign,
       color: "bg-amber-500",
+      source: "Payment",
     },
     {
       title: "Doanh thu hôm nay",
       value: formatVND(statsData.todayRevenue),
       icon: TrendingUp,
       color: "bg-lime-500",
+      source: "Payment",
     },
     {
       title: "Doanh thu tháng này",
-      value: formatVND(statsData.monthRevenue),
+      value: statsData.monthRevenue === null ? "API chưa cung cấp" : formatVND(statsData.monthRevenue),
       icon: TrendingUp,
       color: "bg-sky-500",
+      source: "Payment",
     },
   ];
 
@@ -382,10 +347,29 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
+      {(unavailableServices.length > 0 || bookingStatusesIncomplete) && (
+        <div
+          role="alert"
+          className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+        >
+          {unavailableServices.length > 0 &&
+            `Không tải được dữ liệu từ: ${unavailableServices.join(", ")}. Các chỉ số liên quan được hiển thị bằng dấu —.`}
+          {bookingStatusesIncomplete &&
+            " Danh sách booking được phân trang nên các tổng theo trạng thái chỉ tải một phần."}
+        </div>
+      )}
+
       {/* Grid 14 Thẻ Thống Kê */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-8">
         {cards.map((stat, index) => {
           const Icon = stat.icon;
+          const value = isLoading
+            ? "…"
+            : unavailableServices.includes(stat.source) ||
+                (stat.source === "Booking statuses" &&
+                  (unavailableServices.includes("Booking") || bookingStatusesIncomplete))
+            ? "—"
+            : stat.value;
           return (
             <div
               key={index}
@@ -397,9 +381,7 @@ export default function AdminDashboardPage() {
                     {stat.title}
                   </p>
                   <p className="text-2xl font-bold text-gray-900 tracking-tight">
-                    {typeof stat.value === "number"
-                      ? stat.value.toLocaleString()
-                      : stat.value}
+                    {typeof value === "number" ? value.toLocaleString() : value}
                   </p>
                 </div>
                 <div
@@ -422,23 +404,9 @@ export default function AdminDashboardPage() {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             Doanh thu tuần này (VND)
           </h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <LineChart data={revenueChart}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="date" />
-              <YAxis tickFormatter={(val) => `${(val / 1000000).toFixed(1)}M`} />
-              <Tooltip formatter={(val: any) => formatVND(Number(val))} />
-              <Legend />
-              <Line
-                type="monotone"
-                dataKey="revenue"
-                name="Doanh thu"
-                stroke="#3b82f6"
-                strokeWidth={3}
-                dot={{ r: 4 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          <p className="flex h-[280px] items-center justify-center text-sm text-gray-500">
+            API hiện chưa cung cấp dữ liệu doanh thu theo ngày.
+          </p>
         </div>
 
         {/* Số lượng booking theo ngày */}
@@ -446,16 +414,9 @@ export default function AdminDashboardPage() {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             Số lượng đơn đặt theo ngày
           </h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={bookingTimeChart}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="date" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="bookings" name="Số đơn đặt" fill="#10b981" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <p className="flex h-[280px] items-center justify-center text-sm text-gray-500">
+            API hiện chưa cung cấp thống kê booking theo ngày.
+          </p>
         </div>
 
         {/* Booking theo trạng thái */}
@@ -463,31 +424,41 @@ export default function AdminDashboardPage() {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             Phân bổ Booking theo Trạng thái
           </h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <PieChart>
-              <Pie
-                data={bookingStatusChart}
-                cx="50%"
-                cy="50%"
-                labelLine={true}
-                label={({ name, percent }) =>
-                  `${name}: ${((percent || 0) * 100).toFixed(0)}%`
-                }
-                outerRadius={85}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {bookingStatusChart.map((entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={COLORS[index % COLORS.length]}
-                  />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
+          {unavailableServices.includes("Booking") || bookingStatusesIncomplete ? (
+            <p className="flex h-[280px] items-center justify-center text-sm text-gray-500">
+              Không thể tải thống kê booking.
+            </p>
+          ) : bookingStatusChart.length === 0 ? (
+            <p className="flex h-[280px] items-center justify-center text-sm text-gray-500">
+              Chưa có dữ liệu booking để thống kê.
+            </p>
+          ) : (
+            <ResponsiveContainer width="100%" height={280}>
+              <PieChart>
+                <Pie
+                  data={bookingStatusChart}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={true}
+                  label={({ name, percent }) =>
+                    `${name}: ${((percent || 0) * 100).toFixed(0)}%`
+                  }
+                  outerRadius={85}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {bookingStatusChart.map((entry, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={COLORS[index % COLORS.length]}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         {/* Doanh thu theo khách sạn */}
@@ -495,16 +466,9 @@ export default function AdminDashboardPage() {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             Doanh thu theo Khách sạn
           </h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={hotelRevenueChart} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-              <XAxis type="number" tickFormatter={(val) => `${(val / 1000000).toFixed(1)}M`} />
-              <YAxis dataKey="hotel" type="category" width={110} tick={{ fontSize: 11 }} />
-              <Tooltip formatter={(val: any) => formatVND(Number(val))} />
-              <Legend />
-              <Bar dataKey="revenue" name="Doanh thu" fill="#f59e0b" radius={[0, 4, 4, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <p className="flex h-[280px] items-center justify-center text-sm text-gray-500">
+            API hiện chưa cung cấp doanh thu theo khách sạn.
+          </p>
         </div>
       </div>
     </div>

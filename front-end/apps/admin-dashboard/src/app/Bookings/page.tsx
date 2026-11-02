@@ -137,7 +137,7 @@ export default function BookingsPage() {
   const handleCancelBooking = async (booking: DatPhongItem) => {
     if (!confirm(`Bạn có chắc chắn muốn hủy đơn "${booking.ma_booking}" và giải phóng phòng?`)) return;
     try {
-      await apiClient.cancelBooking(booking.id_dat_phong, "Hủy bởi Quản trị viên Dashboard");
+      await apiClient.cancelBooking(booking.id_dat_phong);
       setToastMessage({
         type: "success",
         text: `Đã hủy đơn ${booking.ma_booking} và giải phóng phòng thành công.`,

@@ -32,7 +32,7 @@ class Settings(BaseSettings):
             return [i.strip() for i in v.split(",") if i.strip()]
         return v
 
-    JWT_SECRET_KEY: str = "booking_super_secret_jwt_key_2026_xyz!@#"
+    JWT_SECRET_KEY: str = ""
     JWT_ALGORITHM: str = "HS256"
     INTERNAL_SERVICE_SECRET: str = ""
     TRUSTED_INTERNAL_CIDRS: str = (
@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     DB_PORT: int = 0
     DB_NAME: str = "notification_service"
     DB_USER: str = "sa"
-    DB_PASSWORD: str = "Password123!"
+    DB_PASSWORD: str = ""
     DB_DRIVER: str = "ODBC Driver 18 for SQL Server"
     DB_TRUSTED_CONNECTION: bool = True
 
@@ -67,10 +67,6 @@ class Settings(BaseSettings):
         default=True,
         validation_alias=AliasChoices("EMAIL_MOCK", "MOCK_EMAIL_SEND", "USE_MOCK_EMAIL"),
     )
-    USE_MOCK_EMAIL: bool = True
-
-    # Internal Server-to-Server Secret
-    INTERNAL_SERVICE_SECRET: str = "booking_internal_secret_key_2026"
 
     @property
     def DATABASE_URL(self) -> str:

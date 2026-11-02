@@ -11,6 +11,10 @@ def publish_payment_event(queue_name: str, payload: dict):
     Bắn message thanh toán thành công vào RabbitMQ queue.
     Nếu RabbitMQ chưa bật, tự động fallback gửi trực tiếp qua REST API Notification Service.
     """
+    notification_types = {
+        "notification.payment.success": "PAYMENT_SUCCESS",
+    }
+
     from src.core.correlation import get_correlation_id
     cid = get_correlation_id() or payload.get("correlation_id") or ""
     if cid:
@@ -45,16 +49,36 @@ def publish_payment_event(queue_name: str, payload: dict):
         )
         connection.close()
         published = True
-        print(f"[CORRELATION_ID: {cid}] >>> [PAYMENT RABBITMQ] Đã bắn sự kiện thanh toán vào queue: {queue_name}")
+        logger.info(
+            "Payment event published; queue=%s correlation_id=%s",
+            queue_name,
+            cid or "UNKNOWN",
+        )
     except Exception as e:
         logger.warning(f"RabbitMQ publish skipped/failed ({e}). Triggering Notification API directly...")
 
     # Fallback trực tiếp nếu RabbitMQ chưa bật
     if not published and settings.NOTIFICATION_SERVICE_URL:
+        notification_type = notification_types.get(queue_name)
+        if notification_type is None:
+            logger.error(
+                "No success notification fallback is defined for queue=%s.",
+                queue_name,
+            )
+            return
+
+        recipient = payload.get("email") or payload.get("nguoi_nhan")
+        if not isinstance(recipient, str) or not recipient.strip():
+            logger.error(
+                "Payment notification fallback has no valid recipient; queue=%s.",
+                queue_name,
+            )
+            return
+
         try:
             data = json.dumps({
-                "loai_thong_bao": "PAYMENT_SUCCESS",
-                "nguoi_nhan": payload.get("email") or "customer@hotel.com",
+                "loai_thong_bao": notification_type,
+                "nguoi_nhan": recipient.strip(),
                 "kenh_gui": "EMAIL",
                 "ma_booking": payload.get("ma_booking"),
                 "du_lieu": payload,
@@ -63,14 +87,19 @@ def publish_payment_event(queue_name: str, payload: dict):
             url = f"{settings.NOTIFICATION_SERVICE_URL}/notifications/internal-send"
             req_headers = {
                 "Content-Type": "application/json",
-                "X-Internal-Secret": getattr(settings, "INTERNAL_SERVICE_SECRET", "booking_internal_secret_key_2026"),
+                "X-Internal-Secret": settings.INTERNAL_SERVICE_SECRET,
             }
             if cid:
                 req_headers["X-Correlation-ID"] = cid
             req = urllib.request.Request(url, data=data, headers=req_headers)
             with urllib.request.urlopen(req, timeout=3) as res:
                 if res.status in (200, 201):
-                    print(f"[CORRELATION_ID: {cid}] >>> [PAYMENT NOTIFICATION FALLBACK] Gửi email xác nhận thanh toán trực tiếp thành công!")
+                    logger.info(
+                        "Payment notification fallback accepted; "
+                        "queue=%s correlation_id=%s",
+                        queue_name,
+                        cid or "UNKNOWN",
+                    )
         except Exception as fallback_err:
             logger.warning(f"Payment notification fallback API failed: {fallback_err}")
 
@@ -138,7 +167,7 @@ def publish_otp_event(queue_name: str, payload: dict):
             url = f"{settings.NOTIFICATION_SERVICE_URL}/notifications/internal-send"
             req_headers = {
                 "Content-Type": "application/json",
-                "X-Internal-Secret": getattr(settings, "INTERNAL_SERVICE_SECRET", "booking_internal_secret_key_2026"),
+                "X-Internal-Secret": settings.INTERNAL_SERVICE_SECRET,
             }
             if cid:
                 req_headers["X-Correlation-ID"] = cid
@@ -148,4 +177,3 @@ def publish_otp_event(queue_name: str, payload: dict):
                     print(f"[CORRELATION_ID: {cid}] >>> [PAYMENT NOTIFICATION FALLBACK] Gui ma OTP truc tiep qua REST API thanh cong!")
         except Exception as fallback_err:
             logger.warning(f"Payment OTP notification fallback API failed: {fallback_err}")
-

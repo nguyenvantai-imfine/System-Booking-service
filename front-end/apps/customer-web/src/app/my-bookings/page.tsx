@@ -40,47 +40,8 @@ export default function MyBookingsPage() {
       }
     } catch (err: any) {
       console.error("Fetch my bookings error:", err);
-      if (process.env.NEXT_PUBLIC_DEMO_MODE === "true") {
-        setBookings([
-          {
-            id_dat_phong: 991,
-            ma_booking: "BK-202611-DEMO01",
-            id_tai_khoan: 10,
-            id_khach_san: 4,
-            ngay_nhan_phong: "2026-11-01",
-            ngay_tra_phong: "2026-11-03",
-            tien_phong: 3600000,
-            thue_phi: 360000,
-            tong_tien: 3960000,
-            trang_thai: "CONFIRMED",
-            han_giu_cho: "2026-11-01T15:00:00",
-            ngay_tao: "2026-10-25T10:00:00",
-            ngay_cap_nhat: "2026-10-25T10:15:00",
-            chi_tiet: [
-              {
-                id_chi_tiet: 1,
-                id_dat_phong: 991,
-                id_phong: 21,
-                id_loai_phong: 4,
-                so_phong: "P.401",
-                ten_loai_phong: "Premier Oceanfront Suite",
-                gia_tai_thoi_diem_dat: 1800000,
-              },
-            ],
-            khach_o: {
-              id_khach_o: 1,
-              id_dat_phong: 991,
-              ho_ten: "Nguyễn Văn A",
-              email: "customer@hotel.com",
-              sdt: "0912345678",
-            },
-            nhat_ky: [],
-          },
-        ]);
-      } else {
-        setErrorMessage("Không thể kết nối đến máy chủ. Vui lòng thử lại sau.");
-        setBookings([]);
-      }
+      setErrorMessage("Không thể kết nối đến máy chủ. Vui lòng thử lại sau.");
+      setBookings([]);
     } finally {
       setIsLoading(false);
     }

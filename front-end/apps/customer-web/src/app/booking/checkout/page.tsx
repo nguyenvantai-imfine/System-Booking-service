@@ -29,17 +29,37 @@ function CheckoutContent() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
 
-  const hotelId = parseInt(searchParams.get("hotel_id") || "4", 10);
-  const hotelName = searchParams.get("hotel_name") || "Test JWT Grand Hotel";
-  const roomTypeId = parseInt(searchParams.get("room_type_id") || "4", 10);
-  const roomTypeName = searchParams.get("room_type_name") || "Premier Oceanfront Suite";
-  const roomId = parseInt(searchParams.get("room_id") || "21", 10);
-  const roomNumber = searchParams.get("room_number") || "P.401";
-  const pricePerNight = parseFloat(searchParams.get("price_per_night") || "1800000");
-  const checkIn = searchParams.get("check_in") || "2026-11-01";
-  const checkOut = searchParams.get("check_out") || "2026-11-03";
+  const hotelId = Number(searchParams.get("hotel_id"));
+  const hotelName = searchParams.get("hotel_name") || "Khách sạn đã chọn";
+  const roomTypeId = Number(searchParams.get("room_type_id"));
+  const roomTypeName = searchParams.get("room_type_name") || "Hạng phòng đã chọn";
+  const roomId = Number(searchParams.get("room_id"));
+  const roomNumber = searchParams.get("room_number") || "—";
+  const pricePerNight = Number(searchParams.get("price_per_night"));
+  const checkIn = searchParams.get("check_in") || "";
+  const checkOut = searchParams.get("check_out") || "";
+  const isValidDate = (value: string) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+    const parsedDate = new Date(`${value}T00:00:00.000Z`);
+    return (
+      Number.isFinite(parsedDate.getTime()) &&
+      parsedDate.toISOString().slice(0, 10) === value
+    );
+  };
+  const hasValidSelection =
+    Number.isInteger(hotelId) &&
+    hotelId > 0 &&
+    Number.isInteger(roomTypeId) &&
+    roomTypeId > 0 &&
+    Number.isInteger(roomId) &&
+    roomId > 0 &&
+    Number.isFinite(pricePerNight) &&
+    pricePerNight > 0 &&
+    isValidDate(checkIn) &&
+    isValidDate(checkOut) &&
+    checkOut > checkIn;
 
-  const nights = calculateNights(checkIn, checkOut);
+  const nights = hasValidSelection ? calculateNights(checkIn, checkOut) : 0;
   const roomTotal = pricePerNight * nights;
   const taxAndFee = Math.round(roomTotal * 0.1); // 10% VAT & Service fee
   const finalTotal = roomTotal + taxAndFee;
@@ -75,6 +95,11 @@ function CheckoutContent() {
   const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage("");
+
+    if (!hasValidSelection) {
+      setErrorMessage("Thông tin phòng hoặc ngày lưu trú không hợp lệ. Vui lòng chọn lại phòng.");
+      return;
+    }
 
     if (!guestName.trim() || !guestEmail.trim() || !guestPhone.trim()) {
       setErrorMessage("Vui lòng điền đầy đủ Họ tên, Email và Số điện thoại!");
@@ -188,6 +213,27 @@ function CheckoutContent() {
       setIsResendingOtp(false);
     }
   };
+
+  if (!hasValidSelection) {
+    return (
+      <div className="max-w-2xl mx-auto my-20 p-8 rounded-3xl bg-white border border-amber-200 text-center space-y-4 shadow-sm">
+        <div className="w-16 h-16 rounded-full bg-amber-50 flex items-center justify-center mx-auto text-amber-600">
+          <AlertCircle className="w-8 h-8" />
+        </div>
+        <h1 className="text-xl font-bold text-slate-900">Thiếu thông tin đặt phòng</h1>
+        <p className="text-sm text-slate-500">
+          Vui lòng chọn khách sạn, hạng phòng và ngày lưu trú hợp lệ trước khi thanh toán.
+        </p>
+        <Link
+          href="/search"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs"
+        >
+          <ChevronLeft className="w-4 h-4" />
+          Quay lại tìm phòng
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">

@@ -57,15 +57,38 @@ Set-Location "$rootDir\front-end"
 pnpm install
 Set-Location $rootDir
 
-# Tao file .env neu chua co
+# Tao root .env cho Docker Compose neu chua co; khong ghi de file da ton tai.
 if (!(Test-Path "$rootDir\.env") -and (Test-Path "$rootDir\.env.example")) {
     Copy-Item "$rootDir\.env.example" "$rootDir\.env"
-    Write-Host "    [OK] Da tu dong tao file .env tu .env.example!" -ForegroundColor Green
+    Write-Host "    [OK] Da tao root .env (Docker Compose)." -ForegroundColor Green
+}
+
+# Tao .env local cho tung process; service Settings doc file nay tu working directory.
+$localEnvironmentExamples = @(
+    "services\hotel-service\.env.example",
+    "services\user-service\.env.example",
+    "services\room-service\.env.example",
+    "services\booking-service\.env.example",
+    "services\payment-service\.env.example",
+    "services\notification-service\.env.example",
+    "gateway\.env.example"
+)
+foreach ($relativeExample in $localEnvironmentExamples) {
+    $examplePath = Join-Path $rootDir $relativeExample
+    if (Test-Path $examplePath) {
+        $serviceDirectory = Split-Path $examplePath -Parent
+        $serviceEnvPath = Join-Path $serviceDirectory ".env"
+        if (!(Test-Path $serviceEnvPath)) {
+            Copy-Item $examplePath $serviceEnvPath
+            Write-Host "    [OK] Da tao $serviceEnvPath; hay cau hinh cac gia tri de trong." -ForegroundColor Green
+        }
+    }
 }
 
 Write-Host "==========================================================" -ForegroundColor Cyan
 Write-Host ">>> MOI TRUONG DA DUOC THIET LAP SAN SANG!" -ForegroundColor Green
 Write-Host "Buoc tiep theo:" -ForegroundColor Yellow
-Write-Host "1. Khoi tao CSDL:  .\init-databases-local.ps1" -ForegroundColor White
-Write-Host "2. Khoi chay he thong: .\start-services-local.ps1" -ForegroundColor White
+Write-Host "1. Cau hinh JWT_SECRET_KEY va INTERNAL_SERVICE_SECRET trong cac .env local." -ForegroundColor White
+Write-Host "2. Khoi tao CSDL va bat RabbitMQ truoc khi chay backend." -ForegroundColor White
+Write-Host "3. Chay he thong: .\start-services-local.ps1 (script se tu choi neu port da duoc su dung)." -ForegroundColor White
 Write-Host "==========================================================" -ForegroundColor Cyan

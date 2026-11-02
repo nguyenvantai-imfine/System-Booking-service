@@ -113,7 +113,7 @@ export class ApiClient {
       ...(options.headers as Record<string, string>),
     };
 
-    const token = this.getAuthToken ? await this.getAuthToken() : "1";
+    const token = this.getAuthToken ? await this.getAuthToken() : null;
     if (token && !headers["Authorization"]) {
       headers["Authorization"] = `Bearer ${token}`;
     }
@@ -128,10 +128,13 @@ export class ApiClient {
 
     if (!response.ok) {
       let errorBody: unknown;
-      try {
-        errorBody = await response.json();
-      } catch {
-        errorBody = await response.text();
+      const responseBody = await response.text();
+      if (responseBody) {
+        try {
+          errorBody = JSON.parse(responseBody);
+        } catch {
+          errorBody = responseBody;
+        }
       }
 
       let errorMessage = `API request failed with status ${response.status}`;
@@ -518,7 +521,7 @@ export class ApiClient {
 
   public async getBookings(params?: GetBookingsParams): Promise<PaginatedBookings> {
     const query = new URLSearchParams();
-    if (params?.hotel_id) query.set("hotel_id", params.hotel_id.toString());
+    if (params?.hotel_id) query.set("id_khach_san", params.hotel_id.toString());
     if (params?.status && params.status !== "all") query.set("status", params.status);
     if (params?.keyword) query.set("keyword", params.keyword.trim());
     if (params?.page) query.set("page", params.page.toString());
@@ -579,12 +582,10 @@ export class ApiClient {
   }
 
   public async cancelBooking(
-    idOrCode: string | number,
-    reason?: string
+    idOrCode: string | number
   ): Promise<DatPhongItem> {
-    const qs = reason ? `?reason=${encodeURIComponent(reason)}` : "";
     return this.request<DatPhongItem>(
-      `/bookings/${idOrCode}/cancel${qs}`,
+      `/bookings/${idOrCode}/cancel`,
       { method: "PATCH" },
       this.bookingServiceUrl
     );

@@ -17,7 +17,10 @@ $services = @(
     @{ Name = "Notification Service"; Port = 8005; Url = "http://localhost:8005/docs" },
     @{ Name = "API Gateway";          Port = 8080; Url = "http://localhost:8080" },
     @{ Name = "Admin Dashboard";      Port = 3000; Url = "http://localhost:3000" },
-    @{ Name = "Customer Web App";     Port = 3001; Url = "http://localhost:3001" }
+    @{ Name = "Customer Web App";    Port = 3001; Url = "http://localhost:3001" },
+    @{ Name = "SQL Server";          Port = 1433; Url = "SQL Server local endpoint" },
+    @{ Name = "RabbitMQ";            Port = 5672; Url = "amqp://localhost:5672" },
+    @{ Name = "RabbitMQ Management"; Port = 15672; Url = "http://localhost:15672" }
 )
 
 foreach ($svc in $services) {

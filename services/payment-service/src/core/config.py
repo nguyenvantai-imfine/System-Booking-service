@@ -1,6 +1,6 @@
-from typing import List, Union
+from typing import Annotated, List, Union
 from pydantic import field_validator
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, NoDecode
 
 class Settings(BaseSettings):
     APP_NAME: str = "Payment Service"
@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
 
     # Cấu hình CORS
-    CORS_ORIGINS: List[str] = [
+    CORS_ORIGINS: Annotated[List[str], NoDecode] = [
         "http://localhost:3000",
         "http://localhost:3001",
         "http://127.0.0.1:3000",
@@ -34,12 +34,12 @@ class Settings(BaseSettings):
     DB_PORT: int = 0
     DB_NAME: str = "payment_service"
     DB_USER: str = "sa"
-    DB_PASSWORD: str = "12345678"
+    DB_PASSWORD: str = ""
     DB_DRIVER: str = "ODBC Driver 18 for SQL Server"
     DB_TRUSTED_CONNECTION: bool = True
 
     # JWT
-    JWT_SECRET_KEY: str = "booking_super_secret_jwt_key_2026_xyz!@#"
+    JWT_SECRET_KEY: str = ""
     JWT_ALGORITHM: str = "HS256"
 
     # RabbitMQ Message Broker
@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     NOTIFICATION_SERVICE_URL: str = "http://127.0.0.1:8005/api/v1"
 
     # Internal Server-to-Server Secret
-    INTERNAL_SERVICE_SECRET: str = "booking_internal_secret_key_2026"
+    INTERNAL_SERVICE_SECRET: str = ""
 
     @property
     def DATABASE_URL(self) -> str:

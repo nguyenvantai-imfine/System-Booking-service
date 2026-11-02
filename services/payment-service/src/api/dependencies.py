@@ -8,6 +8,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
 
 from src.core.database import get_db
+from src.core.config import settings
 from src.core.security import decode_token
 
 # Scheme xác thực Bearer token
@@ -39,6 +40,11 @@ def get_current_user_payload(
             detail="Token xác thực không được để trống.",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    if not settings.JWT_SECRET_KEY.strip():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="JWT authentication is not configured.",
+        )
 
     try:
         payload = decode_token(token)
@@ -68,18 +74,6 @@ def get_current_user_payload(
             headers={"WWW-Authenticate": "Bearer"},
         )
     except jwt.PyJWTError:
-        # Fallback chế độ demo nếu token là số id trực tiếp
-        try:
-            demo_id = int(token)
-            if demo_id > 0:
-                return {
-                    "sub": str(demo_id),
-                    "role": "CUSTOMER",
-                    "email": "customer@gmail.com",
-                }
-        except (ValueError, TypeError):
-            pass
-
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token không hợp lệ hoặc đã hết hạn.",

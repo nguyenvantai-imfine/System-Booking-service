@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Boolean, Column, Integer, String, DateTime, Text, text
+from sqlalchemy import Boolean, Column, Index, Integer, String, DateTime, Text, text
 from sqlalchemy.orm import relationship
 from src.core.database import Base
 
@@ -11,6 +11,7 @@ class ThongBaoModel(Base):
     loai_thong_bao = Column(String(50), nullable=False, index=True) # BOOKING_CONFIRMED, PAYMENT_SUCCESS, BOOKING_CANCELLED, SYSTEM
     kenh_gui = Column(String(20), nullable=False, default="EMAIL") # EMAIL, IN_APP
     nguoi_nhan = Column(String(150), nullable=False, index=True) # Email address
+    event_key = Column(String(64), nullable=True)
     trang_thai = Column(String(30), nullable=False, default="PENDING", index=True) # SENT, FAILED, PENDING
     is_read = Column(Boolean, nullable=False, default=False, server_default=text("0"))
     ma_booking = Column(String(50), nullable=True, index=True)
@@ -19,3 +20,13 @@ class ThongBaoModel(Base):
     ghi_chu_loi = Column(Text, nullable=True)
 
     noi_dung = relationship("NoiDungThongBaoModel", back_populates="thong_bao", uselist=False, cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index(
+            "uq_thong_bao_event_key",
+            "event_key",
+            unique=True,
+            mssql_where=text("event_key IS NOT NULL"),
+            sqlite_where=text("event_key IS NOT NULL"),
+        ),
+    )

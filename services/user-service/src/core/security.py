@@ -4,6 +4,12 @@ import jwt
 import bcrypt
 from src.core.config import settings
 
+def _configured_jwt_secret() -> str:
+    secret = settings.JWT_SECRET_KEY.strip()
+    if not secret:
+        raise RuntimeError("JWT_SECRET_KEY is not configured.")
+    return secret
+
 def hash_password(password: str) -> str:
     """
     Băm mật khẩu bằng Bcrypt với cost factor (rounds) = 12.
@@ -46,7 +52,7 @@ def create_access_token(
 
     to_encode.update({"exp": expire, "type": "access"})
     encoded_jwt = jwt.encode(
-        to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
+        to_encode, _configured_jwt_secret(), algorithm=settings.JWT_ALGORITHM
     )
     return encoded_jwt
 
@@ -64,12 +70,12 @@ def create_refresh_token(
 
     to_encode.update({"exp": expire, "type": "refresh"})
     encoded_jwt = jwt.encode(
-        to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
+        to_encode, _configured_jwt_secret(), algorithm=settings.JWT_ALGORITHM
     )
     return encoded_jwt
 
 def decode_token(token: str) -> dict:
     """Giải mã và xác thực chữ ký JWT."""
     return jwt.decode(
-        token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
+        token, _configured_jwt_secret(), algorithms=[settings.JWT_ALGORITHM]
     )

@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
 import sys
 import os
+import json
 import unittest
 from datetime import date, datetime, timedelta
 from unittest.mock import patch, MagicMock
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 if sys.platform == "win32":
     try:
@@ -65,6 +69,75 @@ class TestAvailableRoomsP11(unittest.TestCase):
         )
         self.assertEqual(booked_empty, [])
 
+    def test_booking_availability_includes_live_holds_and_confirmed_not_cancelled_or_expired(self):
+        booking_dir = os.path.join(PROJECT_ROOT, "services", "booking-service")
+        set_active_service(booking_dir)
+
+        from src.core.database import Base
+        from src.models import (
+            ChiTietDatPhongModel,
+            DatPhongModel,
+            TrangThaiBookingEnum,
+        )
+        from src.services.booking_service import BookingService
+
+        engine = create_engine(
+            "sqlite://",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        Base.metadata.create_all(engine)
+        db = sessionmaker(bind=engine)()
+        now = datetime.utcnow()
+        booking_states = (
+            (101, TrangThaiBookingEnum.CONFIRMED.value, now + timedelta(hours=1)),
+            (102, TrangThaiBookingEnum.PENDING_PAYMENT.value, now + timedelta(minutes=5)),
+            (103, TrangThaiBookingEnum.PENDING_PAYMENT.value, now - timedelta(minutes=1)),
+            (104, TrangThaiBookingEnum.CANCELLED.value, now + timedelta(hours=1)),
+        )
+        for room_id, booking_status, hold_expiration in booking_states:
+            booking = DatPhongModel(
+                ma_booking=f"BK-ROOM-STATE-{room_id}",
+                id_tai_khoan=10,
+                id_khach_san=1,
+                ngay_nhan_phong=date(2026, 11, 1),
+                ngay_tra_phong=date(2026, 11, 5),
+                tong_tien=1000000,
+                trang_thai=booking_status,
+                han_giu_cho=hold_expiration,
+            )
+            booking.chi_tiet.append(
+                ChiTietDatPhongModel(
+                    id_phong=room_id,
+                    id_loai_phong=1,
+                    so_phong=str(room_id),
+                    ten_loai_phong="Standard",
+                    gia_tai_thoi_diem_dat=1000000,
+                )
+            )
+            db.add(booking)
+        db.commit()
+
+        booked = BookingService.get_booked_room_ids(
+            db=db,
+            hotel_id=1,
+            check_in=date(2026, 11, 2),
+            check_out=date(2026, 11, 4),
+        )
+        self.assertEqual(set(booked), {101, 102})
+
+        expired_booking = (
+            db.query(DatPhongModel)
+            .filter(DatPhongModel.ma_booking == "BK-ROOM-STATE-103")
+            .one()
+        )
+        self.assertEqual(
+            expired_booking.trang_thai,
+            TrangThaiBookingEnum.CANCELLED.value,
+        )
+        db.close()
+        engine.dispose()
+
     def test_booking_service_booked_room_ids_endpoint(self):
         """Kiểm tra endpoint GET /api/v1/bookings/booked-room-ids"""
         booking_dir = os.path.join(PROJECT_ROOT, "services", "booking-service")
@@ -73,28 +146,41 @@ class TestAvailableRoomsP11(unittest.TestCase):
         from fastapi.testclient import TestClient
         from src.main import app as booking_app
         from src.services.booking_service import BookingService
+        from src.core.config import settings
 
         client = TestClient(booking_app)
 
-        # 1. Test check_in >= check_out -> 400
-        res_bad = client.get("/api/v1/bookings/booked-room-ids?hotel_id=1&check_in=2026-11-05&check_out=2026-11-02")
+        headers = {"X-Internal-Service-Secret": "test-internal-secret"}
+        endpoint = (
+            "/api/v1/bookings/booked-room-ids?id_khach_san=1"
+            "&ngay_nhan_phong=2026-11-05&ngay_tra_phong=2026-11-02"
+        )
+        with patch.object(settings, "INTERNAL_SERVICE_SECRET", "test-internal-secret"):
+            res_bad = client.get(endpoint, headers=headers)
         self.assertEqual(res_bad.status_code, 400)
-        self.assertIn("Ngày nhận phòng (check_in) phải trước ngày trả phòng (check_out)", res_bad.json()["detail"])
+        self.assertIn("Ngay nhan phong", res_bad.json()["detail"])
 
-        # 2. Test mock BookingService.get_booked_room_ids trả về [101]
-        with patch.object(BookingService, "get_booked_room_ids", return_value=[101]) as mock_method:
-            res_ok = client.get("/api/v1/bookings/booked-room-ids?hotel_id=1&check_in=2026-11-02&check_out=2026-11-04")
+        endpoint = (
+            "/api/v1/bookings/booked-room-ids?id_khach_san=1"
+            "&ngay_nhan_phong=2026-11-02&ngay_tra_phong=2026-11-04"
+        )
+        with patch.object(settings, "INTERNAL_SERVICE_SECRET", "test-internal-secret"):
+            with patch.object(BookingService, "get_booked_room_ids", return_value=[101]) as mock_method:
+                res_ok = client.get(endpoint, headers=headers)
             self.assertEqual(res_ok.status_code, 200)
             self.assertEqual(res_ok.json(), [101])
             mock_method.assert_called_once()
 
     def test_room_service_get_available_rooms_filtering(self):
-        """Kiểm tra RoomService.get_available_rooms lọc bỏ phòng đã đặt và xử lý fallback"""
+        """Room availability uses the internal Booking contract and fails closed."""
         room_dir = os.path.join(PROJECT_ROOT, "services", "room-service")
         set_active_service(room_dir)
 
         from src.services.room_service import RoomService
+        from src.core.config import settings
         from src.models import PhongModel, LoaiPhongModel, TrangThaiPhongEnum
+        from fastapi import HTTPException
+        from urllib.error import HTTPError, URLError
 
         mock_db = MagicMock()
 
@@ -108,53 +194,92 @@ class TestAvailableRoomsP11(unittest.TestCase):
         room_102.so_phong = "102"
         room_102.trang_thai = TrangThaiPhongEnum.AVAILABLE.value
 
-        # Case 1: Booking Service trả về [101] -> Phòng 101 phải bị lọc bỏ
-        with patch("httpx.Client.get") as mock_http_get:
-            mock_resp = MagicMock()
-            mock_resp.status_code = 200
-            mock_resp.json.return_value = [101]
-            mock_http_get.return_value = mock_resp
+        with patch.object(settings, "INTERNAL_SERVICE_SECRET", "test-internal-secret"):
+            # Booking confirms room 101 is held/booked for the requested interval.
+            with patch("src.services.room_service.urlopen") as mock_urlopen:
+                mock_resp = MagicMock()
+                mock_resp.status = 200
+                mock_resp.read.return_value = b"[101]"
+                mock_urlopen.return_value.__enter__.return_value = mock_resp
+                mock_db.query.return_value.join.return_value.options.return_value.filter.return_value.filter.return_value.order_by.return_value.all.return_value = [room_102]
 
-            mock_db.query.return_value.join.return_value.options.return_value.filter.return_value.filter.return_value.order_by.return_value.all.return_value = [room_102]
+                available = RoomService.get_available_rooms(
+                    db=mock_db,
+                    hotel_id=1,
+                    check_in=date(2026, 11, 2),
+                    check_out=date(2026, 11, 4),
+                )
+                self.assertEqual([room.id_phong for room in available], [102])
+                request = mock_urlopen.call_args.args[0]
+                self.assertIn("id_khach_san=1", request.full_url)
+                self.assertIn("ngay_nhan_phong=2026-11-02", request.full_url)
+                self.assertEqual(
+                    request.get_header("X-internal-service-secret"),
+                    "test-internal-secret",
+                )
 
-            available = RoomService.get_available_rooms(
-                db=mock_db,
-                hotel_id=1,
-                check_in=date(2026, 11, 2),
-                check_out=date(2026, 11, 4),
+            # An empty confirmed result permits the physical available rooms.
+            with patch("src.services.room_service.urlopen") as mock_urlopen:
+                mock_resp = MagicMock()
+                mock_resp.status = 200
+                mock_resp.read.return_value = b"[]"
+                mock_urlopen.return_value.__enter__.return_value = mock_resp
+                mock_db.query.return_value.join.return_value.options.return_value.filter.return_value.order_by.return_value.all.return_value = [room_101, room_102]
+
+                available_empty = RoomService.get_available_rooms(
+                    db=mock_db,
+                    hotel_id=1,
+                    check_in=date(2026, 11, 6),
+                    check_out=date(2026, 11, 10),
+                )
+                self.assertEqual([room.id_phong for room in available_empty], [101, 102])
+
+            # Timeout, HTTP errors/network failures, and malformed responses fail closed.
+            failures = (
+                TimeoutError("timeout"),
+                OSError("network error"),
+                HTTPError("booking", 401, "unauthorized", None, None),
+                HTTPError("booking", 403, "forbidden", None, None),
+                HTTPError("booking", 404, "not found", None, None),
+                HTTPError("booking", 503, "unavailable", None, None),
+                HTTPError("booking", 500, "server error", None, None),
+                URLError("connection refused"),
             )
-            self.assertEqual(len(available), 1)
-            self.assertEqual(available[0].id_phong, 102)
+            for failure in failures:
+                with patch("src.services.room_service.urlopen", side_effect=failure):
+                    with self.assertRaises(HTTPException) as raised:
+                        RoomService.get_available_rooms(
+                            db=mock_db,
+                            hotel_id=1,
+                            check_in=date(2026, 11, 2),
+                            check_out=date(2026, 11, 4),
+                        )
+                    self.assertEqual(raised.exception.status_code, 503)
 
-        # Case 2: Khoảng ngày không trùng -> Booking Service trả về [] -> Cả 101 và 102 đều khả dụng
-        with patch("httpx.Client.get") as mock_http_get:
-            mock_resp = MagicMock()
-            mock_resp.status_code = 200
-            mock_resp.json.return_value = []
-            mock_http_get.return_value = mock_resp
+            for response_body in (b'{"items": []}', b'["101"]', b'[0]', b'{'):
+                with patch("src.services.room_service.urlopen") as mock_urlopen:
+                    mock_resp = MagicMock()
+                    mock_resp.status = 200
+                    mock_resp.read.return_value = response_body
+                    mock_urlopen.return_value.__enter__.return_value = mock_resp
+                    with self.assertRaises(HTTPException) as raised:
+                        RoomService.get_available_rooms(
+                            db=mock_db,
+                            hotel_id=1,
+                            check_in=date(2026, 11, 2),
+                            check_out=date(2026, 11, 4),
+                        )
+                    self.assertEqual(raised.exception.status_code, 503)
 
-            mock_db.query.return_value.join.return_value.options.return_value.filter.return_value.order_by.return_value.all.return_value = [room_101, room_102]
-
-            available_empty = RoomService.get_available_rooms(
-                db=mock_db,
-                hotel_id=1,
-                check_in=date(2026, 11, 6),
-                check_out=date(2026, 11, 10),
-            )
-            self.assertEqual(len(available_empty), 2)
-            self.assertEqual([r.id_phong for r in available_empty], [101, 102])
-
-        # Case 3: Booking Service bị lỗi/timeout -> Không crash, fallback bình thường
-        with patch("httpx.Client.get", side_effect=Exception("Connection Refused")):
-            mock_db.query.return_value.join.return_value.options.return_value.filter.return_value.order_by.return_value.all.return_value = [room_101, room_102]
-
-            available_fallback = RoomService.get_available_rooms(
-                db=mock_db,
-                hotel_id=1,
-                check_in=date(2026, 11, 2),
-                check_out=date(2026, 11, 4),
-            )
-            self.assertEqual(len(available_fallback), 2)
+            with patch.object(settings, "INTERNAL_SERVICE_SECRET", ""):
+                with self.assertRaises(HTTPException) as raised:
+                    RoomService.get_available_rooms(
+                        db=mock_db,
+                        hotel_id=1,
+                        check_in=date(2026, 11, 2),
+                        check_out=date(2026, 11, 4),
+                    )
+                self.assertEqual(raised.exception.status_code, 503)
 
     def test_room_service_endpoint_available_rooms(self):
         """Kiểm tra endpoint GET /api/v1/rooms/available của Room Service"""
@@ -288,16 +413,23 @@ class TestAvailableRoomsP11(unittest.TestCase):
         db_room.commit()
 
         # ── 3. Test liên thông RoomService gọi BookingService ──
-        def mock_booking_http_get(url, **kwargs):
+        def mock_booking_http_get(request, **kwargs):
+            url = request.full_url
             mock_res = MagicMock()
-            mock_res.status_code = 200
-            if "check_in=2026-11-02" in url:
-                mock_res.json.return_value = booked_overlap  # [101]
+            mock_res.status = 200
+            mock_res.__enter__.return_value = mock_res
+            if "ngay_nhan_phong=2026-11-02" in url:
+                mock_res.read.return_value = json.dumps(booked_overlap).encode("utf-8")
             else:
-                mock_res.json.return_value = booked_no_overlap  # []
+                mock_res.read.return_value = json.dumps(booked_no_overlap).encode("utf-8")
             return mock_res
 
-        with patch("httpx.Client.get", side_effect=mock_booking_http_get):
+        from src.core.config import settings
+
+        with patch.object(settings, "INTERNAL_SERVICE_SECRET", "test-internal-secret"), patch(
+            "src.services.room_service.urlopen",
+            side_effect=mock_booking_http_get,
+        ):
             # Test khi trùng ngày (2026-11-02 -> 2026-11-04): Phòng 101 KHÔNG xuất hiện
             rooms_overlap = RoomService.get_available_rooms(
                 db=db_room,

@@ -142,7 +142,8 @@ Cần cài đặt sẵn các công cụ sau trên máy:
 2. **Node.js**: Phiên bản 18 trở lên ([Tải tại nodejs.org](https://nodejs.org/)).
 3. **pnpm**: Trình quản lý gói cho Monorepo (`npm install -g pnpm`).
 4. **Microsoft SQL Server**: Phiên bản 2019/2022 (Developer hoặc Express) kèm `ODBC Driver 17 for SQL Server` hoặc `ODBC Driver 18 for SQL Server`. (Hoặc dùng Docker MSSQL).
-5. **Git**: Dùng để clone mã nguồn.
+5. **RabbitMQ**: RabbitMQ và Erlang tương thích, chạy local trên cổng `5672`; Management UI mặc định ở `15672`. `start-services-local.ps1` không cài hoặc khởi động RabbitMQ.
+6. **Git**: Dùng để clone mã nguồn.
 
 ---
 
@@ -164,7 +165,11 @@ Trên Windows PowerShell, chạy script:
 > - Tự động cài đặt `pnpm` nếu máy chưa có.
 > - Cài đặt toàn bộ dependencies Python từ `requirements.txt` vào máy.
 > - Cài đặt toàn bộ dependencies Front-end Monorepo (`pnpm install`).
-> - Tự động copy `.env.example` thành `.env`.
+> - Tạo root `.env` và từng service `.env` từ `.env.example` nếu các file chưa tồn tại; không ghi đè `.env` đã có.
+
+Trước khi khởi chạy, mở các file `.env` trong `services\hotel-service`, `services\user-service`, `services\room-service`, `services\booking-service`, `services\payment-service`, `services\notification-service` và `gateway`. Cấu hình `JWT_SECRET_KEY` giống nhau cho sáu backend; cấu hình `INTERNAL_SERVICE_SECRET` giống nhau cho Room, Booking, Payment và Notification. Tạo secret ngẫu nhiên đủ mạnh bằng password manager hoặc công cụ cục bộ; không commit `.env` và không chia sẻ secret trong chat.
+
+Các `.env.example` trong từng service dành cho chạy Windows local, dùng URL `localhost`. Root `.env.example` chỉ dành cho Docker Compose (hostname nội bộ như `sqlserver`/`rabbitmq`). Mặc định local dùng Windows Authentication tới SQL Server `localhost:1433`; nếu dùng SQL Server Authentication, đổi `DB_TRUSTED_CONNECTION=False` và tự điền user/password trong `.env` local. Không dùng các giá trị mẫu làm credential.
 
 *(Nếu muốn cài đặt thủ công từng phần)*:
 ```bash
@@ -178,13 +183,17 @@ cd ..
 ```
 
 #### Bước 3: Khởi tạo Cơ sở dữ liệu (Database Setup)
+Chỉ chạy khởi tạo toàn bộ cho database mới/local đã được xác nhận là có thể khởi tạo. Các script tác động tới database theo tên tương ứng; không dùng như migration chung cho database có dữ liệu cần bảo toàn.
+
+Với Notification database đã tồn tại, không chạy lại toàn bộ `database_init.sql`. Sao lưu và áp dụng migration riêng theo hướng dẫn bên dưới.
+
 Khởi tạo tự động 6 database trên SQL Server cục bộ bằng lệnh:
 ```powershell
 # Chạy với Windows Authentication (mặc định):
 .\init-databases-local.ps1
 
 # Hoặc nếu dùng tài khoản SQL Server Auth:
-.\init-databases-local.ps1 -Server "localhost" -Username "sa" -Password "Password123!"
+# SQL Server Authentication: use SSMS/Azure Data Studio; do not pass passwords on the command line.
 ```
 
 *(Hoặc mở SQL Server Management Studio (SSMS) / Azure Data Studio và chạy lần lượt 6 script SQL)*:
@@ -195,9 +204,22 @@ Khởi tạo tự động 6 database trên SQL Server cục bộ bằng lệnh:
 5. `services/payment-service/database_init.sql` ➔ Tạo CSDL `payment_service`
 6. `services/notification-service/database_init.sql` ➔ Tạo CSDL `notification_service`
 
+##### Nâng cấp Notification database đã tồn tại (không tự chạy)
+
+Migration riêng: [20261102_add_event_key_idempotency.sql](./services/notification-service/migrations/20261102_add_event_key_idempotency.sql).
+
+1. Xác nhận server/database đích trong SSMS là `notification_service`; tạo backup full và xác nhận quy trình restore.
+2. Chạy trước các kiểm tra read-only cho duplicate `event_key` (nếu cột đã tồn tại), duplicate `noi_dung_thong_bao.id_thong_bao`, và schema/index hiện tại. Script migration cũng chạy precheck và dừng trong transaction nếu phát hiện duplicate hoặc index cùng tên nhưng sai định nghĩa.
+3. Mở file migration trong SSMS, xác nhận cửa sổ query đang kết nối tường minh tới `notification_service`; file migration không chứa `USE` và sẽ từ chối database ngoài allowlist. Không chạy `database_init.sql` thay thế cho migration.
+4. Chỉ chấp nhận kết quả thành công khi script báo migration hoàn tất và postcheck xác nhận nullable `event_key`, unique filtered index trên các event key không NULL, và unique index/constraint trên `noi_dung_thong_bao.id_thong_bao`.
+5. Nếu script báo lỗi, transaction được rollback; xem lỗi và rà soát dữ liệu/index trước khi thử lại. Không xóa/gộp duplicate tự động.
+6. Sau khi migration đã commit, không rollback bằng cách drop column/index: event keys đã được ghi có thể là lịch sử idempotency. Khôi phục backup chỉ theo quy trình được duyệt và chấp nhận mất các thay đổi sau thời điểm backup.
+
+Migration chỉ được kiểm thử cấu trúc bằng unit test cô lập ở repository này; chưa chạy trên SQL Server test. Trước khi dùng chung nhóm, nên rehearsal trên một bản restore riêng.
+
 ---
 
-### 🚀 CÁCH 1: Khởi Chạy Toàn Bộ Hệ Thống Bằng 1 Lệnh (Khuyên Dùng)
+### 🚀 CÁCH 1: Khởi Chạy Backend Và Frontend Bằng 1 Lệnh
 
 Mở PowerShell tại thư mục gốc dự án và thực thi:
 
@@ -205,11 +227,12 @@ Mở PowerShell tại thư mục gốc dự án và thực thi:
 .\start-services-local.ps1
 ```
 
-> **Tính năng nổi bật của script**:
-> - Tự động giải phóng các cổng bị chiếm dụng trước khi bật.
+> **Lưu ý an toàn**:
+> - Script từ chối khởi động nếu một trong các cổng dịch vụ/frontend đã được sử dụng; script không tự dừng process nào.
 > - Khởi chạy ngầm toàn bộ **9 dịch vụ** ngay trong terminal (**không bị bung cửa sổ popup ra ngoài màn hình**).
 > - Ghi lại log chi tiết vào thư mục `logs/`.
 > - Xuất bảng tổng hợp trực quan kèm link truy cập từng dịch vụ.
+> - RabbitMQ phải được cài đặt/khởi động riêng. Nếu cổng `5672` chưa lắng nghe, Notification có thể chạy API ở trạng thái degraded; luồng event bất đồng bộ chưa sẵn sàng.
 
 #### 🛠️ Các lệnh tiện ích khi vận hành:
 - **Kiểm tra trạng thái các dịch vụ**:
@@ -220,6 +243,7 @@ Mở PowerShell tại thư mục gốc dự án và thực thi:
   ```powershell
   .\stop-services-local.ps1
   ```
+  Script chỉ dừng PID và thời điểm khởi chạy được ghi bởi `start-services-local.ps1`; không quét/kết thúc process khác chiếm cổng. RabbitMQ/SQL Server không bị dừng bởi script.
 - **Xem log thời gian thực của một dịch vụ**:
   ```powershell
   Get-Content logs\gateway.log -Wait
@@ -247,6 +271,53 @@ Hệ thống sẽ tự động build và chạy toàn bộ container:
 
 Nếu bạn muốn debug từng microservice độc lập, hãy mở các terminal riêng biệt:
 
+Trước khi chạy backend:
+1. Xác nhận SQL Server đang chạy và đã khởi tạo các database. Với database Notification đã tồn tại từ trước, không chạy lại toàn bộ `database_init.sql`; chỉ áp dụng migration sau khi đã backup và xác nhận đúng database đích.
+2. Xác nhận RabbitMQ đang lắng nghe `localhost:5672`. Service Notification có retry kết nối theo backoff có giới hạn và health endpoint trả HTTP `503` khi broker chưa kết nối.
+3. Xác nhận các secret trong `.env` đã được cấu hình; endpoint xác thực/internal sẽ từ chối request nếu secret thiếu.
+
+#### Rehearsal migration Notification trên database test
+
+Migration [20261102_add_event_key_idempotency.sql](./services/notification-service/migrations/20261102_add_event_key_idempotency.sql) không chứa `USE`; nó từ chối system database và mọi database ngoài `notification_service` hoặc `notification_service_test`. Người vận hành phải kết nối tường minh tới database đích. Có thể dùng cùng SQL Server instance với database test tách biệt, nhưng chỉ sau khi xác nhận instance/port và được phê duyệt tạo database; lựa chọn an toàn hơn là một SQL Server instance cô lập. Không sao chép dữ liệu thật vào database rehearsal.
+
+Các bước dưới đây chỉ là quy trình chuẩn bị; chưa bước nào được thực thi trong phiên làm việc này:
+
+1. Trên instance test đã xác minh, kiểm tra `notification_service_test` chưa tồn tại. Chỉ sau khi được phê duyệt mới tạo database rỗng đó:
+   ```sql
+   CREATE DATABASE notification_service_test;
+   ```
+2. Từ repository root, chạy fixture legacy vào database test đã chọn tường minh. Fixture từ chối tên database khác, system database, hoặc database đã có các bảng Notification; fixture không tạo/drop database:
+   ```powershell
+   sqlcmd -S localhost,1433 -E -C -d notification_service_test -b -i .\services\notification-service\migrations\rehearsal_notification_legacy_schema.sql
+   ```
+3. Ghi nhận baseline row counts; fixture tạo đúng một notification và một content row:
+   ```powershell
+   sqlcmd -S localhost,1433 -E -C -d notification_service_test -b -Q "SELECT DB_NAME() AS database_name, (SELECT COUNT_BIG(*) FROM dbo.thong_bao) AS notification_rows, (SELECT COUNT_BIG(*) FROM dbo.noi_dung_thong_bao) AS content_rows;"
+   ```
+4. Kiểm tra rollback có kiểm soát trên database test: tạo một index test sai định nghĩa với đúng tên index mà migration sẽ kiểm tra, rồi chạy migration. Lệnh migration phải thất bại; xác nhận `event_key` và index của nó không tồn tại sau rollback, đồng thời hai row count không đổi:
+   ```powershell
+   sqlcmd -S localhost,1433 -E -C -d notification_service_test -b -Q "CREATE INDEX uq_noi_dung_thong_bao_id ON dbo.noi_dung_thong_bao(id_noi_dung);"
+   sqlcmd -S localhost,1433 -E -C -d notification_service_test -b -i .\services\notification-service\migrations\20261102_add_event_key_idempotency.sql
+   ```
+   Việc lệnh thứ hai trả lỗi ở bước này là kết quả mong đợi của bài kiểm tra rollback. Xác nhận `event_key_column_length` trả `NULL`, không có index `uq_thong_bao_event_key`, và row counts vẫn bằng baseline:
+   ```powershell
+   sqlcmd -S localhost,1433 -E -C -d notification_service_test -b -Q "SELECT DB_NAME() AS database_name, COL_LENGTH(N'dbo.thong_bao', N'event_key') AS event_key_column_length, (SELECT COUNT_BIG(*) FROM dbo.thong_bao) AS notification_rows, (SELECT COUNT_BIG(*) FROM dbo.noi_dung_thong_bao) AS content_rows; SELECT name FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.thong_bao') AND name = N'uq_thong_bao_event_key';"
+   ```
+   Chỉ trong database test, bỏ index fixture sai trước khi tiếp tục:
+   ```powershell
+   sqlcmd -S localhost,1433 -E -C -d notification_service_test -b -Q "DROP INDEX uq_noi_dung_thong_bao_id ON dbo.noi_dung_thong_bao;"
+   ```
+5. Chạy migration thành công, xác nhận `event_key` nullable, unique filtered index trên `event_key`, unique index trên `id_thong_bao`, và row counts bằng baseline; chạy lại đúng migration lần nữa để xác nhận idempotency:
+   ```powershell
+   sqlcmd -S localhost,1433 -E -C -d notification_service_test -b -i .\services\notification-service\migrations\20261102_add_event_key_idempotency.sql
+   sqlcmd -S localhost,1433 -E -C -d notification_service_test -b -i .\services\notification-service\migrations\20261102_add_event_key_idempotency.sql
+   ```
+   Truy vấn chỉ đọc sau hai lần chạy phải cho `is_nullable = 1`, `is_unique = 1`, `has_filter = 1`, filter `event_key IS NOT NULL`, và row counts bằng baseline:
+   ```powershell
+   sqlcmd -S localhost,1433 -E -C -d notification_service_test -b -Q "SELECT DB_NAME() AS database_name, c.name, c.max_length, c.is_nullable FROM sys.columns AS c WHERE c.object_id = OBJECT_ID(N'dbo.thong_bao') AND c.name = N'event_key'; SELECT name, is_unique, has_filter, filter_definition FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.thong_bao') AND name = N'uq_thong_bao_event_key'; SELECT name, is_unique, has_filter FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.noi_dung_thong_bao') AND name = N'uq_noi_dung_thong_bao_id'; SELECT (SELECT COUNT_BIG(*) FROM dbo.thong_bao) AS notification_rows, (SELECT COUNT_BIG(*) FROM dbo.noi_dung_thong_bao) AS content_rows;"
+   ```
+   Chỉ sau khi rehearsal được review và database thật được backup/phê duyệt mới cân nhắc chạy migration thực tế; luôn dùng `-d notification_service` để chọn đích rõ ràng. Không dùng lệnh tạo test DB, fixture, lệnh lỗi có chủ đích hoặc migration trên database thật.
+
 | Dịch vụ | Lệnh thực thi trong Terminal | Đường dẫn Swagger / Giao diện |
 | :--- | :--- | :--- |
 | **Hotel Service** | `cd services/hotel-service` <br> `python -m uvicorn src.main:app --reload --port 8000` | [http://localhost:8000/docs](http://localhost:8000/docs) |
@@ -258,6 +329,18 @@ Nếu bạn muốn debug từng microservice độc lập, hãy mở các termin
 | **API Gateway** | `cd gateway` <br> `python -m uvicorn src.main:app --reload --port 8080` | [http://localhost:8080](http://localhost:8080) / [health](http://localhost:8080/health) |
 | **Admin Dashboard** | `cd front-end` <br> `pnpm --filter admin-dashboard dev` | [http://localhost:3000](http://localhost:3000) |
 | **Customer Web App** | `cd front-end` <br> `pnpm --filter customer-web dev` | [http://localhost:3001](http://localhost:3001) |
+
+Swagger: Room Service tại [http://localhost:8002/docs](http://localhost:8002/docs); Notification Service tại [http://localhost:8005/docs](http://localhost:8005/docs). Các URL này chỉ khả dụng khi service đã khởi động thành công.
+
+### Kiểm thử cô lập Room/Notification
+
+Từ repository root, chạy:
+
+```powershell
+python -m unittest test.test_room_regression test.test_available_rooms_p11 test.test_notification_safety test.test_payment_notification_contract test.test_service_config_defaults test.test_notification_schema_migration test.test_service_startup_safety test.test_legacy_auth_fallback
+```
+
+Các test trên dùng SQLite/mocks và kiểm tra một phần logic/schema; chúng không chứng minh SQL Server, RabbitMQ, SMTP hay E2E runtime đã được nghiệm thu.
 
 ---
 

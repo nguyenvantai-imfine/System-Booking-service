@@ -31,7 +31,7 @@ class Settings(BaseSettings):
         return v
 
     # Cấu hình JWT
-    JWT_SECRET_KEY: str = "booking_super_secret_jwt_key_2026_xyz!@#"
+    JWT_SECRET_KEY: str = ""
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     DB_PORT: int = 1433
     DB_NAME: str = "user_service"
     DB_USER: str = "sa"
-    DB_PASSWORD: str = "12345678"
+    DB_PASSWORD: str = ""
     DB_DRIVER: str = "ODBC Driver 18 for SQL Server"
     DB_TRUSTED_CONNECTION: bool = False
 

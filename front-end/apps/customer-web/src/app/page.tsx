@@ -28,47 +28,11 @@ export default function HomePage() {
     setErrorMessage("");
     try {
       const res = await apiClient.getHotels({ page: 1, page_size: 6 });
-      if (res?.items && res.items.length > 0) {
-        setHotels(res.items);
-      } else {
-        if (process.env.NEXT_PUBLIC_DEMO_MODE === "true") {
-          setHotels([
-            {
-              id_khach_san: 4,
-              ten_khach_san: "Test JWT Grand Hotel",
-              dia_chi: "123 Võ Nguyên Giáp",
-              quan_huyen: "Sơn Trà",
-              thanh_pho: "Đà Nẵng",
-              so_sao: 5,
-              gia_thap_nhat: 1800000,
-              diem_danh_gia: 9.4,
-              mo_ta:
-                "Tọa lạc ngay mặt biển Mỹ Khê với tầm nhìn vô cực ra vịnh Đà Nẵng. Hệ thống phòng nghỉ xa hoa và dịch vụ quản gia cao cấp.",
-            },
-          ]);
-        } else {
-          setHotels([]);
-        }
-      }
+      setHotels(Array.isArray(res?.items) ? res.items : []);
     } catch (err: any) {
       console.error("Could not fetch hotels from API:", err);
-      if (process.env.NEXT_PUBLIC_DEMO_MODE === "true") {
-        setHotels([
-          {
-            id_khach_san: 4,
-            ten_khach_san: "Test JWT Grand Hotel Da Nang (Demo)",
-            dia_chi: "123 Võ Nguyên Giáp",
-            quan_huyen: "Sơn Trà",
-            thanh_pho: "Đà Nẵng",
-            so_sao: 5,
-            gia_thap_nhat: 1800000,
-            diem_danh_gia: 9.4,
-          },
-        ]);
-      } else {
-        setErrorMessage("Không thể kết nối đến máy chủ. Vui lòng thử lại sau.");
-        setHotels([]);
-      }
+      setErrorMessage("Không thể kết nối đến máy chủ. Vui lòng thử lại sau.");
+      setHotels([]);
     } finally {
       setIsLoading(false);
     }

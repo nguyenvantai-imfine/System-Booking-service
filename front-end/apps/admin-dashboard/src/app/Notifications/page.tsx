@@ -47,6 +47,7 @@ export default function NotificationsPage() {
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(true);
+  const [notificationsLoadError, setNotificationsLoadError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [toastMessage, setToastMessage] = useState<{
     type: "success" | "error";
@@ -70,10 +71,16 @@ export default function NotificationsPage() {
       setNotifications(result.items);
       setTotal(result.total);
       setTotalPages(result.total_pages || 1);
+      setNotificationsLoadError(null);
     } catch (error) {
+      const message = getErrorMessage(
+        error,
+        "Không thể tải danh sách thông báo.",
+      );
+      setNotificationsLoadError(message);
       setToastMessage({
         type: "error",
-        text: getErrorMessage(error, "Không thể tải danh sách thông báo."),
+        text: message,
       });
     } finally {
       setIsLoading(false);
@@ -306,6 +313,26 @@ export default function NotificationsPage() {
                       <RefreshCw className="h-4 w-4 animate-spin" />
                       Đang tải thông báo...
                     </span>
+                  </td>
+                </tr>
+              ) : notificationsLoadError && notifications.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-5 py-14 text-center">
+                    <AlertCircle className="mx-auto mb-2 h-8 w-8 text-rose-500" />
+                    <p className="font-medium text-rose-700">
+                      Không thể tải danh sách thông báo
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {notificationsLoadError}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => void fetchNotifications()}
+                      className="mt-3 inline-flex items-center gap-2 rounded-lg border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                      Thử tải lại
+                    </button>
                   </td>
                 </tr>
               ) : notifications.length === 0 ? (

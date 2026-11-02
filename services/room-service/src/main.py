@@ -11,19 +11,42 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 
 from src.core.config import settings
 from src.core.database import engine, Base
 from src.api.v1.router import api_router
-import src.models  # Nạp toàn bộ models
+import src.models
 
 logger = logging.getLogger(__name__)
 
+
+def verify_room_schema(connection) -> None:
+    expected_tables = set(Base.metadata.tables)
+    existing_tables = set(inspect(connection).get_table_names())
+    missing_tables = expected_tables - existing_tables
+    if missing_tables:
+        raise RuntimeError(
+            "Room database is missing required tables: "
+            f"{', '.join(sorted(missing_tables))}. Run the Room database "
+            "initialization script; service startup does not create schema."
+        )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    Base.metadata.create_all(bind=engine)
-    logger.info("Room Service database tables verified.")
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+            verify_room_schema(connection)
+    except SQLAlchemyError as exc:
+        logger.error(
+            "Room Service database readiness check failed; error_type=%s",
+            type(exc).__name__,
+        )
+        raise
+    logger.info("Room Service database connection verified.")
     yield
 
 app = FastAPI(

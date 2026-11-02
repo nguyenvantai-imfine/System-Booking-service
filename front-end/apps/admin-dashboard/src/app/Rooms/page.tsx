@@ -78,6 +78,7 @@ export default function RoomsPage() {
 
   // Trạng thái giao diện
   const [isLoading, setIsLoading] = useState(true);
+  const [roomsLoadError, setRoomsLoadError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -168,44 +169,24 @@ export default function RoomsPage() {
     loadHotels();
   }, []);
 
-  // Tải loại phòng của khách sạn được chọn hoặc của toàn bộ khách sạn.
+  // Tải loại phòng cho modal; bộ lọc bảng không điều khiển form tạo phòng.
   useEffect(() => {
     let cancelled = false;
 
     const loadRoomTypes = async () => {
       try {
-        if (hotelFilter === "all") {
-          if (hotels.length === 0) {
-            setRoomTypes([]);
-            return;
-          }
-
-          const result = await loadRoomTypesForHotels(hotels);
-          if (!cancelled) {
-            setRoomTypes(result.roomTypes);
-            if (result.failedHotelIds.length > 0) {
-              setToastMessage({
-                type: "error",
-                text: `Không thể tải loại phòng của khách sạn: ${result.failedHotelIds.join(", ")}.`,
-              });
-            }
-          }
-        } else {
-          const hotelId = Number(hotelFilter);
-          if (Number.isInteger(hotelId) && hotelId > 0) {
-            const result = await apiClient.getRoomTypesByHotel(hotelId);
-            const types = Array.isArray(result) ? result : [];
-            if (cancelled) return;
-
-            setRoomTypes(types);
-            if (types.length > 0) {
-              setBatchForm((prev) => ({
-                ...prev,
-                type_id: types[0].id_loai_phong,
-              }));
-            }
-          } else {
-            setRoomTypes([]);
+        if (hotels.length === 0) {
+          setRoomTypes([]);
+          return;
+        }
+        const result = await loadRoomTypesForHotels(hotels);
+        if (!cancelled) {
+          setRoomTypes(result.roomTypes);
+          if (result.failedHotelIds.length > 0) {
+            setToastMessage({
+              type: "error",
+              text: `Không thể tải loại phòng của khách sạn: ${result.failedHotelIds.join(", ")}.`,
+            });
           }
         }
       } catch (err) {
@@ -226,7 +207,22 @@ export default function RoomsPage() {
     return () => {
       cancelled = true;
     };
-  }, [hotelFilter, hotels, roomTypesRefreshKey]);
+  }, [hotels, roomTypesRefreshKey]);
+
+  const batchRoomTypes = useMemo(
+    () => roomTypes.filter((roomType) => roomType.id_khach_san === batchForm.hotel_id),
+    [roomTypes, batchForm.hotel_id],
+  );
+
+  useEffect(() => {
+    if (batchRoomTypes.some((roomType) => roomType.id_loai_phong === batchForm.type_id)) {
+      return;
+    }
+    setBatchForm((current) => ({
+      ...current,
+      type_id: batchRoomTypes[0]?.id_loai_phong ?? 0,
+    }));
+  }, [batchForm.hotel_id, batchForm.type_id, batchRoomTypes]);
 
   // Hàm tải dữ liệu danh sách phòng từ Room Service
   const fetchRooms = useCallback(async () => {
@@ -244,10 +240,14 @@ export default function RoomsPage() {
       setRooms(res.items);
       setTotal(res.total);
       setTotalPages(res.total_pages || 1);
+      setRoomsLoadError(null);
     } catch (err: any) {
+      const message =
+        err?.data?.detail || "Không thể tải danh sách phòng từ Room Service.";
+      setRoomsLoadError(message);
       setToastMessage({
         type: "error",
-        text: err?.data?.detail || "Không thể tải danh sách phòng từ Room Service.",
+        text: message,
       });
     } finally {
       setIsLoading(false);
@@ -296,6 +296,13 @@ export default function RoomsPage() {
   // Xử lý tạo hàng loạt phòng
   const handleBatchCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!batchRoomTypes.some((roomType) => roomType.id_loai_phong === batchForm.type_id)) {
+      setToastMessage({
+        type: "error",
+        text: "Vui lòng chọn hạng phòng thuộc khách sạn đã chọn.",
+      });
+      return;
+    }
     setIsSubmitting(true);
     try {
       const input: BatchCreateRoomsInput = {
@@ -362,47 +369,11 @@ export default function RoomsPage() {
 
   const getHotelName = useCallback(
     (hotelId: number) => {
-      const found = hotels.find((h) => h.id_khach_san === hotelId);
-      return found ? found.ten_khach_san : `Khách sạn #${hotelId}`;
+      const hotel = hotels.find((item) => item.id_khach_san === hotelId);
+      return hotel?.ten_khach_san ?? `Khách sạn #${hotelId}`;
     },
-    [hotels]
+    [hotels],
   );
-
-  const sortedRooms = useMemo(() => {
-    return [...rooms].sort((a: any, b: any) => {
-      let valA: any = a[sortField];
-      let valB: any = b[sortField];
-
-      if (sortField === "price") {
-        valA = a.loai_phong?.gia_co_ban_mot_dem || 0;
-        valB = b.loai_phong?.gia_co_ban_mot_dem || 0;
-      } else if (sortField === "hotel") {
-        valA = getHotelName(a.id_khach_san);
-        valB = getHotelName(b.id_khach_san);
-      } else if (sortField === "status") {
-        valA = a.trang_thai || "";
-        valB = b.trang_thai || "";
-      } else if (sortField === "so_phong") {
-        valA = a.so_phong || "";
-        valB = b.so_phong || "";
-      } else if (sortField === "roomType") {
-        valA = a.loai_phong?.ten_loai_phong || "";
-        valB = b.loai_phong?.ten_loai_phong || "";
-      } else if (sortField === "capacity") {
-        valA = (a.loai_phong?.suc_chua_nguoi_lon || 0) + (a.loai_phong?.suc_chua_tre_em || 0);
-        valB = (b.loai_phong?.suc_chua_nguoi_lon || 0) + (b.loai_phong?.suc_chua_tre_em || 0);
-      }
-
-      if (typeof valA === "string" && typeof valB === "string") {
-        const cmp = valA.localeCompare(valB, "vi", { numeric: true });
-        return sortOrder === "asc" ? cmp : -cmp;
-      }
-
-      if (valA < valB) return sortOrder === "asc" ? -1 : 1;
-      if (valA > valB) return sortOrder === "asc" ? 1 : -1;
-      return 0;
-    });
-  }, [rooms, sortField, sortOrder, getHotelName]);
 
   const sortedRooms = useMemo(() => {
     const collator = new Intl.Collator("vi", {
@@ -705,6 +676,20 @@ export default function RoomsPage() {
                     Đang tải danh sách phòng...
                   </td>
                 </tr>
+              ) : roomsLoadError ? (
+                <tr>
+                  <td colSpan={9} className="px-5 py-12 text-center text-rose-600">
+                    <p>{roomsLoadError}</p>
+                    <button
+                      type="button"
+                      onClick={() => void fetchRooms()}
+                      className="mt-3 inline-flex items-center gap-2 rounded-lg border border-rose-200 px-3 py-2 text-sm font-semibold hover:bg-rose-50"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                      Thử tải lại
+                    </button>
+                  </td>
+                </tr>
               ) : sortedRooms.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="px-5 py-12 text-center text-slate-500">
@@ -877,12 +862,16 @@ export default function RoomsPage() {
                 </label>
                 <select
                   value={batchForm.type_id}
+                  disabled={batchRoomTypes.length === 0}
                   onChange={(e) =>
                     setBatchForm({ ...batchForm, type_id: Number(e.target.value) })
                   }
                   className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  {roomTypes.map((rt) => (
+                  {batchRoomTypes.length === 0 && (
+                    <option value={0}>Khách sạn chưa có hạng phòng</option>
+                  )}
+                  {batchRoomTypes.map((rt) => (
                     <option key={rt.id_loai_phong} value={rt.id_loai_phong}>
                       {rt.ten_loai_phong} (
                       {Number(rt.gia_co_ban_mot_dem).toLocaleString("vi-VN")} đ)

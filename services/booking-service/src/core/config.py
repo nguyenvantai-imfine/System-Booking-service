@@ -69,7 +69,7 @@ class Settings(BaseSettings):
     DB_PORT: int = 1433
     DB_NAME: str = "booking_service"
     DB_USER: str = "sa"
-    DB_PASSWORD: str = "12345678"
+    DB_PASSWORD: str = ""
     DB_DRIVER: str = "ODBC Driver 18 for SQL Server"
 
     # True: Windows Authentication
@@ -78,7 +78,7 @@ class Settings(BaseSettings):
 
     # Cau hinh JWT
     # Khi ket noi User Service, phai dung secret va algorithm tuong thich.
-    JWT_SECRET_KEY: str = "change_this_secret_key"
+    JWT_SECRET_KEY: str = ""
     JWT_ALGORITHM: str = "HS256"
 
     # Thoi gian giu cho

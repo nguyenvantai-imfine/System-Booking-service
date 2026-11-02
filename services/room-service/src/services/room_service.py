@@ -1,15 +1,16 @@
 import math
 import json
 import logging
-import time
 from urllib.parse import urlencode
-from urllib.request import urlopen
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 from datetime import date
 from typing import List, Optional, Set, Tuple
 from fastapi import HTTPException, status
 from sqlalchemy import or_, func
 from sqlalchemy.orm import Session, selectinload
 from src.core.config import settings
+from src.core.correlation import get_correlation_id
 from src.models import (
     PhongModel,
     LoaiPhongModel,
@@ -75,91 +76,65 @@ class RoomService:
     @staticmethod
     def _get_booked_room_ids(
         hotel_id: int, check_in: date, check_out: date
-    ) -> Optional[Set[int]]:
-        """Return overlapping active booking room IDs, or None if Booking is unavailable."""
+    ) -> Set[int]:
+        """Return overlapping active booking room IDs or fail closed."""
         base_url = settings.BOOKING_SERVICE_URL.rstrip("/")
         if not base_url.endswith("/api/v1"):
             base_url = f"{base_url}/api/v1"
 
-        booked_room_ids: Set[int] = set()
-        try:
-            deadline = time.monotonic() + settings.BOOKING_SERVICE_TIMEOUT
-            page = 1
-            total_pages = 1
-            while page <= total_pages:
-                timeout = deadline - time.monotonic()
-                if timeout <= 0:
-                    raise TimeoutError("Booking Service request deadline exceeded.")
-                query = urlencode(
-                    {"hotel_id": hotel_id, "page": page, "page_size": 100}
-                )
-                url = f"{base_url}/bookings?{query}"
-                with urlopen(url, timeout=timeout) as response:
-                    payload = json.loads(response.read().decode("utf-8"))
-
-                items = payload.get("items")
-                if not isinstance(items, list):
-                    raise ValueError("Booking Service response has no items list.")
-                total_pages = int(payload["total_pages"])
-                if total_pages < 1:
-                    raise ValueError("Booking Service returned an invalid page count.")
-
-                for booking in items:
-                    if not isinstance(booking, dict):
-                        raise ValueError("Booking Service returned an invalid booking.")
-                    booking_status = str(
-                        booking.get("trang_thai", "")
-                    ).upper()
-                    if booking_status not in {
-                        "PENDING_PAYMENT",
-                        "CONFIRMED",
-                        "CANCELLED",
-                        "COMPLETED",
-                        "REFUNDED",
-                    }:
-                        raise ValueError(
-                            "Booking Service returned an unknown booking status."
-                        )
-                    if booking_status not in {"PENDING_PAYMENT", "CONFIRMED"}:
-                        continue
-
-                    booking_check_in = date.fromisoformat(
-                        str(booking["ngay_nhan_phong"])
-                    )
-                    booking_check_out = date.fromisoformat(
-                        str(booking["ngay_tra_phong"])
-                    )
-                    if (
-                        booking_check_in < check_out
-                        and booking_check_out > check_in
-                    ):
-                        details = booking.get("chi_tiet", [])
-                        if not isinstance(details, list) or not details:
-                            raise ValueError(
-                                "Booking Service returned invalid room details."
-                            )
-                        for detail in details:
-                            if not isinstance(detail, dict):
-                                raise ValueError(
-                                    "Booking Service returned an invalid room detail."
-                                )
-                            room_id = detail.get("id_phong")
-                            if room_id is None or int(room_id) < 1:
-                                raise ValueError(
-                                    "Booking Service returned an invalid room ID."
-                                )
-                            booked_room_ids.add(int(room_id))
-
-                page += 1
-            return booked_room_ids
-        except Exception:
-            logger.warning(
-                "Booking Service unavailable or returned invalid data; "
-                "availability will fall back to room status. URL: %s",
-                settings.BOOKING_SERVICE_URL,
-                exc_info=True,
+        if not settings.INTERNAL_SERVICE_SECRET.strip():
+            logger.error("Booking Service internal authentication is not configured.")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Không thể xác minh tình trạng phòng vào lúc này.",
             )
-            return None
+
+        query = urlencode(
+            {
+                "id_khach_san": hotel_id,
+                "ngay_nhan_phong": check_in.isoformat(),
+                "ngay_tra_phong": check_out.isoformat(),
+            }
+        )
+        url = f"{base_url}/bookings/booked-room-ids?{query}"
+        headers = {
+            "Accept": "application/json",
+            "User-Agent": "room-service",
+            "X-Internal-Service-Secret": settings.INTERNAL_SERVICE_SECRET,
+        }
+        correlation_id = get_correlation_id()
+        if correlation_id:
+            headers["X-Correlation-ID"] = correlation_id
+
+        request = Request(
+            url,
+            headers=headers,
+        )
+
+        try:
+            with urlopen(request, timeout=settings.BOOKING_SERVICE_TIMEOUT) as response:
+                if not 200 <= response.status < 300:
+                    raise ValueError("Booking Service returned a non-success status.")
+                payload = json.loads(response.read().decode("utf-8"))
+
+            if not isinstance(payload, list):
+                raise ValueError("Booking Service response must be a list of room IDs.")
+
+            booked_room_ids: Set[int] = set()
+            for room_id in payload:
+                if isinstance(room_id, bool) or not isinstance(room_id, int) or room_id < 1:
+                    raise ValueError("Booking Service returned an invalid room ID.")
+                booked_room_ids.add(room_id)
+            return booked_room_ids
+        except (HTTPError, URLError, TimeoutError, OSError, ValueError, TypeError) as exc:
+            logger.warning(
+                "Unable to verify room availability with Booking Service (%s).",
+                type(exc).__name__,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Không thể xác minh tình trạng phòng vào lúc này.",
+            ) from exc
 
     @staticmethod
     @handle_database_errors("Không thể tạo phòng")
@@ -407,48 +382,12 @@ class RoomService:
                 detail="Ngày nhận phòng (check_in) phải trước ngày trả phòng (check_out).",
             )
 
-        # 1. Truy vấn danh sách phòng đã được đặt / giữ chỗ từ Booking Service
-        booked_ids: List[int] = []
-        try:
-            from src.core.config import settings
-            from src.core.correlation import get_correlation_id
-            import urllib.request
-            import urllib.parse
-            import json
-
-            booking_url = getattr(settings, "BOOKING_SERVICE_URL", "http://localhost:8003/api/v1").rstrip("/")
-            params = urllib.parse.urlencode({
-                "hotel_id": hotel_id,
-                "check_in": check_in.isoformat(),
-                "check_out": check_out.isoformat(),
-            })
-            target_url = f"{booking_url}/bookings/booked-room-ids?{params}"
-
-            cid = get_correlation_id()
-            headers = {
-                "User-Agent": "room-service",
-                "Accept": "application/json",
-            }
-            if cid:
-                headers["X-Correlation-ID"] = cid
-
-            # Sử dụng httpx nếu có, hoặc fallback về urllib.request
-            try:
-                import httpx
-                with httpx.Client(timeout=4.0) as client:
-                    resp = client.get(target_url, headers=headers)
-                    if resp.status_code == 200:
-                        booked_ids = resp.json()
-                    else:
-                        print(f">>> [Room Service] Warning: Booking Service returned HTTP {resp.status_code} for booked-room-ids")
-            except ImportError:
-                req = urllib.request.Request(target_url, headers=headers)
-                with urllib.request.urlopen(req, timeout=4.0) as resp:
-                    if resp.status == 200:
-                        booked_ids = json.loads(resp.read().decode())
-        except Exception as e:
-            # Fallback an toàn: Ghi warning, không crash ứng dụng khi Booking Service tạm thời gián đoạn
-            print(f">>> [Room Service] Warning: Không thể đối chiếu đơn đặt phòng từ Booking Service ({str(e)}).")
+        # Physical room state cannot establish date-range booking availability.
+        booked_ids = RoomService._get_booked_room_ids(
+            hotel_id=hotel_id,
+            check_in=check_in,
+            check_out=check_out,
+        )
 
         # 2. Xây dựng truy vấn lọc phòng khả dụng
         query = (

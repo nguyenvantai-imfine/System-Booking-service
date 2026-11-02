@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 import jwt
 
 from src.core.database import get_db
+from src.core.config import settings
 from src.core.security import decode_token
 
 # ─────────────────────────────────────────────
@@ -42,8 +43,6 @@ def get_current_partner_id(
     Dependency: Xác thực JWT Bearer Token, trích xuất partner_id (sub) và kiểm tra
     vai trò người dùng (phải là PARTNER hoặc ADMIN).
 
-    Hỗ trợ fallback chế độ demo nếu token là chuỗi số nguyên ID.
-
     Raises:
         401 UNAUTHORIZED: Chưa đăng nhập hoặc token hết hạn / không hợp lệ.
         403 FORBIDDEN: Tài khoản không có vai trò PARTNER hoặc ADMIN.
@@ -56,6 +55,11 @@ def get_current_partner_id(
         )
 
     token = credentials.credentials.strip()
+    if not settings.JWT_SECRET_KEY.strip():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="JWT authentication is not configured.",
+        )
 
     # 1. Thử giải mã JWT thật từ user-service
     try:
@@ -97,14 +101,6 @@ def get_current_partner_id(
             headers={"WWW-Authenticate": "Bearer"},
         )
     except jwt.PyJWTError:
-        # 2. Fallback chế độ demo cũ nếu token là số id trực tiếp
-        try:
-            demo_id = int(token)
-            if demo_id > 0:
-                return PartnerUser(demo_id, role="PARTNER")
-        except (ValueError, TypeError):
-            pass
-
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại.",

@@ -1,14 +1,22 @@
 from datetime import datetime
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field
+import re
+from pydantic import BaseModel, Field, field_validator
 
 class SendNotificationRequest(BaseModel):
     loai_thong_bao: str # BOOKING_CONFIRMED, PAYMENT_SUCCESS, BOOKING_CANCELLED, SYSTEM
-    nguoi_nhan: str = Field(min_length=1)
+    nguoi_nhan: str = Field(min_length=3, max_length=150)
     kenh_gui: str = "EMAIL"
     id_tai_khoan: Optional[int] = None
     ma_booking: Optional[str] = None
     du_lieu: Dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("nguoi_nhan")
+    @classmethod
+    def validate_recipient(cls, value: str) -> str:
+        if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", value):
+            raise ValueError("Người nhận phải là địa chỉ email hợp lệ.")
+        return value
 
 class NoiDungResponse(BaseModel):
     id_noi_dung: int

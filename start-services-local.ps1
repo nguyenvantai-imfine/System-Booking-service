@@ -1,31 +1,43 @@
 # ==============================================================================
-# Script khoi chay toan bo he thong chay ngam trong Antigravity (Khong popup cua so)
+# Script khoi chay cac service local trong background.
 # ==============================================================================
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 
 $rootDir = $PSScriptRoot
+Write-Host "==========================================================" -ForegroundColor Cyan
+Write-Host ">>> KHOI CHAY HE THONG MICROSERVICES & FRONTEND (BACKGROUND)" -ForegroundColor Green
+Write-Host "==========================================================" -ForegroundColor Cyan
+
+# Refuse to start when any target port is occupied; never stop unrelated processes.
+$ports = @(8000, 8001, 8002, 8003, 8004, 8005, 8080, 3000, 3001)
+$occupiedPorts = @()
+foreach ($targetPort in $ports) {
+    $connections = @(Get-NetTCPConnection -LocalPort $targetPort -State Listen -ErrorAction SilentlyContinue)
+    if ($connections) {
+        foreach ($conn in $connections) {
+            $ownerId = $conn.OwningProcess
+            $process = if ($ownerId -and $ownerId -ne 0) {
+                Get-Process -Id $ownerId -ErrorAction SilentlyContinue
+            }
+            $processName = if ($process) { $process.ProcessName } else { "unknown" }
+            $occupiedPorts += "Port $targetPort (PID $ownerId, $processName)"
+        }
+    }
+}
+if ($occupiedPorts.Count -gt 0) {
+    Write-Error ("Startup cancelled because target ports are already in use: " + ($occupiedPorts -join "; "))
+    Write-Error "Inspect and stop only processes you own, then run this script again."
+    exit 1
+}
+
 $logDir = "$rootDir\logs"
 if (!(Test-Path $logDir)) {
     New-Item -ItemType Directory -Path $logDir | Out-Null
 }
 
-Write-Host "==========================================================" -ForegroundColor Cyan
-Write-Host ">>> KHOI CHAY HE THONG MICROSERVICES & FRONTEND (BACKGROUND)" -ForegroundColor Green
-Write-Host "==========================================================" -ForegroundColor Cyan
-
-# 1. Tu dong giai phong cac cong truoc khi khoi chay
-$ports = @(8000, 8001, 8002, 8003, 8004, 8005, 8080, 3000, 3001)
-foreach ($targetPort in $ports) {
-    $connections = Get-NetTCPConnection -LocalPort $targetPort -State Listen -ErrorAction SilentlyContinue
-    if ($connections) {
-        foreach ($conn in $connections) {
-            $ownerId = $conn.OwningProcess
-            if ($ownerId -and $ownerId -ne 0) {
-                Stop-Process -Id $ownerId -Force -ErrorAction SilentlyContinue
-            }
-        }
-    }
+if (-not (Get-NetTCPConnection -LocalPort 5672 -State Listen -ErrorAction SilentlyContinue)) {
+    Write-Warning "RabbitMQ port 5672 is not listening. This script does not start RabbitMQ; Notification health will remain degraded."
 }
 
 $services = @(
@@ -75,6 +87,7 @@ foreach ($svc in $services) {
         Service = $svc.Name
         Port = $svc.Port
         ProcessId = $proc.Id
+        StartedAt = $proc.StartTime.ToUniversalTime().ToString("o")
         Log = $outLog
     }
     $step++

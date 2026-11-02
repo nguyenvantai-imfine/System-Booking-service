@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import { Star, MapPin, Wifi, Waves, Utensils, Sparkles, ChevronRight } from "lucide-react";
+import { Star, MapPin, ChevronRight } from "lucide-react";
 import { formatVND } from "@/lib/utils";
 
 interface HotelCardProps {
@@ -13,8 +13,13 @@ interface HotelCardProps {
     so_sao?: number;
     anh_dai_dien?: string;
     mo_ta?: string;
+    tien_nghi?: Array<{
+      id_tien_nghi?: number;
+      ten_tien_nghi: string;
+    }>;
     gia_thap_nhat?: number;
     diem_danh_gia?: number;
+    so_luong_danh_gia?: number;
   };
   checkIn?: string;
   checkOut?: string;
@@ -32,9 +37,9 @@ export function HotelCard({ hotel, checkIn, checkOut }: HotelCardProps) {
     hotel.anh_dai_dien ||
     defaultImages[hotel.id_khach_san % defaultImages.length];
 
-  const stars = hotel.so_sao || 5;
-  const rating = hotel.diem_danh_gia || 9.2;
-  const minPrice = hotel.gia_thap_nhat || 1800000;
+  const amenities = Array.isArray(hotel.tien_nghi) ? hotel.tien_nghi : [];
+  const minPrice =
+    typeof hotel.gia_thap_nhat === "number" ? hotel.gia_thap_nhat : null;
 
   const query = new URLSearchParams();
   if (checkIn) query.set("check_in", checkIn);
@@ -51,10 +56,12 @@ export function HotelCard({ hotel, checkIn, checkOut }: HotelCardProps) {
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           loading="lazy"
         />
-        <div className="absolute top-3 left-3 flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-950/70 backdrop-blur-md text-amber-400 text-xs font-bold shadow-md">
-          <Star className="w-3.5 h-3.5 fill-amber-400" />
-          <span>{stars} Sao</span>
-        </div>
+        {typeof hotel.so_sao === "number" && (
+          <div className="absolute top-3 left-3 flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-950/70 backdrop-blur-md text-amber-400 text-xs font-bold shadow-md">
+            <Star className="w-3.5 h-3.5 fill-amber-400" />
+            <span>{hotel.so_sao} Sao</span>
+          </div>
+        )}
         <div className="absolute bottom-3 right-3 px-2 py-0.5 rounded-lg bg-black/60 backdrop-blur-xs text-white text-[11px] font-medium">
           {hotel.thanh_pho || "Việt Nam"}
         </div>
@@ -82,38 +89,41 @@ export function HotelCard({ hotel, checkIn, checkOut }: HotelCardProps) {
             </div>
 
             {/* Rating badge */}
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="text-right hidden sm:block">
-                <p className="text-xs font-bold text-slate-800">Rất tốt</p>
-                <p className="text-[10px] text-slate-400">128 đánh giá</p>
+            {typeof hotel.diem_danh_gia === "number" && (
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="text-right hidden sm:block">
+                  <p className="text-xs font-bold text-slate-800">Đánh giá</p>
+                  {typeof hotel.so_luong_danh_gia === "number" && (
+                    <p className="text-[10px] text-slate-400">
+                      {hotel.so_luong_danh_gia} lượt đánh giá
+                    </p>
+                  )}
+                </div>
+                <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white font-extrabold text-sm flex items-center justify-center shadow-xs">
+                  {hotel.diem_danh_gia}
+                </div>
               </div>
-              <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white font-extrabold text-sm flex items-center justify-center shadow-xs">
-                {rating}
-              </div>
-            </div>
+            )}
           </div>
 
           {/* Description snippet */}
           <p className="text-xs text-slate-600 mt-3 line-clamp-2 leading-relaxed">
-            {hotel.mo_ta ||
-              "Khách sạn đẳng cấp với view biển ngoạn mục, phòng ốc hiện đại trang bị nội thất chuẩn 5 sao, bể bơi vô cực và ẩm thực Á-Âu phong phú."}
+            {hotel.mo_ta || "Khách sạn chưa cung cấp mô tả."}
           </p>
 
           {/* Amenities tags */}
-          <div className="flex flex-wrap items-center gap-2 mt-4">
-            <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-medium">
-              <Wifi className="w-3 h-3 text-indigo-500" /> Wifi tốc độ cao
-            </span>
-            <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-medium">
-              <Waves className="w-3 h-3 text-sky-500" /> Bể bơi vô cực
-            </span>
-            <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-medium">
-              <Utensils className="w-3 h-3 text-amber-500" /> Buffet sáng
-            </span>
-            <span className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-[11px] font-semibold">
-              <Sparkles className="w-3 h-3" /> Miễn phí hủy phòng
-            </span>
-          </div>
+          {amenities.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 mt-4">
+              {amenities.slice(0, 4).map((amenity) => (
+                <span
+                  key={amenity.id_tien_nghi ?? amenity.ten_tien_nghi}
+                  className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-medium"
+                >
+                  {amenity.ten_tien_nghi}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Pricing and Action */}
@@ -122,7 +132,7 @@ export function HotelCard({ hotel, checkIn, checkOut }: HotelCardProps) {
             <p className="text-[11px] text-slate-400 font-medium">Giá mỗi đêm từ</p>
             <div className="flex items-baseline gap-1.5">
               <span className="text-xl md:text-2xl font-black text-indigo-700">
-                {formatVND(minPrice)}
+                {minPrice === null ? "Chưa có dữ liệu giá" : formatVND(minPrice)}
               </span>
               <span className="text-xs text-slate-400">/đêm</span>
             </div>

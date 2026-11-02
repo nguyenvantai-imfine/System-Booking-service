@@ -17,6 +17,7 @@ BEGIN
     CREATE TABLE thong_bao (
         id_thong_bao INT IDENTITY(1,1) PRIMARY KEY,
         id_tai_khoan INT NULL,
+        event_key NVARCHAR(64) NULL,
         loai_thong_bao NVARCHAR(50) NOT NULL, -- BOOKING_CONFIRMED, PAYMENT_SUCCESS, BOOKING_CANCELLED, SYSTEM
         kenh_gui NVARCHAR(20) NOT NULL DEFAULT 'EMAIL', -- EMAIL, IN_APP
         nguoi_nhan NVARCHAR(150) NOT NULL, -- Email address
@@ -31,6 +32,25 @@ BEGIN
     CREATE INDEX idx_thong_bao_loai ON thong_bao(loai_thong_bao);
     CREATE INDEX idx_thong_bao_trang_thai ON thong_bao(trang_thai);
     CREATE INDEX idx_thong_bao_ma_booking ON thong_bao(ma_booking);
+END
+GO
+
+IF COL_LENGTH('dbo.thong_bao', 'event_key') IS NULL
+BEGIN
+    ALTER TABLE dbo.thong_bao ADD event_key NVARCHAR(64) NULL;
+END
+GO
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'uq_thong_bao_event_key'
+      AND object_id = OBJECT_ID('dbo.thong_bao')
+)
+BEGIN
+    CREATE UNIQUE INDEX uq_thong_bao_event_key
+        ON dbo.thong_bao(event_key)
+        WHERE event_key IS NOT NULL;
 END
 GO
 
@@ -53,9 +73,31 @@ BEGIN
         noi_dung_text NVARCHAR(MAX) NULL,
         du_lieu_dinh_kem NVARCHAR(MAX) NULL, -- Lưu JSON raw data
         CONSTRAINT fk_noi_dung_thong_bao FOREIGN KEY (id_thong_bao)
-            REFERENCES thong_bao(id_thong_bao) ON DELETE CASCADE
+            REFERENCES thong_bao(id_thong_bao) ON DELETE CASCADE,
+        CONSTRAINT uq_noi_dung_thong_bao_id UNIQUE (id_thong_bao)
     );
 
-    CREATE INDEX idx_noi_dung_thong_bao_id ON noi_dung_thong_bao(id_thong_bao);
+END
+GO
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'uq_noi_dung_thong_bao_id'
+      AND object_id = OBJECT_ID('dbo.noi_dung_thong_bao')
+)
+BEGIN
+    IF EXISTS (
+        SELECT id_thong_bao
+        FROM dbo.noi_dung_thong_bao
+        GROUP BY id_thong_bao
+        HAVING COUNT(*) > 1
+    )
+    BEGIN
+        THROW 51000, 'Duplicate notification content rows must be reviewed before applying the unique constraint.', 1;
+    END
+
+    CREATE UNIQUE INDEX uq_noi_dung_thong_bao_id
+        ON dbo.noi_dung_thong_bao(id_thong_bao);
 END
 GO
