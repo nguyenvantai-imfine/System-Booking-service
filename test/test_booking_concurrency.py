@@ -39,6 +39,21 @@ def test_overbooking_and_concurrency_protection():
     client = TestClient(app)
     db = SessionLocal()
 
+    room_price_map = {}
+    import src.services.booking_service as bs_module
+    from decimal import Decimal
+    bs_module.BookingService._verify_and_get_room_info = staticmethod(
+        lambda id_phong, id_khach_san=None, id_loai_phong=None: {
+            "gia_co_ban_mot_dem": room_price_map.get(
+                id_phong,
+                Decimal("2500000.00") if id_loai_phong == 2 else Decimal("1200000.00"),
+            ),
+            "so_phong": f"P{id_phong}",
+            "ten_loai_phong": "Executive Suite" if id_loai_phong == 2 else "Deluxe Room",
+            "id_loai_phong": id_loai_phong or 1,
+        }
+    )
+
     print("\n" + "=" * 65)
     print("BẮT ĐẦU TEST CƠ CHẾ CHỐNG OVERBOOKING & CONCURRENCY TRONG BOOKING-SERVICE")
     print("=" * 65)
@@ -46,14 +61,18 @@ def test_overbooking_and_concurrency_protection():
     unique_room_id = int(str(uuid.uuid4().int)[:6])
     print(f"\n[Thông tin test] Sử dụng mã phòng thử nghiệm: id_phong = {unique_room_id}")
 
+    today = date.today()
+    d_in = (today + timedelta(days=5)).strftime("%Y-%m-%d")
+    d_out = (today + timedelta(days=10)).strftime("%Y-%m-%d")
+
     # -------------------------------------------------------------
-    # 1. Test Tạo đơn bình thường (Ngày 2026-11-10 đến 2026-11-15)
+    # 1. Test Tạo đơn bình thường
     # -------------------------------------------------------------
-    print("\n[Test 1] Tạo đơn đặt phòng đầu tiên (10/11 -> 15/11)")
+    print(f"\n[Test 1] Tạo đơn đặt phòng đầu tiên ({d_in} -> {d_out})")
     payload_1 = {
         "id_khach_san": 1,
-        "ngay_nhan_phong": "2026-11-10",
-        "ngay_tra_phong": "2026-11-15",
+        "ngay_nhan_phong": d_in,
+        "ngay_tra_phong": d_out,
         "rooms": [
             {
                 "id_phong": unique_room_id,
@@ -80,37 +99,37 @@ def test_overbooking_and_concurrency_protection():
     # 2. Test Chặn giao thoa ngày tuần tự
     # -------------------------------------------------------------
     print("\n[Test 2] Kiểm tra chặn giao thoa ngày tuần tự")
-    # Trường hợp A: Giao thoa giữa kỳ (12/11 -> 14/11)
+    # Trường hợp A: Giao thoa giữa kỳ (+7 -> +9)
     payload_overlap_mid = dict(payload_1)
-    payload_overlap_mid["ngay_nhan_phong"] = "2026-11-12"
-    payload_overlap_mid["ngay_tra_phong"] = "2026-11-14"
+    payload_overlap_mid["ngay_nhan_phong"] = (today + timedelta(days=7)).strftime("%Y-%m-%d")
+    payload_overlap_mid["ngay_tra_phong"] = (today + timedelta(days=9)).strftime("%Y-%m-%d")
     res_overlap_mid = client.post("/api/v1/bookings", json=payload_overlap_mid, headers=auth_headers)
     assert res_overlap_mid.status_code == 409, f"Kỳ vọng 409, nhận: {res_overlap_mid.status_code}"
-    print(f" -> Giao thoa giữa kỳ (12-14) bị từ chối 409: {res_overlap_mid.json().get('detail')}")
+    print(f" -> Giao thoa giữa kỳ bị từ chối 409: {res_overlap_mid.json().get('detail')}")
 
-    # Trường hợp B: Giao thoa đầu kỳ (08/11 -> 12/11)
+    # Trường hợp B: Giao thoa đầu kỳ (+3 -> +7)
     payload_overlap_start = dict(payload_1)
-    payload_overlap_start["ngay_nhan_phong"] = "2026-11-08"
-    payload_overlap_start["ngay_tra_phong"] = "2026-11-12"
+    payload_overlap_start["ngay_nhan_phong"] = (today + timedelta(days=3)).strftime("%Y-%m-%d")
+    payload_overlap_start["ngay_tra_phong"] = (today + timedelta(days=7)).strftime("%Y-%m-%d")
     res_overlap_start = client.post("/api/v1/bookings", json=payload_overlap_start, headers=auth_headers)
-    assert res_overlap_start.status_code == 409
-    print(f" -> Giao thoa đầu kỳ (08-12) bị từ chối 409: {res_overlap_start.json().get('detail')}")
+    assert res_overlap_start.status_code == 409, f"Kỳ vọng 409, nhận: {res_overlap_start.status_code} ({res_overlap_start.text})"
+    print(f" -> Giao thoa đầu kỳ bị từ chối 409: {res_overlap_start.json().get('detail')}")
 
-    # Trường hợp C: Giao thoa cuối kỳ (14/11 -> 18/11)
+    # Trường hợp C: Giao thoa cuối kỳ (+8 -> +12)
     payload_overlap_end = dict(payload_1)
-    payload_overlap_end["ngay_nhan_phong"] = "2026-11-14"
-    payload_overlap_end["ngay_tra_phong"] = "2026-11-18"
+    payload_overlap_end["ngay_nhan_phong"] = (today + timedelta(days=8)).strftime("%Y-%m-%d")
+    payload_overlap_end["ngay_tra_phong"] = (today + timedelta(days=12)).strftime("%Y-%m-%d")
     res_overlap_end = client.post("/api/v1/bookings", json=payload_overlap_end, headers=auth_headers)
     assert res_overlap_end.status_code == 409
-    print(f" -> Giao thoa cuối kỳ (14-18) bị từ chối 409: {res_overlap_end.json().get('detail')}")
+    print(f" -> Giao thoa cuối kỳ bị từ chối 409: {res_overlap_end.json().get('detail')}")
 
-    # Trường hợp D: Không giao thoa (CheckOut đơn cũ = CheckIn đơn mới: 15/11 -> 20/11) -> Thành công!
+    # Trường hợp D: Không giao thoa (CheckOut đơn cũ = CheckIn đơn mới: +10 -> +15) -> Thành công!
     payload_adjacent = dict(payload_1)
-    payload_adjacent["ngay_nhan_phong"] = "2026-11-15"
-    payload_adjacent["ngay_tra_phong"] = "2026-11-20"
+    payload_adjacent["ngay_nhan_phong"] = (today + timedelta(days=10)).strftime("%Y-%m-%d")
+    payload_adjacent["ngay_tra_phong"] = (today + timedelta(days=15)).strftime("%Y-%m-%d")
     res_adjacent = client.post("/api/v1/bookings", json=payload_adjacent, headers=auth_headers)
     assert res_adjacent.status_code == 201, f"Lỗi ngày liền kề: {res_adjacent.text}"
-    print(f" -> Ngày liền kề hợp lệ (15/11 -> 20/11) thành công: {res_adjacent.json()['ma_booking']}")
+    print(f" -> Ngày liền kề hợp lệ (+10 -> +15) thành công: {res_adjacent.json()['ma_booking']}")
     print("[PASS] Test 2: Logic điều kiện giao thoa ngày CheckIn < CheckOut_old AND CheckOut > CheckIn_old chuẩn xác.")
 
     # -------------------------------------------------------------
@@ -191,6 +210,7 @@ def test_overbooking_and_concurrency_protection():
     # -------------------------------------------------------------
     print("\n[Test 4] Kiểm tra tự động nhả phòng khi quá hạn 15 phút giữ chỗ")
     expired_room_id = int(str(uuid.uuid4().int)[:6])
+    room_price_map[expired_room_id] = Decimal("900000.00")
     
     # Tạo đơn đặt phòng
     res_exp = client.post("/api/v1/bookings", json={

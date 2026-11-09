@@ -32,8 +32,9 @@ def test_notification_otp():
     client = TestClient(notif_app)
     import jwt
     from src.core.config import settings
+    settings.MOCK_EMAIL_SEND = True
     token = jwt.encode(
-        {"sub": "1", "role": "CUSTOMER", "type": "access"},
+        {"sub": "1", "role": "ADMIN", "type": "access"},
         settings.JWT_SECRET_KEY,
         algorithm=settings.JWT_ALGORITHM,
     )
