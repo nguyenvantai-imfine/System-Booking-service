@@ -81,7 +81,7 @@ def test_payment_reconciliation_and_sync_failure():
         "id_dat_phong": test_bk_id_1,
         "ma_booking": f"BK-TEST-{test_bk_id_1}",
         "tong_tien": booking_total_actual,
-        "trang_thai": "PENDING",
+        "trang_thai": "PENDING_PAYMENT",
         "han_giu_cho": "2030-01-01T00:00:00Z",
     }
 

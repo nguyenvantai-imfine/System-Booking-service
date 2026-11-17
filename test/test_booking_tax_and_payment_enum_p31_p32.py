@@ -25,7 +25,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(CURRENT_DIR, ".."))
 BOOKING_SERVICE_DIR = os.path.join(PROJECT_ROOT, "services", "booking-service")
 PAYMENT_SERVICE_DIR = os.path.join(PROJECT_ROOT, "services", "payment-service")
 
-JWT_SECRET = "booking_super_secret_jwt_key_2026_xyz!@#"
+JWT_SECRET = os.environ.setdefault("JWT_SECRET_KEY", __import__("secrets").token_urlsafe(48))
 JWT_ALGO = "HS256"
 
 def make_token(user_id: int, role: str = "CUSTOMER") -> str:

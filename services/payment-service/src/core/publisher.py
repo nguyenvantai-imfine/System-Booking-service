@@ -1,3 +1,4 @@
+import hashlib
 import json
 import logging
 import urllib.request
@@ -5,6 +6,14 @@ import pika
 from src.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+def _close_connection(connection):
+    if connection is not None and connection.is_open:
+        try:
+            connection.close()
+        except Exception as exc:
+            logger.warning("Broker connection close failed; error_type=%s", type(exc).__name__)
 
 def publish_payment_event(queue_name: str, payload: dict):
     """
@@ -20,7 +29,10 @@ def publish_payment_event(queue_name: str, payload: dict):
     if cid:
         payload["correlation_id"] = cid
 
+    event_body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    event_key = hashlib.sha256(queue_name.encode("utf-8") + b"\0" + event_body).hexdigest()
     published = False
+    connection = None
     try:
         credentials = pika.PlainCredentials(settings.RABBITMQ_USER, settings.RABBITMQ_PASSWORD)
         parameters = pika.ConnectionParameters(
@@ -36,7 +48,9 @@ def publish_payment_event(queue_name: str, payload: dict):
         channel.queue_declare(queue=queue_name, durable=True)
 
         message_body = json.dumps(payload, ensure_ascii=False)
+        channel.confirm_delivery()
         channel.basic_publish(
+            mandatory=True,
             exchange="",
             routing_key=queue_name,
             body=message_body.encode("utf-8"),
@@ -56,6 +70,8 @@ def publish_payment_event(queue_name: str, payload: dict):
         )
     except Exception as e:
         logger.warning(f"RabbitMQ publish skipped/failed ({e}). Triggering Notification API directly...")
+    finally:
+        _close_connection(connection)
 
     # Fallback trực tiếp nếu RabbitMQ chưa bật
     if not published and settings.NOTIFICATION_SERVICE_URL:
@@ -78,6 +94,7 @@ def publish_payment_event(queue_name: str, payload: dict):
         try:
             data = json.dumps({
                 "loai_thong_bao": notification_type,
+                "id_tai_khoan": payload.get("id_tai_khoan"),
                 "nguoi_nhan": recipient.strip(),
                 "kenh_gui": "EMAIL",
                 "ma_booking": payload.get("ma_booking"),
@@ -88,6 +105,7 @@ def publish_payment_event(queue_name: str, payload: dict):
             req_headers = {
                 "Content-Type": "application/json",
                 "X-Internal-Secret": settings.INTERNAL_SERVICE_SECRET,
+                "X-Notification-Event-Key": event_key,
             }
             if cid:
                 req_headers["X-Correlation-ID"] = cid
@@ -113,7 +131,10 @@ def publish_otp_event(queue_name: str, payload: dict):
     if cid:
         payload["correlation_id"] = cid
 
+    event_body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    event_key = hashlib.sha256(queue_name.encode("utf-8") + b"\0" + event_body).hexdigest()
     published = False
+    connection = None
     try:
         credentials = pika.PlainCredentials(settings.RABBITMQ_USER, settings.RABBITMQ_PASSWORD)
         parameters = pika.ConnectionParameters(
@@ -129,7 +150,9 @@ def publish_otp_event(queue_name: str, payload: dict):
         channel.queue_declare(queue=queue_name, durable=True)
 
         message_body = json.dumps(payload, ensure_ascii=False)
+        channel.confirm_delivery()
         channel.basic_publish(
+            mandatory=True,
             exchange="",
             routing_key=queue_name,
             body=message_body.encode("utf-8"),
@@ -146,6 +169,8 @@ def publish_otp_event(queue_name: str, payload: dict):
     except Exception as e:
         logger.warning(f"RabbitMQ OTP publish skipped/failed ({e}). Triggering Notification API directly...")
         print(f">>> [PAYMENT RABBITMQ WARNING] Khong the ket noi RabbitMQ ({e}), chuyen sang fallback REST.")
+    finally:
+        _close_connection(connection)
 
     # Fallback trực tiếp qua REST Notification Service
     if not published and settings.NOTIFICATION_SERVICE_URL:
@@ -153,6 +178,7 @@ def publish_otp_event(queue_name: str, payload: dict):
             email_dest = payload.get("email")
             data = json.dumps({
                 "loai_thong_bao": "OTP_VERIFICATION",
+                "id_tai_khoan": payload.get("id_tai_khoan"),
                 "nguoi_nhan": email_dest,
                 "kenh_gui": "EMAIL",
                 "ma_booking": payload.get("ma_booking"),
@@ -168,6 +194,7 @@ def publish_otp_event(queue_name: str, payload: dict):
             req_headers = {
                 "Content-Type": "application/json",
                 "X-Internal-Secret": settings.INTERNAL_SERVICE_SECRET,
+                "X-Notification-Event-Key": event_key,
             }
             if cid:
                 req_headers["X-Correlation-ID"] = cid

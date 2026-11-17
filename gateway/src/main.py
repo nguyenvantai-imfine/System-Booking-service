@@ -199,16 +199,18 @@ async def gateway_health():
             r = await http_client.get(f"{base_url}/health", timeout=2.0)
             if r.status_code == 200:
                 health_report[name] = "UP"
-            else:
+            elif r.status_code == 404:
                 r2 = await http_client.get(f"{base_url}/", timeout=2.0)
                 health_report[name] = "UP" if r2.status_code == 200 else f"STATUS_{r.status_code}"
+            else:
+                health_report[name] = f"STATUS_{r.status_code}"
         except Exception:
             health_report[name] = "DOWN"
 
-    return {
+    return JSONResponse(status_code=200 if all(value == "UP" for value in health_report.values()) else 503, content={
         "gateway": "UP",
         "services": health_report,
-    }
+    })
 
 if __name__ == "__main__":
     import uvicorn

@@ -1,6 +1,14 @@
 -- ==============================================================================
 -- DATABASE INITIALIZATION SCRIPT CHO NOTIFICATION SERVICE (SQL SERVER)
 -- ==============================================================================
+SET ANSI_NULLS ON;
+SET ANSI_PADDING ON;
+SET ANSI_WARNINGS ON;
+SET ARITHABORT ON;
+SET CONCAT_NULL_YIELDS_NULL ON;
+SET QUOTED_IDENTIFIER ON;
+SET NUMERIC_ROUNDABORT OFF;
+GO
 
 IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = 'notification_service')
 BEGIN

@@ -178,7 +178,10 @@ class RoomService:
         db.add(db_room)
 
         # Cập nhật số lượng phòng
-        room_type.so_luong_phong += 1
+        db.query(LoaiPhongModel).filter(LoaiPhongModel.id_loai_phong == type_id).update(
+            {LoaiPhongModel.so_luong_phong: LoaiPhongModel.so_luong_phong + 1},
+            synchronize_session=False,
+        )
 
         db.commit()
         db.refresh(db_room)
@@ -263,14 +266,11 @@ class RoomService:
         ]
         db.add_all(created_rooms)
 
-        # Cập nhật tổng số lượng phòng
-        db.flush()
-        total_count = (
-            db.query(func.count(PhongModel.id_phong))
-            .filter(PhongModel.id_loai_phong == type_id)
-            .scalar()
+        # Atomic increment avoids overwriting another concurrent creator's count.
+        db.query(LoaiPhongModel).filter(LoaiPhongModel.id_loai_phong == type_id).update(
+            {LoaiPhongModel.so_luong_phong: LoaiPhongModel.so_luong_phong + len(created_rooms)},
+            synchronize_session=False,
         )
-        room_type.so_luong_phong = total_count
 
         db.commit()
         for r in created_rooms:

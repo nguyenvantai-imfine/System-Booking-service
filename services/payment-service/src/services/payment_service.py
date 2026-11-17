@@ -35,7 +35,7 @@ class PaymentService:
 
     @staticmethod
     async def generate_otp(
-        db: Session, payload: GenerateOtpRequest
+        db: Session, payload: GenerateOtpRequest, owner_id: Optional[int] = None
     ) -> OtpResponse:
         # 1. Kiểm tra giao dịch tồn tại và đang PENDING
         payment = (
@@ -86,6 +86,7 @@ class PaymentService:
         # Nếu publish lỗi thì fallback gọi REST sang Notification Service (/api/v1/notifications/send) và ghi log cảnh báo
         try:
             publish_otp_event("notification.otp.generated", {
+                "id_tai_khoan": owner_id,
                 "email": str(payload.email),
                 "otp_code": raw_otp,
                 "ma_giao_dich_gateway": payload.ma_giao_dich_gateway,
@@ -128,6 +129,7 @@ class PaymentService:
         headers = {
             "User-Agent": "payment-service",
             "Accept": "application/json",
+            "X-Internal-Service-Secret": settings.INTERNAL_SERVICE_SECRET,
         }
         if cid:
             headers["X-Correlation-ID"] = cid
@@ -163,7 +165,7 @@ class PaymentService:
 
     @staticmethod
     async def verify_otp(
-        db: Session, payload: VerifyOtpRequest
+        db: Session, payload: VerifyOtpRequest, owner_id: Optional[int] = None
     ) -> ThanhToanModel:
         # 1. Mở transaction, khóa dòng giao dịch bằng with_for_update() để chống tranh chấp
         payment = (
@@ -266,6 +268,7 @@ class PaymentService:
         if is_synced:
             try:
                 publish_payment_event("notification.payment.success", {
+                    "id_tai_khoan": owner_id,
                     "ma_booking": payment.ma_booking,
                     "id_dat_phong": payment.id_dat_phong,
                     "id_thanh_toan": payment.id_thanh_toan,
@@ -298,6 +301,7 @@ class PaymentService:
         db: Session,
         payload: CreatePaymentRequest,
         idempotency_key: Optional[str] = None,
+        current_user: Optional[dict] = None,
     ) -> ThanhToanModel:
         clean_idem_key = idempotency_key.strip() if idempotency_key and idempotency_key.strip() else None
 
@@ -312,7 +316,9 @@ class PaymentService:
                 # Nếu cùng key nhưng khác id_dat_phong hoặc số tiền: trả 409 Conflict kèm thông báo rõ ràng
                 if (
                     existing_txn.id_dat_phong != payload.id_dat_phong
-                    or float(existing_txn.so_tien) != float(payload.so_tien)
+                    or Decimal(str(existing_txn.so_tien)) != Decimal(str(payload.so_tien))
+                    or existing_txn.ma_booking != payload.ma_booking
+                    or existing_txn.phuong_thuc != payload.phuong_thuc.value
                 ):
                     raise HTTPException(
                         status_code=status.HTTP_409_CONFLICT,
@@ -347,22 +353,29 @@ class PaymentService:
             import urllib.error
             from src.core.correlation import get_correlation_id
             cid = get_correlation_id()
-            headers = {"User-Agent": "payment-service"}
+            headers = {"User-Agent": "payment-service", "X-Internal-Service-Secret": settings.INTERNAL_SERVICE_SECRET}
             if cid:
                 headers["X-Correlation-ID"] = cid
 
             booking_url = f"{settings.BOOKING_SERVICE_URL}/bookings/{payload.id_dat_phong}"
             req = urllib.request.Request(booking_url, headers=headers)
             with urllib.request.urlopen(req, timeout=3.0) as resp:
+                if resp.status != 200:
+                    raise HTTPException(status_code=503, detail="Booking validation is unavailable.")
                 if resp.status == 200:
                     bk_data = json.loads(resp.read().decode("utf-8"))
+                    if current_user and str(current_user.get("role", "")).upper() != "ADMIN":
+                        if str(bk_data.get("id_tai_khoan")) != str(current_user.get("sub")):
+                            raise HTTPException(status_code=403, detail="Booking belongs to another account.")
+                    if bk_data.get("ma_booking") != payload.ma_booking:
+                        raise HTTPException(status_code=400, detail="Booking code does not match booking ID.")
                     bk_status = bk_data.get("trang_thai")
                     if bk_status == "CONFIRMED":
                         raise HTTPException(
                             status_code=status.HTTP_400_BAD_REQUEST,
                             detail=f"Đơn đặt phòng {payload.ma_booking} đã ở trạng thái CONFIRMED (đã được thanh toán).",
                         )
-                    if bk_status in ["CANCELLED", "EXPIRED"]:
+                    if bk_status != "PENDING_PAYMENT":
                         raise HTTPException(
                             status_code=status.HTTP_400_BAD_REQUEST,
                             detail=f"Đơn đặt phòng {payload.ma_booking} đã bị hủy hoặc hết hạn ({bk_status}). Không thể tạo thanh toán.",
@@ -406,16 +419,18 @@ class PaymentService:
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Booking Service từ chối: {err_body}",
                 )
+            else:
+                raise HTTPException(status_code=503, detail="Booking validation is unavailable.") from http_err
         except HTTPException:
             raise
         except Exception as net_err:
-            print(f">>> [Payment Service] Warning: Unable to contact Booking Service for pre-validation: {net_err}")
+            raise HTTPException(status_code=503, detail="Booking validation is unavailable.") from net_err
 
         # 3. Khởi tạo bản ghi thanh toán mới
         now_utc = datetime.utcnow()
         random_code = uuid.uuid4().hex[:6].upper()
         gateway_txn = f"{payload.phuong_thuc.value}-{now_utc.strftime('%Y%m%d%H%M%S')}-{random_code}"
-        payment_url = f"http://localhost:8004/api/v1/payments/sandbox-checkout?txn={gateway_txn}&amount={payload.so_tien}&booking={payload.ma_booking}"
+        payment_url = f"{settings.PUBLIC_API_URL.rstrip('/')}/payments/sandbox-checkout?txn={gateway_txn}&amount={payload.so_tien}&booking={payload.ma_booking}"
 
         db_payment = ThanhToanModel(
             id_dat_phong=payload.id_dat_phong,
@@ -446,7 +461,9 @@ class PaymentService:
                 if concurrent_txn:
                     if (
                         concurrent_txn.id_dat_phong != payload.id_dat_phong
-                        or float(concurrent_txn.so_tien) != float(payload.so_tien)
+                        or Decimal(str(concurrent_txn.so_tien)) != Decimal(str(payload.so_tien))
+                        or concurrent_txn.ma_booking != payload.ma_booking
+                        or concurrent_txn.phuong_thuc != payload.phuong_thuc.value
                     ):
                         raise HTTPException(
                             status_code=status.HTTP_409_CONFLICT,

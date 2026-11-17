@@ -17,7 +17,7 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(CURRENT_DIR, ".."))
 BOOKING_SERVICE_DIR = os.path.join(PROJECT_ROOT, "services", "booking-service")
 
-JWT_SECRET = "booking_super_secret_jwt_key_2026_xyz!@#"
+JWT_SECRET = os.environ.setdefault("JWT_SECRET_KEY", __import__("secrets").token_urlsafe(48))
 JWT_ALGO = "HS256"
 
 def make_token(user_id: int, role: str = "CUSTOMER") -> str:
@@ -51,6 +51,26 @@ class TestRoomPriceTrustP12(unittest.TestCase):
         from src.main import app
         self.client = TestClient(app)
         self.auth_headers = {"Authorization": f"Bearer {make_token(10, 'CUSTOMER')}"}
+        # Unit tests must never inherit a developer SQL Server connection.
+        from sqlalchemy import create_engine, event
+        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy.pool import StaticPool
+        from src.core.database import Base, get_db
+        self.engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+        @event.listens_for(self.engine, "before_cursor_execute", retval=True)
+        def emulate_application_lock(connection, cursor, statement, parameters, context, executemany):
+            # Real sp_getapplock concurrency is covered by run_isolated_acceptance.
+            if "sp_getapplock" in statement:
+                return "SELECT 0", ()
+            return statement, parameters
+        Base.metadata.create_all(self.engine)
+        sessions = sessionmaker(bind=self.engine)
+        def isolated_db():
+            with sessions() as db:
+                yield db
+        app.dependency_overrides[get_db] = isolated_db
+        self.addCleanup(app.dependency_overrides.clear)
+        self.addCleanup(self.engine.dispose)
 
     def test_price_tampering_rejected(self):
         """Tiêu chí nghiệm thu 1: Cố tình gửi gia: 1000 trong khi giá niêm yết là 1.500.000đ -> Bị từ chối 400"""
@@ -92,9 +112,9 @@ class TestRoomPriceTrustP12(unittest.TestCase):
 
         with patch("httpx.Client.get", return_value=mock_room_resp):
             res = self.client.post("/api/v1/bookings", json=payload, headers=self.auth_headers)
-            self.assertEqual(res.status_code, 400)
-            self.assertIn("Giá phòng đã thay đổi, vui lòng tải lại trang.", res.json()["detail"])
-            print("[PASS] 1. Cố tình sửa giá 1,000đ bị từ chối 400 Bad Request chính xác.")
+            self.assertEqual(res.status_code, 409)
+            self.assertIn("Gia phong", res.json()["detail"])
+            print("[PASS] 1. Price tampering is rejected with 409 Conflict.")
 
     def test_valid_price_accepted_and_recalculated(self):
         """Tiêu chí nghiệm thu 2: Giá hợp lệ được tạo thành công, tong_tien tính theo giá niêm yết x số đêm"""
@@ -175,7 +195,7 @@ class TestRoomPriceTrustP12(unittest.TestCase):
         with patch("httpx.Client.get", return_value=mock_room_resp):
             res = self.client.post("/api/v1/bookings", json=payload, headers=self.auth_headers)
             self.assertEqual(res.status_code, 404)
-            self.assertIn("không tồn tại trong hệ thống", res.json()["detail"])
+            self.assertIn("99999", res.json()["detail"])
             print("[PASS] 3. Phòng không tồn tại trả về lỗi 404 Not Found rõ ràng.")
 
     def test_wrong_hotel_room_rejected(self):
@@ -211,7 +231,7 @@ class TestRoomPriceTrustP12(unittest.TestCase):
         with patch("httpx.Client.get", return_value=mock_room_resp):
             res = self.client.post("/api/v1/bookings", json=payload, headers=self.auth_headers)
             self.assertEqual(res.status_code, 400)
-            self.assertIn("không thuộc khách sạn ID 1", res.json()["detail"])
+            self.assertIn("khach san ID 1", res.json()["detail"])
             print("[PASS] 4. Phòng thuộc khách sạn khác bị từ chối 400 Bad Request.")
 
     def test_unavailable_room_status_rejected(self):
@@ -247,11 +267,11 @@ class TestRoomPriceTrustP12(unittest.TestCase):
         with patch("httpx.Client.get", return_value=mock_room_resp):
             res = self.client.post("/api/v1/bookings", json=payload, headers=self.auth_headers)
             self.assertEqual(res.status_code, 400)
-            self.assertIn("hiện không khả dụng (Trạng thái: OCCUPIED)", res.json()["detail"])
+            self.assertIn("OCCUPIED", res.json()["detail"])
             print("[PASS] 5. Phòng đang OCCUPIED bị từ chối 400 Bad Request.")
 
-    def test_room_service_offline_fallback(self):
-        """Khi Room Service không phản hồi (Connection Error) -> Fallback ghi warning và không crash"""
+    def test_room_service_offline_fails_closed(self):
+        """An unavailable authoritative price service must not create a booking."""
         import random
         rand_room_fb = random.randint(20000, 99999)
         payload = {
@@ -279,12 +299,10 @@ class TestRoomPriceTrustP12(unittest.TestCase):
              patch("urllib.request.urlopen", side_effect=Exception("Connection refused")), \
              patch.object(BookingService, "release_expired_holds", return_value=0):
             res = self.client.post("/api/v1/bookings", json=payload, headers=self.auth_headers)
-            self.assertEqual(res.status_code, 201)
-            data = res.json()
-            self.assertEqual(data["tien_phong"], 1600000.0)  # 2 đêm x 800,000đ
-            self.assertEqual(data["thue_phi"], 160000.0)    # 10% VAT
-            self.assertEqual(data["tong_tien"], 1760000.0)
-            print("[PASS] 6. Fallback an toàn khi Room Service offline thành công.")
+            self.assertEqual(res.status_code, 503)
+            from sqlalchemy import text
+            with self.engine.connect() as connection:
+                self.assertEqual(connection.execute(text("SELECT COUNT(*) FROM dat_phong")).scalar(), 0)
 
 if __name__ == "__main__":
     unittest.main()

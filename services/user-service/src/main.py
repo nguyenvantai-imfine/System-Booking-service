@@ -11,6 +11,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import inspect, text
 
 from src.core.config import settings
 from src.core.database import engine, Base, SessionLocal
@@ -20,18 +21,13 @@ import src.models  # Nạp toàn bộ models để Base.metadata nạp đủ sch
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Khởi tạo bảng dữ liệu nếu chưa có
-    try:
-        Base.metadata.create_all(bind=engine)
-        print(">>> [User Service] Database tables ready.")
-        # Seed tài khoản mẫu
-        db = SessionLocal()
-        try:
-            UserService.seed_default_users(db)
-        finally:
-            db.close()
-    except Exception as e:
-        print(">>> [User Service] Startup warning:", str(e))
+    with engine.connect() as connection:
+        connection.execute(text("SELECT 1"))
+        inspector = inspect(connection)
+        for table in Base.metadata.sorted_tables:
+            columns = {column["name"] for column in inspector.get_columns(table.name)}
+            if not set(table.columns.keys()).issubset(columns):
+                raise RuntimeError("User schema is outdated; apply the documented migrations before startup.")
     yield
 
 app = FastAPI(
@@ -73,7 +69,7 @@ async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
-            "detail": f"Lỗi cơ sở dữ liệu: {str(exc)}",
+            "detail": "Database operation failed.",
             "type": "DatabaseError",
         },
     )
@@ -83,7 +79,7 @@ async def generic_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
-            "detail": f"Lỗi hệ thống: {str(exc)}",
+            "detail": "Internal server error.",
             "type": "InternalServerError",
         },
     )
@@ -99,6 +95,19 @@ def root():
         "docs": "/docs",
         "port": settings.PORT,
     }
+
+
+@app.get("/health", tags=["Health"])
+def health():
+    from sqlalchemy import text
+    from src.core.database import engine as health_engine
+    try:
+        with health_engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+        return {"status": "healthy", "database_connected": True}
+    except Exception:
+        return JSONResponse(status_code=503, content={"status": "degraded", "database_connected": False})
+
 
 if __name__ == "__main__":
     import uvicorn

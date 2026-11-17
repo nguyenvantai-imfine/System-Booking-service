@@ -1,3 +1,4 @@
+import hashlib
 import json
 import logging
 import urllib.request
@@ -20,6 +21,8 @@ def publish_notification_event(queue_name: str, payload: dict):
     qua REST API của Notification Service.
     """
 
+    event_body = json.dumps(payload, ensure_ascii=False, default=str).encode("utf-8")
+    event_key = hashlib.sha256(queue_name.encode("utf-8") + b"\0" + event_body).hexdigest()
     published = False
     connection = None
 
@@ -171,6 +174,7 @@ def publish_notification_event(queue_name: str, payload: dict):
         )
 
         headers = {
+            "X-Notification-Event-Key": event_key,
             "Content-Type": "application/json",
         }
 

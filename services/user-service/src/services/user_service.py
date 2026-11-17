@@ -299,7 +299,7 @@ class UserService:
                     dia_chi="Hà Nội, Việt Nam",
                 )
                 db.add(profile_admin)
-                print(">>> Seeded Admin account: admin@hotel.com / 123456")
+                print(">>> Demo account initialized.")
 
             # Seed Partner mẫu
             partner_acc = db.query(TaiKhoanModel).filter(
@@ -324,7 +324,7 @@ class UserService:
                     dia_chi="Da Nang, Viet Nam",
                 )
                 db.add(profile_partner)
-                print(">>> Seeded Partner account: partner@hotel.com / 123456")
+                print(">>> Demo account initialized.")
 
             # Seed Customer mẫu
             cust_acc = db.query(TaiKhoanModel).filter(
@@ -349,7 +349,7 @@ class UserService:
                     dia_chi="TP. Ho Chi Minh, Viet Nam",
                 )
                 db.add(profile_cust)
-                print(">>> Seeded Customer account: customer@gmail.com / 123456")
+                print(">>> Demo account initialized.")
 
             db.commit()
         except Exception as e:

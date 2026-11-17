@@ -13,10 +13,16 @@ bearer_scheme = HTTPBearer(
 )
 
 
+def _candidate_jwt_secrets() -> list[str]:
+    configured = settings.JWT_SECRET_KEY.strip()
+    return [configured] if configured else []
+
+
 def get_current_user_id(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ) -> int:
-    if not settings.JWT_SECRET_KEY.strip():
+    secrets = _candidate_jwt_secrets()
+    if not secrets:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Xác thực chưa được cấu hình.",
@@ -29,26 +35,30 @@ def get_current_user_id(
     if credentials is None or not credentials.credentials.strip():
         raise unauthorized
 
-    try:
-        payload = jwt.decode(
-            credentials.credentials.strip(),
-            settings.JWT_SECRET_KEY,
-            algorithms=[settings.JWT_ALGORITHM],
-        )
-        if payload.get("type") != "access":
-            raise unauthorized
-        user_id = int(payload["sub"])
-        if user_id <= 0:
-            raise unauthorized
-        return user_id
-    except (jwt.PyJWTError, KeyError, TypeError, ValueError) as exc:
-        raise unauthorized from exc
+    last_exc: Exception | None = None
+    for secret in secrets:
+        try:
+            payload = jwt.decode(
+                credentials.credentials.strip(),
+                secret,
+                algorithms=[settings.JWT_ALGORITHM],
+            )
+            if payload.get("type") != "access":
+                raise unauthorized
+            user_id = int(payload["sub"])
+            if user_id <= 0:
+                raise unauthorized
+            return user_id
+        except (jwt.PyJWTError, KeyError, TypeError, ValueError) as exc:
+            last_exc = exc
+    raise unauthorized from last_exc
 
 
 def require_admin(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ) -> int:
-    if not settings.JWT_SECRET_KEY.strip():
+    secrets = _candidate_jwt_secrets()
+    if not secrets:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Xác thực chưa được cấu hình.",
@@ -59,35 +69,38 @@ def require_admin(
             detail="Token xác thực không hợp lệ hoặc đã hết hạn.",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    try:
-        payload = jwt.decode(
-            credentials.credentials.strip(),
-            settings.JWT_SECRET_KEY,
-            algorithms=[settings.JWT_ALGORITHM],
-        )
-        if payload.get("type") != "access":
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token xác thực không hợp lệ hoặc đã hết hạn.",
-                headers={"WWW-Authenticate": "Bearer"},
+    last_exc: Exception | None = None
+    for secret in secrets:
+        try:
+            payload = jwt.decode(
+                credentials.credentials.strip(),
+                secret,
+                algorithms=[settings.JWT_ALGORITHM],
             )
-        user_id = int(payload["sub"])
-        if user_id <= 0:
-            raise ValueError("Invalid user ID")
-        if str(payload.get("role", "")).upper() != "ADMIN":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Chỉ Quản trị viên mới được phép gửi thông báo thủ công.",
-            )
-        return user_id
-    except HTTPException:
-        raise
-    except (jwt.PyJWTError, KeyError, TypeError, ValueError) as exc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token xác thực không hợp lệ hoặc đã hết hạn.",
-            headers={"WWW-Authenticate": "Bearer"},
-        ) from exc
+            if payload.get("type") != "access":
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Token xác thực không hợp lệ hoặc đã hết hạn.",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            user_id = int(payload["sub"])
+            if user_id <= 0:
+                raise ValueError("Invalid user ID")
+            if str(payload.get("role", "")).upper() != "ADMIN":
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Chỉ Quản trị viên mới được phép gửi thông báo thủ công.",
+                )
+            return user_id
+        except HTTPException:
+            raise
+        except (jwt.PyJWTError, KeyError, TypeError, ValueError) as exc:
+            last_exc = exc
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Token xác thực không hợp lệ hoặc đã hết hạn.",
+        headers={"WWW-Authenticate": "Bearer"},
+    ) from last_exc
 
 
 def require_internal_service(

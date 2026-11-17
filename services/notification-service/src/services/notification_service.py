@@ -73,6 +73,7 @@ class NotificationService:
             thong_bao = (
                 db.query(ThongBaoModel)
                 .filter(ThongBaoModel.event_key == event_key)
+                .with_hint(ThongBaoModel, "WITH (UPDLOCK, HOLDLOCK)", dialect_name="mssql")
                 .first()
             )
             if thong_bao is not None and thong_bao.trang_thai == "SENT":
@@ -144,8 +145,10 @@ class NotificationService:
                 ensure_ascii=False,
             )
 
-        # Persist the idempotency record before performing the external email side effect.
-        if kenh_gui == "EMAIL":
+        # Keep the unique insert / row lock until delivery and status commit.
+        # Concurrent consumers cannot both observe a committed PENDING row and send.
+        # SMTP and SQL are not atomic: a crash after SMTP acceptance still needs review.
+        if kenh_gui == "EMAIL" and not event_key:
             db.commit()
             db.refresh(thong_bao)
 

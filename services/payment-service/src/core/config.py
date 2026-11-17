@@ -1,6 +1,19 @@
+import os
+from pathlib import Path
 from typing import Annotated, List, Union
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, NoDecode
+
+
+def _resolve_env_file() -> str:
+    """Explicit ENV_FILE, otherwise service-local dotenv. Process env wins."""
+    explicit = os.environ.get("ENV_FILE")
+    if explicit:
+        env_path = Path(explicit).expanduser()
+        if not env_path.is_absolute():
+            raise ValueError("ENV_FILE must be an absolute path.")
+        return str(env_path)
+    return str(Path(__file__).resolve().parents[2] / ".env")
 
 class Settings(BaseSettings):
     APP_NAME: str = "Payment Service"
@@ -51,6 +64,7 @@ class Settings(BaseSettings):
     # Microservice URLs
     BOOKING_SERVICE_URL: str = "http://127.0.0.1:8003/api/v1"
     NOTIFICATION_SERVICE_URL: str = "http://127.0.0.1:8005/api/v1"
+    PUBLIC_API_URL: str = "http://localhost:8080/api/v1"
 
     # Internal Server-to-Server Secret
     INTERNAL_SERVICE_SECRET: str = ""
@@ -79,7 +93,7 @@ class Settings(BaseSettings):
         )
 
     class Config:
-        env_file = ".env"
+        env_file = _resolve_env_file()
         env_file_encoding = "utf-8"
         extra = "ignore"
 

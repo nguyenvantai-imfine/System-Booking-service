@@ -3,6 +3,7 @@ import sys
 import os
 import unittest
 import jwt
+import secrets
 from datetime import datetime, timedelta
 
 if sys.platform == "win32":
@@ -15,7 +16,7 @@ if sys.platform == "win32":
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(CURRENT_DIR, ".."))
 
-JWT_SECRET = "booking_super_secret_jwt_key_2026_xyz!@#"
+JWT_SECRET = os.environ.setdefault("JWT_SECRET_KEY", secrets.token_urlsafe(48))
 JWT_ALGO = "HS256"
 
 def make_token(user_id: int, role: str, email: str = "test@example.com", token_type: str = "access") -> str:

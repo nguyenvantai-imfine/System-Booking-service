@@ -24,7 +24,7 @@ import urllib.request
 from unittest.mock import patch, AsyncMock, MagicMock
 
 # Khóa JWT dùng chung của toàn hệ thống
-JWT_SECRET_KEY = "booking_super_secret_jwt_key_2026_xyz!@#"
+JWT_SECRET_KEY = os.environ.setdefault("JWT_SECRET_KEY", __import__("secrets").token_urlsafe(48))
 
 def get_auth_token():
     """
@@ -34,7 +34,7 @@ def get_auth_token():
     # 1. Thử login thật qua Gateway
     try:
         login_url = "http://127.0.0.1:8080/api/v1/auth/login"
-        body = json.dumps({"ten_dang_nhap": "customer", "mat_khau": "123456"}).encode("utf-8")
+        body = json.dumps({"ten_dang_nhap_hoac_email": "customer1", "mat_khau": "123456"}).encode("utf-8")
         req = urllib.request.Request(
             login_url,
             data=body,

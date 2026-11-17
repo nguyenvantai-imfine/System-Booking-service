@@ -165,7 +165,10 @@ class ChiTietDatPhongResponse(BaseModel):
 
     gia_tai_thoi_diem_dat: Decimal
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_encoders={Decimal: float},
+    )
 
 
 # =========================================================
@@ -281,7 +284,10 @@ class BookingResponse(BaseModel):
         default_factory=list,
     )
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_encoders={Decimal: float},
+    )
 
     @model_validator(mode="after")
     def ensure_tax_and_room_amount(self):

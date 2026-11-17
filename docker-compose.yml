@@ -1,273 +1,422 @@
 services:
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
-    container_name: sqlserver
     restart: unless-stopped
     environment:
-      ACCEPT_EULA: "Y"
-      SA_PASSWORD: "${SA_PASSWORD:?Set SA_PASSWORD in the root .env file}"
-      MSSQL_PID: "Developer"
+      ACCEPT_EULA: Y
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${SA_PASSWORD:?Set SA_PASSWORD in the root .env file}
     ports:
-      - "${MSSQL_PORT:-1433}:1433"
+    - ${MSSQL_PORT:-1433}:1433
     volumes:
-      - mssql_data:/var/opt/mssql
-      - ./services/hotel-service/database_update.sql:/usr/config/database_update.sql:ro
-      - ./services/user-service/database_init.sql:/usr/config/user_database_init.sql:ro
-      - ./services/room-service/database_init.sql:/usr/config/room_database_init.sql:ro
-      - ./services/booking-service/database_init.sql:/usr/config/booking_database_init.sql:ro
-      - ./services/payment-service/database_init.sql:/usr/config/payment_database_init.sql:ro
-      - ./services/notification-service/database_init.sql:/usr/config/notification_database_init.sql:ro
-      - ./infrastructure/sqlserver/init-db.sh:/usr/config/init-db.sh:ro
-      - ./infrastructure/sqlserver/entrypoint.sh:/usr/config/entrypoint.sh:ro
-    entrypoint:
-      - /bin/bash
-      - -c
-      - "sed -i 's/\\r$$//' /usr/config/*.sh && chmod +x /usr/config/*.sh && /usr/config/entrypoint.sh"
+    - mssql_data:/var/opt/mssql
     healthcheck:
       test:
-        - CMD-SHELL
-        - "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P '${SA_PASSWORD:?Set SA_PASSWORD in the root .env file}' -C -Q 'SELECT 1' > /dev/null 2>&1 || exit 1"
+      - CMD-SHELL
+      - SQLCMDPASSWORD="$${MSSQL_SA_PASSWORD}" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -b -Q "SELECT 1" > /dev/null 2>&1
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 15s
-
+      start_period: 30s
   rabbitmq:
     image: rabbitmq:3-management
-    container_name: rabbitmq
     restart: unless-stopped
     ports:
-      - "5672:5672"
-      - "15672:15672"
+    - ${RABBITMQ_PORT:-5672}:5672
+    - ${RABBITMQ_MANAGEMENT_PORT:-15672}:15672
     environment:
-      - RABBITMQ_DEFAULT_USER=guest
-      - RABBITMQ_DEFAULT_PASS=guest
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-booking}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in environment}
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test:
+      - CMD
+      - rabbitmq-diagnostics
+      - -q
+      - ping
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 20s
-
+    volumes:
+    - rabbitmq_data:/var/lib/rabbitmq
   hotel-service:
     build:
       context: ./services/hotel-service
       dockerfile: Dockerfile
-    container_name: hotel-service
     restart: unless-stopped
     ports:
-      - "${HOTEL_SERVICE_PORT:-8000}:8000"
+    - ${HOTEL_SERVICE_PORT:-8000}:8000
     depends_on:
       sqlserver:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
     environment:
-      - DB_SERVER=sqlserver
-      - DB_PORT=1433
-      - DB_NAME=${DB_NAME:-hotel_service}
-      - DB_USER=sa
-      - DB_PASSWORD=${SA_PASSWORD:?Set SA_PASSWORD in the root .env file}
-      - DB_DRIVER=ODBC Driver 18 for SQL Server
-      - DB_TRUSTED_CONNECTION=False
-      - APP_NAME=${APP_NAME:-Hotel Service}
-      - API_V1_STR=${API_V1_STR:-/api/v1}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in environment}
-      - JWT_ALGORITHM=HS256
-
+      DB_SERVER: sqlserver
+      DB_PORT: '1433'
+      DB_NAME: hotel_service
+      DB_USER: sa
+      DB_PASSWORD: ${SA_PASSWORD:?Set SA_PASSWORD in the root .env file}
+      DB_DRIVER: ODBC Driver 18 for SQL Server
+      DB_TRUSTED_CONNECTION: 'False'
+      APP_NAME: Hotel Service
+      API_V1_STR: ${API_V1_STR:-/api/v1}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in environment}
+      JWT_ALGORITHM: HS256
+      CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000","http://localhost:3001","http://127.0.0.1:3000","http://127.0.0.1:3001"]}
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
   user-service:
     build:
       context: ./services/user-service
       dockerfile: Dockerfile
-    container_name: user-service
     restart: unless-stopped
     ports:
-      - "${USER_SERVICE_PORT:-8001}:8001"
+    - ${USER_SERVICE_PORT:-8001}:8001
     depends_on:
       sqlserver:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
     environment:
-      - DB_SERVER=sqlserver
-      - DB_PORT=1433
-      - DB_NAME=${USER_DB_NAME:-user_service}
-      - DB_USER=sa
-      - DB_PASSWORD=${SA_PASSWORD:?Set SA_PASSWORD in the root .env file}
-      - DB_DRIVER=ODBC Driver 18 for SQL Server
-      - DB_TRUSTED_CONNECTION=False
-      - APP_NAME=User Service
-      - API_V1_STR=/api/v1
-      - PORT=8001
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in environment}
-      - JWT_ALGORITHM=HS256
-      - ACCESS_TOKEN_EXPIRE_MINUTES=60
-      - REFRESH_TOKEN_EXPIRE_DAYS=7
-
+      DB_SERVER: sqlserver
+      DB_PORT: '1433'
+      DB_NAME: user_service
+      DB_USER: sa
+      DB_PASSWORD: ${SA_PASSWORD:?Set SA_PASSWORD in the root .env file}
+      DB_DRIVER: ODBC Driver 18 for SQL Server
+      DB_TRUSTED_CONNECTION: 'False'
+      APP_NAME: User Service
+      API_V1_STR: /api/v1
+      PORT: '8001'
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in environment}
+      JWT_ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: '60'
+      REFRESH_TOKEN_EXPIRE_DAYS: '7'
+      CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000","http://localhost:3001","http://127.0.0.1:3000","http://127.0.0.1:3001"]}
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=4)
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
   room-service:
     build:
       context: ./services/room-service
       dockerfile: Dockerfile
-    container_name: room-service
     restart: unless-stopped
     ports:
-      - "${ROOM_SERVICE_PORT:-8002}:8002"
+    - ${ROOM_SERVICE_PORT:-8002}:8002
     depends_on:
       sqlserver:
         condition: service_healthy
       hotel-service:
         condition: service_started
+      db-init:
+        condition: service_completed_successfully
     environment:
-      - DB_SERVER=sqlserver
-      - DB_PORT=1433
-      - DB_NAME=${ROOM_DB_NAME:-room_service}
-      - DB_USER=sa
-      - DB_PASSWORD=${SA_PASSWORD:?Set SA_PASSWORD in the root .env file}
-      - DB_DRIVER=ODBC Driver 18 for SQL Server
-      - DB_TRUSTED_CONNECTION=False
-      - APP_NAME=Room Service
-      - API_V1_STR=/api/v1
-      - PORT=8002
-      - HOTEL_SERVICE_URL=http://hotel-service:8000/api/v1
-      - BOOKING_SERVICE_URL=http://booking-service:8003/api/v1
-      - BOOKING_SERVICE_TIMEOUT=2
-      - INTERNAL_SERVICE_SECRET=${INTERNAL_SERVICE_SECRET:?Set INTERNAL_SERVICE_SECRET in environment}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in environment}
-      - JWT_ALGORITHM=HS256
-
+      DB_SERVER: sqlserver
+      DB_PORT: '1433'
+      DB_NAME: room_service
+      DB_USER: sa
+      DB_PASSWORD: ${SA_PASSWORD:?Set SA_PASSWORD in the root .env file}
+      DB_DRIVER: ODBC Driver 18 for SQL Server
+      DB_TRUSTED_CONNECTION: 'False'
+      APP_NAME: Room Service
+      API_V1_STR: /api/v1
+      PORT: '8002'
+      HOTEL_SERVICE_URL: http://hotel-service:8000/api/v1
+      BOOKING_SERVICE_URL: http://booking-service:8003/api/v1
+      BOOKING_SERVICE_TIMEOUT: '2'
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:?Set INTERNAL_SERVICE_SECRET in environment}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in environment}
+      JWT_ALGORITHM: HS256
+      CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000","http://localhost:3001","http://127.0.0.1:3000","http://127.0.0.1:3001"]}
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health', timeout=4)
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
   booking-service:
     build:
       context: ./services/booking-service
       dockerfile: Dockerfile
-    container_name: booking-service
     restart: unless-stopped
     ports:
-      - "${BOOKING_SERVICE_PORT:-8003}:8003"
+    - ${BOOKING_SERVICE_PORT:-8003}:8003
     depends_on:
       sqlserver:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
     environment:
-      - DB_SERVER=sqlserver
-      - DB_PORT=1433
-      - DB_NAME=${BOOKING_DB_NAME:-booking_service}
-      - DB_USER=sa
-      - DB_PASSWORD=${SA_PASSWORD:?Set SA_PASSWORD in the root .env file}
-      - DB_DRIVER=ODBC Driver 18 for SQL Server
-      - DB_TRUSTED_CONNECTION=False
-      - APP_NAME=Booking Service
-      - API_V1_STR=/api/v1
-      - PORT=8003
-      - HOLD_EXPIRE_MINUTES=15
-      - RABBITMQ_HOST=rabbitmq
-      - RABBITMQ_PORT=5672
-      - ROOM_SERVICE_URL=http://room-service:8002/api/v1
-      - INTERNAL_SERVICE_SECRET=${INTERNAL_SERVICE_SECRET:?Set INTERNAL_SERVICE_SECRET in environment}
-      - HOTEL_SERVICE_URL=http://hotel-service:8000/api/v1
-      - NOTIFICATION_SERVICE_URL=http://notification-service:8005/api/v1
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in environment}
-      - JWT_ALGORITHM=HS256
-
+      DB_SERVER: sqlserver
+      DB_PORT: '1433'
+      DB_NAME: booking_service
+      DB_USER: sa
+      DB_PASSWORD: ${SA_PASSWORD:?Set SA_PASSWORD in the root .env file}
+      DB_DRIVER: ODBC Driver 18 for SQL Server
+      DB_TRUSTED_CONNECTION: 'False'
+      APP_NAME: Booking Service
+      API_V1_STR: /api/v1
+      PORT: '8003'
+      HOLD_EXPIRE_MINUTES: '15'
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: '5672'
+      ROOM_SERVICE_URL: http://room-service:8002/api/v1
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:?Set INTERNAL_SERVICE_SECRET in environment}
+      HOTEL_SERVICE_URL: http://hotel-service:8000/api/v1
+      NOTIFICATION_SERVICE_URL: http://notification-service:8005/api/v1
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in environment}
+      JWT_ALGORITHM: HS256
+      CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000","http://localhost:3001","http://127.0.0.1:3000","http://127.0.0.1:3001"]}
+      RABBITMQ_USER: ${RABBITMQ_USER:-booking}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in environment}
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8003/health', timeout=4)
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
   payment-service:
     build:
       context: ./services/payment-service
       dockerfile: Dockerfile
-    container_name: payment-service
     restart: unless-stopped
     ports:
-      - "${PAYMENT_SERVICE_PORT:-8004}:8004"
+    - ${PAYMENT_SERVICE_PORT:-8004}:8004
     depends_on:
       sqlserver:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
     environment:
-      - DB_SERVER=sqlserver
-      - DB_PORT=1433
-      - DB_NAME=${PAYMENT_DB_NAME:-payment_service}
-      - DB_USER=sa
-      - DB_PASSWORD=${SA_PASSWORD:?Set SA_PASSWORD in the root .env file}
-      - DB_DRIVER=ODBC Driver 18 for SQL Server
-      - DB_TRUSTED_CONNECTION=False
-      - APP_NAME=Payment Service
-      - API_V1_STR=/api/v1
-      - PORT=8004
-      - RABBITMQ_HOST=rabbitmq
-      - RABBITMQ_PORT=5672
-      - BOOKING_SERVICE_URL=http://booking-service:8003/api/v1
-      - NOTIFICATION_SERVICE_URL=http://notification-service:8005/api/v1
-      - INTERNAL_SERVICE_SECRET=${INTERNAL_SERVICE_SECRET:?Set INTERNAL_SERVICE_SECRET in environment}
-
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in environment}
-      - JWT_ALGORITHM=HS256
-
+      DB_SERVER: sqlserver
+      DB_PORT: '1433'
+      DB_NAME: payment_service
+      PUBLIC_API_URL: ${NEXT_PUBLIC_GATEWAY_URL:-http://localhost:8080/api/v1}
+      DB_USER: sa
+      DB_PASSWORD: ${SA_PASSWORD:?Set SA_PASSWORD in the root .env file}
+      DB_DRIVER: ODBC Driver 18 for SQL Server
+      DB_TRUSTED_CONNECTION: 'False'
+      APP_NAME: Payment Service
+      API_V1_STR: /api/v1
+      PORT: '8004'
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: '5672'
+      BOOKING_SERVICE_URL: http://booking-service:8003/api/v1
+      NOTIFICATION_SERVICE_URL: http://notification-service:8005/api/v1
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:?Set INTERNAL_SERVICE_SECRET in environment}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in environment}
+      JWT_ALGORITHM: HS256
+      CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000","http://localhost:3001","http://127.0.0.1:3000","http://127.0.0.1:3001"]}
+      RABBITMQ_USER: ${RABBITMQ_USER:-booking}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in environment}
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8004/health', timeout=4)
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
   notification-service:
     build:
       context: ./services/notification-service
       dockerfile: Dockerfile
-    container_name: notification-service
     restart: unless-stopped
     ports:
-      - "${NOTIFICATION_SERVICE_PORT:-8005}:8005"
+    - ${NOTIFICATION_SERVICE_PORT:-8005}:8005
     depends_on:
       sqlserver:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
     environment:
-      - DB_SERVER=sqlserver
-      - DB_PORT=1433
-      - DB_NAME=${NOTIFICATION_DB_NAME:-notification_service}
-      - DB_USER=sa
-      - DB_PASSWORD=${SA_PASSWORD:?Set SA_PASSWORD in the root .env file}
-      - DB_DRIVER=ODBC Driver 18 for SQL Server
-      - DB_TRUSTED_CONNECTION=False
-      - APP_NAME=Notification Service
-      - API_V1_STR=/api/v1
-      - PORT=8005
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in environment}
-      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
-      - INTERNAL_SERVICE_SECRET=${INTERNAL_SERVICE_SECRET:?Set INTERNAL_SERVICE_SECRET in environment}
-      - TRUSTED_INTERNAL_CIDRS=${TRUSTED_INTERNAL_CIDRS:-127.0.0.1/32,::1/128,172.16.0.0/12}
-      - RABBITMQ_HOST=rabbitmq
-      - RABBITMQ_PORT=5672
-      - RABBITMQ_USER=guest
-      - RABBITMQ_PASSWORD=guest
-      - RABBITMQ_ENABLED=True
-      - MOCK_EMAIL_SEND=${MOCK_EMAIL_SEND:-True}
-      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
-      - SMTP_PORT=${SMTP_PORT:-587}
-      - SMTP_USER=${SMTP_USER:-}
-      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
-      - SMTP_TLS=${SMTP_TLS:-True}
-      - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL:-no-reply@hotelbooking.com}
-      - SMTP_FROM_NAME=${SMTP_FROM_NAME:-Hotel Booking}
-
+      DB_SERVER: sqlserver
+      DB_PORT: '1433'
+      DB_NAME: notification_service
+      DB_USER: sa
+      DB_PASSWORD: ${SA_PASSWORD:?Set SA_PASSWORD in the root .env file}
+      DB_DRIVER: ODBC Driver 18 for SQL Server
+      DB_TRUSTED_CONNECTION: 'False'
+      APP_NAME: Notification Service
+      API_V1_STR: /api/v1
+      PORT: '8005'
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in environment}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:?Set INTERNAL_SERVICE_SECRET in environment}
+      TRUSTED_INTERNAL_CIDRS: ${TRUSTED_INTERNAL_CIDRS:-127.0.0.1/32,::1/128,172.16.0.0/12}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: '5672'
+      RABBITMQ_USER: ${RABBITMQ_USER:-booking}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in environment}
+      RABBITMQ_ENABLED: 'True'
+      MOCK_EMAIL_SEND: ${MOCK_EMAIL_SEND:-True}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_TLS: ${SMTP_TLS:-True}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-no-reply@hotelbooking.com}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Hotel Booking}
+      CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000","http://localhost:3001","http://127.0.0.1:3000","http://127.0.0.1:3001"]}
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8005/health', timeout=4)
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
   gateway:
     build:
       context: ./gateway
       dockerfile: Dockerfile
-    container_name: api-gateway
     restart: unless-stopped
     ports:
-      - "${GATEWAY_PORT:-8080}:8080"
+    - ${GATEWAY_PORT:-8080}:8080
     depends_on:
-      - hotel-service
-      - user-service
-      - room-service
-      - booking-service
-      - payment-service
-      - notification-service
+      hotel-service:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+      room-service:
+        condition: service_healthy
+      booking-service:
+        condition: service_healthy
+      payment-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
     environment:
-      - PORT=8080
-      - HOTEL_SERVICE_URL=http://hotel-service:8000
-      - USER_SERVICE_URL=http://user-service:8001
-      - ROOM_SERVICE_URL=http://room-service:8002
-      - BOOKING_SERVICE_URL=http://booking-service:8003
-      - PAYMENT_SERVICE_URL=http://payment-service:8004
-      - NOTIFICATION_SERVICE_URL=http://notification-service:8005
-
+    - PORT=8080
+    - HOTEL_SERVICE_URL=http://hotel-service:8000
+    - USER_SERVICE_URL=http://user-service:8001
+    - ROOM_SERVICE_URL=http://room-service:8002
+    - BOOKING_SERVICE_URL=http://booking-service:8003
+    - PAYMENT_SERVICE_URL=http://payment-service:8004
+    - NOTIFICATION_SERVICE_URL=http://notification-service:8005
+    - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost:3000","http://localhost:3001","http://127.0.0.1:3000","http://127.0.0.1:3001"]}
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=5)
+      interval: 15s
+      timeout: 8s
+      retries: 5
+      start_period: 20s
+  db-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    restart: 'no'
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      SA_PASSWORD: ${SA_PASSWORD:?Set SA_PASSWORD in environment}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-0}
+    volumes:
+    - ./services/hotel-service/database_update.sql:/usr/config/database_update.sql:ro
+    - ./services/user-service/database_init.sql:/usr/config/user_database_init.sql:ro
+    - ./services/user-service/database_demo_seed.sql:/usr/config/user_database_demo_seed.sql:ro
+    - ./services/room-service/database_init.sql:/usr/config/room_database_init.sql:ro
+    - ./services/booking-service/database_init.sql:/usr/config/booking_database_init.sql:ro
+    - ./services/payment-service/database_init.sql:/usr/config/payment_database_init.sql:ro
+    - ./services/notification-service/database_init.sql:/usr/config/notification_database_init.sql:ro
+    - ./infrastructure/sqlserver/init-db.sh:/usr/config/init-db.sh:ro
+    entrypoint:
+    - /bin/bash
+    - -c
+    - tr -d '\r' < /usr/config/init-db.sh > /tmp/init-db.sh && /bin/bash /tmp/init-db.sh
+  admin-dashboard:
+    build:
+      context: ./front-end
+      dockerfile: Dockerfile
+      args:
+        APP_NAME: admin-dashboard
+        NEXT_PUBLIC_GATEWAY_URL: ${NEXT_PUBLIC_GATEWAY_URL:-http://localhost:8080/api/v1}
+    restart: unless-stopped
+    ports:
+    - ${ADMIN_PORT:-3000}:3000
+    depends_on:
+      gateway:
+        condition: service_healthy
+    environment:
+      PORT: '3000'
+      HOSTNAME: 0.0.0.0
+    healthcheck:
+      test:
+      - CMD
+      - node
+      - -e
+      - fetch('http://127.0.0.1:3000').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+  customer-web:
+    build:
+      context: ./front-end
+      dockerfile: Dockerfile
+      args:
+        APP_NAME: customer-web
+        NEXT_PUBLIC_GATEWAY_URL: ${NEXT_PUBLIC_GATEWAY_URL:-http://localhost:8080/api/v1}
+    restart: unless-stopped
+    ports:
+    - ${CUSTOMER_PORT:-3001}:3000
+    depends_on:
+      gateway:
+        condition: service_healthy
+    environment:
+      PORT: '3000'
+      HOSTNAME: 0.0.0.0
+    healthcheck:
+      test:
+      - CMD
+      - node
+      - -e
+      - fetch('http://127.0.0.1:3000').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 volumes:
   mssql_data:
     driver: local
-
+  rabbitmq_data:
+    driver: local
 networks:
-  default:
-    name: booking-network
+  default: {}

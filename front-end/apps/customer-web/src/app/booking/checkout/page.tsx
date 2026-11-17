@@ -181,10 +181,13 @@ function CheckoutContent() {
     setIsVerifyingOtp(true);
     setOtpError("");
     try {
-      await apiClient.verifyPaymentOtp({
+      const payment = await apiClient.verifyPaymentOtp({
         ma_giao_dich_gateway: currentTxnCode,
         otp_code: code,
       });
+      if (payment.trang_thai !== "SUCCESS") {
+        throw new Error("Thanh toán chưa được đồng bộ với đơn đặt phòng. Vui lòng kiểm tra lịch sử đặt phòng hoặc liên hệ hỗ trợ trước khi thử lại.");
+      }
       // Xác thực OTP thành công: chuyển sang trang thành công hiển thị vé & QR
       setShowOtpModal(false);
       router.push(`/booking/success/${currentBookingCode}`);

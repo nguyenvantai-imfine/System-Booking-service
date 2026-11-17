@@ -182,6 +182,19 @@ def root():
     }
 
 
+
+@app.get("/health", tags=["Health"])
+def health():
+    from sqlalchemy import text
+    from src.core.database import engine as health_engine
+    try:
+        with health_engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+        return {"status": "healthy", "database_connected": True}
+    except Exception:
+        return JSONResponse(status_code=503, content={"status": "degraded", "database_connected": False})
+
+
 if __name__ == "__main__":
     import uvicorn
 

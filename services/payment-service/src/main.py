@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 
 from src.core.config import settings
@@ -18,19 +19,21 @@ from src.services.payment_service import PaymentService
 from src.api.v1.router import api_router
 import src.models
 
+def verify_payment_schema(connection) -> None:
+    inspector = inspect(connection)
+    if not set(Base.metadata.tables).issubset(inspector.get_table_names()):
+        raise RuntimeError("Payment schema missing; initialize the isolated database first.")
+    otp_column = next(c for c in inspector.get_columns("giao_dich_otp") if c["name"] == "otp_code")
+    length = getattr(otp_column["type"], "length", None)
+    if length is not None and length < 64:
+        raise RuntimeError("Apply payment migration 20261117_otp_hash_width.sql before startup.")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Khởi tạo bảng dữ liệu
-    try:
-        Base.metadata.create_all(bind=engine)
-        print(">>> [Payment Service] Database tables verified.")
-        db = SessionLocal()
-        try:
-            PaymentService.seed_default_payments(db)
-        finally:
-            db.close()
-    except Exception as e:
-        print(">>> [Payment Service] Startup warning:", str(e))
+    with engine.connect() as connection:
+        connection.execute(text("SELECT 1"))
+        verify_payment_schema(connection)
     yield
 
 app = FastAPI(
@@ -70,7 +73,7 @@ async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
-            "detail": f"Lỗi cơ sở dữ liệu: {str(exc)}",
+            "detail": "Database operation failed.",
             "type": "DatabaseError",
         },
     )
@@ -80,7 +83,7 @@ async def generic_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
-            "detail": f"Lỗi hệ thống: {str(exc)}",
+            "detail": "Internal server error.",
             "type": "InternalServerError",
         },
     )
@@ -96,6 +99,19 @@ def root():
         "docs": "/docs",
         "port": settings.PORT,
     }
+
+
+@app.get("/health", tags=["Health"])
+def health():
+    from sqlalchemy import text
+    from src.core.database import engine as health_engine
+    try:
+        with health_engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+        return {"status": "healthy", "database_connected": True}
+    except Exception:
+        return JSONResponse(status_code=503, content={"status": "degraded", "database_connected": False})
+
 
 if __name__ == "__main__":
     import uvicorn

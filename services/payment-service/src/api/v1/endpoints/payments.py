@@ -1,5 +1,5 @@
 from typing import Optional
-from fastapi import APIRouter, Depends, Header, Query, status
+from fastapi import APIRouter, Depends, Header, Query, status, HTTPException
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from src.api.v1.dependencies import get_db, get_current_user_payload, require_admin
@@ -14,6 +14,29 @@ from src.schemas import (
     OtpResponse,
 )
 from src.services import PaymentService
+from src.core.config import settings
+from src.models import ThanhToanModel
+
+
+def authorize_transaction(db: Session, gateway_txn: str, current_user: dict) -> dict:
+    """Check booking ownership before sending or verifying a payment OTP."""
+    import json
+    import urllib.request
+    payment = db.query(ThanhToanModel).filter(ThanhToanModel.ma_giao_dich_gateway == gateway_txn).first()
+    if payment is None:
+        raise HTTPException(status_code=404, detail="Payment not found.")
+    request = urllib.request.Request(
+        f"{settings.BOOKING_SERVICE_URL}/bookings/{payment.id_dat_phong}",
+        headers={"X-Internal-Service-Secret": settings.INTERNAL_SERVICE_SECRET},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=3) as response:
+            booking = json.loads(response.read())
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Booking ownership validation is unavailable.") from exc
+    if str(current_user.get("role", "")).upper() != "ADMIN" and str(booking.get("id_tai_khoan")) != str(current_user.get("sub")):
+        raise HTTPException(status_code=403, detail="Payment belongs to another account.")
+    return booking
 
 router = APIRouter(prefix="/payments", tags=["💳 Quản lý Thanh Toán"])
 
@@ -34,8 +57,12 @@ def create_payment(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user_payload),
 ):
+    if x_idempotency_key and x_idempotency_key.strip():
+        existing = db.query(ThanhToanModel).filter(ThanhToanModel.idempotency_key == x_idempotency_key.strip()).first()
+        if existing is not None:
+            authorize_transaction(db, existing.ma_giao_dich_gateway, current_user)
     return PaymentService.create_payment(
-        db=db, payload=payload, idempotency_key=x_idempotency_key
+        db=db, payload=payload, idempotency_key=x_idempotency_key, current_user=current_user
     )
 
 # 2. Sinh mã OTP xác thực thanh toán
@@ -51,7 +78,8 @@ async def generate_otp(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user_payload),
 ):
-    return await PaymentService.generate_otp(db, payload)
+    booking = authorize_transaction(db, payload.ma_giao_dich_gateway, current_user)
+    return await PaymentService.generate_otp(db, payload, owner_id=booking["id_tai_khoan"])
 
 # 3. Xác thực mã OTP và hoàn tất thanh toán
 @router.post(
@@ -66,7 +94,8 @@ async def verify_otp(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user_payload),
 ):
-    return await PaymentService.verify_otp(db, payload)
+    booking = authorize_transaction(db, payload.ma_giao_dich_gateway, current_user)
+    return await PaymentService.verify_otp(db, payload, owner_id=booking["id_tai_khoan"])
 
 # 4. Mô phỏng IPN Callback từ cổng thanh toán (Sandbox)
 @router.post(
@@ -77,6 +106,7 @@ async def verify_otp(
 async def simulate_ipn(
     payload: SimulateIpnRequest,
     db: Session = Depends(get_db),
+    _: dict = Depends(require_admin),
     x_ipn_secret: Optional[str] = Header(
         None,
         alias="X-IPN-Secret",
@@ -135,9 +165,9 @@ def get_payment_stats(
     summary="Trang thanh toán giả lập Sandbox",
 )
 def sandbox_checkout(
-    txn: str = Query(..., description="Mã giao dịch gateway"),
+    txn: str = Query(..., min_length=1, max_length=100, pattern=r"^[A-Za-z0-9_-]+$", description="Mã giao dịch gateway"),
     amount: float = Query(0, description="Số tiền"),
-    booking: str = Query("", description="Mã booking"),
+    booking: str = Query("", max_length=50, pattern=r"^[A-Za-z0-9_-]*$", description="Mã booking"),
 ):
     html_content = f"""
     <!DOCTYPE html>
@@ -259,7 +289,7 @@ def sandbox_checkout(
                         }})
                     }});
                     const data = await resp.json();
-                    if (resp.ok) {{
+                    if (resp.ok && data.trang_thai === 'SUCCESS') {{
                         resEl.className = 'text-center text-xs font-semibold p-3 rounded-lg block bg-emerald-50 text-emerald-800 border border-emerald-200';
                         resEl.innerText = 'Xác thực OTP thành công! Đơn đặt phòng ' + data.ma_booking + ' đã chuyển sang CONFIRMED.';
                     }} else {{
@@ -288,6 +318,9 @@ def sandbox_checkout(
                         }})
                     }});
                     const data = await resp.json();
+                    if (!resp.ok || (status === 'SUCCESS' && data.trang_thai !== 'SUCCESS')) {{
+                        throw new Error(data.detail || 'Thanh toán chưa được xác nhận.');
+                    }}
                     if (status === 'SUCCESS') {{
                         resEl.className = 'text-center text-xs font-semibold p-3 rounded-lg block bg-emerald-50 text-emerald-800 border border-emerald-200';
                         resEl.innerText = 'Thanh toán thành công! Đơn đặt phòng ' + data.ma_booking + ' đã tự động chuyển sang CONFIRMED.';

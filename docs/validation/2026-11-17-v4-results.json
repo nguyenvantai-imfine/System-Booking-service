@@ -1,0 +1,578 @@
+{
+  "date": "2026-11-17T22:23:50.945883+07:00",
+  "head": "d842568464aae2f7f94e44b83d726f8563d61f39",
+  "branch": "main",
+  "committed": false,
+  "source_inventory": [
+    ".env.example",
+    ".gitattributes",
+    "README.md",
+    "docker-compose.yml",
+    "docs/ACTUAL_ARCHITECTURE.md",
+    "docs/AI_FINAL_HANDOVER.md",
+    "docs/AI_IMPLEMENTATION_STATUS.md",
+    "docs/AI_V4_HANDOVER.md",
+    "docs/AS_IS_FUNCTION_MATRIX.md",
+    "docs/DOCKER_RUNBOOK.md",
+    "docs/validation/2026-11-17-results.json",
+    "docs/validation/2026-11-17-v4-results.json",
+    "front-end/.dockerignore",
+    "front-end/Dockerfile",
+    "front-end/apps/admin-dashboard/next.config.mjs",
+    "front-end/apps/customer-web/next.config.mjs",
+    "front-end/apps/customer-web/src/app/booking/checkout/page.tsx",
+    "gateway/.dockerignore",
+    "gateway/src/core/config.py",
+    "gateway/src/main.py",
+    "infrastructure/Build-Images.ps1",
+    "infrastructure/New-DockerTestEnvironment.ps1",
+    "infrastructure/recover_image_snapshot.py",
+    "infrastructure/sqlserver/init-db.sh",
+    "services/booking-service/.dockerignore",
+    "services/booking-service/Dockerfile",
+    "services/booking-service/src/core/config.py",
+    "services/booking-service/src/core/publisher.py",
+    "services/booking-service/src/core/security.py",
+    "services/booking-service/src/main.py",
+    "services/booking-service/src/schemas/booking_schema.py",
+    "services/hotel-service/.dockerignore",
+    "services/hotel-service/Dockerfile",
+    "services/hotel-service/src/core/config.py",
+    "services/hotel-service/src/core/security.py",
+    "services/hotel-service/src/main.py",
+    "services/notification-service/.dockerignore",
+    "services/notification-service/Dockerfile",
+    "services/notification-service/database_init.sql",
+    "services/notification-service/src/api/v1/endpoints/notifications.py",
+    "services/notification-service/src/core/config.py",
+    "services/notification-service/src/core/security.py",
+    "services/notification-service/src/services/notification_service.py",
+    "services/payment-service/.dockerignore",
+    "services/payment-service/Dockerfile",
+    "services/payment-service/migrations/20261117_otp_hash_width.sql",
+    "services/payment-service/src/api/v1/endpoints/payments.py",
+    "services/payment-service/src/core/config.py",
+    "services/payment-service/src/core/publisher.py",
+    "services/payment-service/src/core/security.py",
+    "services/payment-service/src/main.py",
+    "services/payment-service/src/services/payment_service.py",
+    "services/room-service/.dockerignore",
+    "services/room-service/Dockerfile",
+    "services/room-service/src/core/config.py",
+    "services/room-service/src/core/security.py",
+    "services/room-service/src/main.py",
+    "services/room-service/src/services/room_service.py",
+    "services/user-service/.dockerignore",
+    "services/user-service/Dockerfile",
+    "services/user-service/database_demo_seed.sql",
+    "services/user-service/database_init.sql",
+    "services/user-service/migrations/20261117_profile_timestamps.sql",
+    "services/user-service/src/core/config.py",
+    "services/user-service/src/core/security.py",
+    "services/user-service/src/main.py",
+    "services/user-service/src/services/user_service.py",
+    "test/check_browser_flow.cjs",
+    "test/check_frontend_servers.mjs",
+    "test/check_isolated_persistence.py",
+    "test/run_isolated_acceptance.py",
+    "test/run_offline_regressions.py",
+    "test/test_auth_ownership_p06.py",
+    "test/test_booking_concurrency.py",
+    "test/test_booking_tax_and_payment_enum_p31_p32.py",
+    "test/test_gateway_flow.py",
+    "test/test_notification_transport_identity.py",
+    "test/test_payment_reconciliation_p13_p14.py",
+    "test/test_room_price_trust_p12.py",
+    "test/test_stabilization_security.py",
+    "test/write_v4_validation_report.py",
+    "test/write_validation_report.py"
+  ],
+  "changed_since_v4_baseline": [
+    "README.md",
+    "docs/AI_FINAL_HANDOVER.md",
+    "docs/AI_IMPLEMENTATION_STATUS.md",
+    "docs/AI_V4_HANDOVER.md",
+    "docs/AS_IS_FUNCTION_MATRIX.md",
+    "docs/DOCKER_RUNBOOK.md",
+    "docs/validation/2026-11-17-v4-results.json",
+    "infrastructure/Build-Images.ps1",
+    "infrastructure/recover_image_snapshot.py",
+    "services/booking-service/src/core/publisher.py",
+    "services/notification-service/src/api/v1/endpoints/notifications.py",
+    "services/notification-service/src/services/notification_service.py",
+    "services/payment-service/src/api/v1/endpoints/payments.py",
+    "services/payment-service/src/core/publisher.py",
+    "services/payment-service/src/services/payment_service.py",
+    "services/room-service/src/services/room_service.py",
+    "test/check_browser_flow.cjs",
+    "test/run_isolated_acceptance.py",
+    "test/run_offline_regressions.py",
+    "test/test_notification_transport_identity.py",
+    "test/write_v4_validation_report.py"
+  ],
+  "source_sha256": {
+    "docker-compose.yml": "aabaa1026629aa573a3c5997ae278fc569e6a8445be71b94d5eb6b80e6063c46",
+    "front-end/.dockerignore": "7afba5a9c2a566a6aad90411da56b467ffd81c42afb52e2f8742070a44706d11",
+    "front-end/Dockerfile": "c0f1ed0b1b7c4221d541a40d3bdd30b7d81fb75a1df696a26eab0f63e7ff6067",
+    "front-end/apps/admin-dashboard/next.config.mjs": "bda22cac4033c6cdba372c7ca3397cc4804f152a646642bff353d7749a93ddad",
+    "front-end/apps/customer-web/next.config.mjs": "bda22cac4033c6cdba372c7ca3397cc4804f152a646642bff353d7749a93ddad",
+    "front-end/apps/customer-web/src/app/booking/checkout/page.tsx": "05aa5818cbf1569a53a168ac730ab5d85b5ffacfd4d8f8cd264cd9362a3e925b",
+    "gateway/.dockerignore": "70be42a6194a12a4ee8d8cb793f4c35059ee0df8da913a7acbe132c22c5fd4e1",
+    "gateway/src/core/config.py": "2402af1dc588a083d06c57b15a991dce295ab74fb5b7c07cb4e7a9623f95adaa",
+    "gateway/src/main.py": "29a8c23f29ecfa70a679b1f42f5f004ac2e3e85ba98cdb41355242ba9f27e5c5",
+    "infrastructure/Build-Images.ps1": "f31f7d40097dea125c2c61570b9ebebec7f2941e3bd7870c1b9d476ef4a35fa8",
+    "infrastructure/New-DockerTestEnvironment.ps1": "d698223247ccb22ca0fb999b1c1c3ed8a7e26a3d204049cf807803a2d602eb78",
+    "infrastructure/recover_image_snapshot.py": "a817e135ad1f27edb158b893618d194552a512b32fdff5189933e29ae9c3c06c",
+    "infrastructure/sqlserver/init-db.sh": "551821954110a7a43e8762194f840c3c7caeda406ff7cbc86c80e1ab73d697f6",
+    "services/booking-service/.dockerignore": "eda7811f537278eca1ece3a5fdae4881965c80baa0c217bbb3016a3a68801eb6",
+    "services/booking-service/Dockerfile": "5929b171d642da98cf07555d6343eaf7d399a87872c410c23efde11727108db5",
+    "services/booking-service/src/core/config.py": "5e6d8b1b9aeb8c162088eb8c8ecb1c50fef3e0594c9855f7b2b3cc322935fe44",
+    "services/booking-service/src/core/publisher.py": "a66061b59bd9e90f8025838038af1755b420dde6432a9446aad96de9bd52b47d",
+    "services/booking-service/src/core/security.py": "9162fb9136adf0a6ee730cc270c00b6c59a1e101f1026e5c0ead7283dbc8325e",
+    "services/booking-service/src/main.py": "ce3121407fae918ab196af148c79a083e28ca86a6d404cdb122f4d99e7eb0b6f",
+    "services/booking-service/src/schemas/booking_schema.py": "c274e0d1bb61897b2aaf5d04d1cf143530207187e51070f660c06a404ddfeb21",
+    "services/hotel-service/.dockerignore": "eda7811f537278eca1ece3a5fdae4881965c80baa0c217bbb3016a3a68801eb6",
+    "services/hotel-service/Dockerfile": "5e14232f27859c108d8b4717cbea0baef0df4f07a18112a6e1e802a6e88246b2",
+    "services/hotel-service/src/core/config.py": "83d309710994a2eb28589ef8321f6d1130d04febc49caa7e33b7db6e72845e11",
+    "services/hotel-service/src/core/security.py": "3d93340589020ad6a99c23ff9af9c85eabca5e91f02e9b64c57059de0b1c833f",
+    "services/hotel-service/src/main.py": "54c31a573522171f55f34d38788da26a2d816f078296dbd737700193b9982867",
+    "services/notification-service/.dockerignore": "eda7811f537278eca1ece3a5fdae4881965c80baa0c217bbb3016a3a68801eb6",
+    "services/notification-service/Dockerfile": "4801e31f8d6d500b6b10d7b4b54a977db1bb1f0a33aaf32df9696057eb6d444b",
+    "services/notification-service/database_init.sql": "0b497abbfd91004384f8b82ec387559e6e5258c883558fdaa070fd35c165039e",
+    "services/notification-service/src/api/v1/endpoints/notifications.py": "26fa25706dbc90db245aaa6e772d4670b480d6673d7d1663894d782c7ddd16b7",
+    "services/notification-service/src/core/config.py": "7c72df6e040d76e23d648f231f1640389b2beab83175fa136ea77bff49a82403",
+    "services/notification-service/src/core/security.py": "bac9bf3e8a07e4301611246cbcafa7f18257845de4f9446ad52034b695276ba4",
+    "services/notification-service/src/services/notification_service.py": "2ca6be56ee7dd8555015054e5675a053d4d054292ff05db6392634515a520d89",
+    "services/payment-service/.dockerignore": "eda7811f537278eca1ece3a5fdae4881965c80baa0c217bbb3016a3a68801eb6",
+    "services/payment-service/Dockerfile": "3d53488aa0814acd856a434f3bda657577674fa6df17a4050e90ca06be4008dc",
+    "services/payment-service/migrations/20261117_otp_hash_width.sql": "03f917553c925e7aaad7527c97584235797a976e73bca0b832383b431ca1edaf",
+    "services/payment-service/src/api/v1/endpoints/payments.py": "f4a4e0c31d6bf8f46438584433934ad586564b7e832fde07502861470486eb60",
+    "services/payment-service/src/core/config.py": "5b36a46d10760f39dd70d796e2147b109aa215161be89b702f50b4f9d7fa57ea",
+    "services/payment-service/src/core/publisher.py": "bca2b38b364ad990eb96189158a921163d1af167db05c6f1cd69cff66b3aabfd",
+    "services/payment-service/src/core/security.py": "67c7476f03773a4ac3d87123c96ac9ce9f63fc7671c89d10fe63562bda8054ae",
+    "services/payment-service/src/main.py": "5c651a3b79359616a649912dc70d0ae6ac521a4ff9967d26c21bf32f4e281c89",
+    "services/payment-service/src/services/payment_service.py": "b3221a78ea20364e5493a8c9524446f02b61e1a07c1a21b4cd42deb3d84e921c",
+    "services/room-service/.dockerignore": "eda7811f537278eca1ece3a5fdae4881965c80baa0c217bbb3016a3a68801eb6",
+    "services/room-service/Dockerfile": "0c2c4ea4744923262a2951bd43f715fbd39a787d46e9b2de142cd434ec03ef82",
+    "services/room-service/src/core/config.py": "1f989d44438f40e5ec8f3e1955b71ee2b4c0864b1dee63ed24e77979b42cb8f7",
+    "services/room-service/src/core/security.py": "da3afd77fbaedb7beb6cb53624566613c49fda18c0c83aadd6ff98c339d74a0d",
+    "services/room-service/src/main.py": "81f68ed85784929c57312b89cf869704851d98d49198b9d3c2203a89ddb15cac",
+    "services/room-service/src/services/room_service.py": "52c4120d59df2d4f40a054779653a8601338ce2247ddd0157bf37668506dba3c",
+    "services/user-service/.dockerignore": "eda7811f537278eca1ece3a5fdae4881965c80baa0c217bbb3016a3a68801eb6",
+    "services/user-service/Dockerfile": "384a733b5aee45632fec5c335e3884a5f0d3e989146e57ecd87187acb28871f0",
+    "services/user-service/database_demo_seed.sql": "c41218d7ac2f435b002df4a9e8c6ba551c31c56cf182fc4bd11429cf08c748bb",
+    "services/user-service/database_init.sql": "0792d45fff896c0a4fb3ab82c61359e76a1ac9a0f4791c49a5948d5f4480858d",
+    "services/user-service/migrations/20261117_profile_timestamps.sql": "767fe80fd7628dc6e985f83124156dfbf23b9164c5d502549844b08f8ca48ad5",
+    "services/user-service/src/core/config.py": "6df77d317bec5b75521683aa39b5ad9b659ee4622b8f0d51dd2594e380a121b8",
+    "services/user-service/src/core/security.py": "e7b191b2ae85fa2c3a2fae5dc2c313f6d1e35130ef04cbfdebd03c11f47c69b9",
+    "services/user-service/src/main.py": "a71c4a5a7f4fb7b1c87ca9a421091d6ca93b620f89c80523919e263f8eb1cb28",
+    "services/user-service/src/services/user_service.py": "f45076d28eec12d66beefab6dbdde3b6df7be8e1c88efe254344960c7fa1e21e",
+    "test/check_browser_flow.cjs": "f162f80657e45b5dc9c0569c54603a17c41e69bc37651bdaf4e516beb47040f8",
+    "test/check_frontend_servers.mjs": "1e12da91e7c75ba8116694e2cd2de4bdf00ff7c0d9ac668e673f077c9adc7eeb",
+    "test/check_isolated_persistence.py": "362a1ff394c5b7587f49852240c048ad0aba14c9532eb0460a0f6e40e67917f9",
+    "test/run_isolated_acceptance.py": "15f519db714596f2cf3f61fd0afdd07dc522104d9e124272e3433d5c8f06ece6",
+    "test/run_offline_regressions.py": "9c293bc5388750471bb6143e494b4ee99a1239b3b0860685dc064eafd37056f7",
+    "test/test_auth_ownership_p06.py": "2ca8b4fc2c3f09158ceb13a64baf8d7b0312d9d251b46a1fa9a8772eecbbe946",
+    "test/test_booking_concurrency.py": "a0340dfb35d9290889452b730e8e813f7a8bd857aec641566f20cc8088853772",
+    "test/test_booking_tax_and_payment_enum_p31_p32.py": "abfc16c88dfa39f1ac3e2ba30be5784bd9a7135382d37b117064a6246ce189ac",
+    "test/test_gateway_flow.py": "322d0143093aaa92ce31c0599b71816151a8fcd62f3b6e0d996ea188a5ac012c",
+    "test/test_notification_transport_identity.py": "20df74d13b87894f387d003aedb4d2bc97f9106ad54ba36522d3e30f5881ff9e",
+    "test/test_payment_reconciliation_p13_p14.py": "ff0af520830d0ae556b5303e466a2c3c51478e6d9609d51c110a6e5ffca0ca3b",
+    "test/test_room_price_trust_p12.py": "77dbbc0fb39a81c99ab7684414c9fe263fc117ddd9d1a0ef3f79e88c4866db05",
+    "test/test_stabilization_security.py": "55d0423ec6d9b05b89fd7a5de7e64556df055a137ad3ce89d5ef2dc5b081690e",
+    "test/write_v4_validation_report.py": "3f9c6fe9b15464664638959336da0b05afba81b2da9a9cdc82653c5f5662f7b5",
+    "test/write_validation_report.py": "a32627c85b2bb6d906b6cb9e59c075faa08708da0dadd5cabb973bc098cc6d83"
+  },
+  "offline": [
+    {
+      "suite": "test_notification_transport_identity.py",
+      "status": "PASS",
+      "unittest_count": 1
+    },
+    {
+      "suite": "test_legacy_auth_fallback.py",
+      "status": "PASS",
+      "unittest_count": 4
+    },
+    {
+      "suite": "test_service_config_defaults.py",
+      "status": "PASS",
+      "unittest_count": 6
+    },
+    {
+      "suite": "test_service_startup_safety.py",
+      "status": "PASS",
+      "unittest_count": 11
+    },
+    {
+      "suite": "test_room_regression.py",
+      "status": "PASS",
+      "unittest_count": 6
+    },
+    {
+      "suite": "test_notification_safety.py",
+      "status": "PASS",
+      "unittest_count": 13
+    },
+    {
+      "suite": "test_payment_notification_contract.py",
+      "status": "PASS",
+      "unittest_count": 3
+    },
+    {
+      "suite": "test_gateway_routing_p21_p22.py",
+      "status": "PASS",
+      "unittest_count": null
+    },
+    {
+      "suite": "test_available_rooms_p11.py",
+      "status": "PASS",
+      "unittest_count": 6
+    },
+    {
+      "suite": "test_admin_revenue_stats_p34.py",
+      "status": "PASS",
+      "unittest_count": 2
+    },
+    {
+      "suite": "test_notification_schema_migration.py",
+      "status": "PASS",
+      "unittest_count": 7
+    },
+    {
+      "suite": "test_cors_p07.py",
+      "status": "PASS",
+      "unittest_count": 2
+    },
+    {
+      "suite": "test_stabilization_security.py",
+      "status": "PASS",
+      "unittest_count": 11
+    },
+    {
+      "suite": "test_room_price_trust_p12.py",
+      "status": "PASS",
+      "unittest_count": 6
+    }
+  ],
+  "unittest_cases": 78,
+  "docker_api": {
+    "mode": "Docker applications + mock email",
+    "checks": [
+      {
+        "check": "All application services launched in Docker (email transport mocked)",
+        "status": "PASS"
+      },
+      {
+        "check": "Fresh bcrypt demo admin and partner login",
+        "status": "PASS"
+      },
+      {
+        "check": "Wrong password, customer admin access and anonymous IPN rejected",
+        "status": "PASS"
+      },
+      {
+        "check": "Hotel search reaches real Hotel SQL database",
+        "status": "PASS"
+      },
+      {
+        "check": "Room availability includes newly created rooms",
+        "status": "PASS"
+      },
+      {
+        "check": "Booking hold and numeric monetary response",
+        "status": "PASS"
+      },
+      {
+        "check": "Occupied room and foreign booking access rejected",
+        "status": "PASS"
+      },
+      {
+        "check": "Amount validation, ownership and idempotent payment creation",
+        "status": "PASS"
+      },
+      {
+        "check": "OTP omitted from HTTP response and foreign account rejected",
+        "status": "PASS"
+      },
+      {
+        "check": "Real RabbitMQ delivers OTP to in-memory mock email sink",
+        "status": "PASS"
+      },
+      {
+        "check": "OTP persisted only as SHA-256",
+        "status": "PASS"
+      },
+      {
+        "check": "Valid OTP confirms booking and payment consistently",
+        "status": "PASS"
+      },
+      {
+        "check": "OTP cannot be reused; confirmed booking appears in history",
+        "status": "PASS"
+      },
+      {
+        "check": "Persisted OTP notifications redact the raw code",
+        "status": "PASS"
+      },
+      {
+        "check": "Concurrent bookings produce one winner without overbooking",
+        "status": "PASS"
+      },
+      {
+        "check": "Concurrent payment retries reuse one transaction",
+        "status": "PASS"
+      },
+      {
+        "check": "Expired OTP rejected",
+        "status": "PASS"
+      },
+      {
+        "check": "Expired hold releases room and cancels stale booking",
+        "status": "PASS"
+      },
+      {
+        "check": "Admin payment statistics accessible",
+        "status": "PASS"
+      },
+      {
+        "check": "Payment OTP notification belongs to the booking owner",
+        "status": "PASS"
+      },
+      {
+        "check": "Room batch conflict is atomic; concurrent creation preserves counter",
+        "status": "PASS"
+      },
+      {
+        "check": "Room rejects invalid maintenance-to-occupied transition",
+        "status": "PASS"
+      },
+      {
+        "check": "Concurrent REST and RabbitMQ event share one record and one mock email",
+        "status": "PASS"
+      },
+      {
+        "check": "Notification read action enforces owner isolation",
+        "status": "PASS"
+      }
+    ],
+    "error": null
+  },
+  "browser": {
+    "status": "BLOCKED",
+    "error": "Chrome page.goto returned net::ERR_INSUFFICIENT_RESOURCES on the Docker UI. Two attempts, including reduced-resource contexts; API checks remained real and passed.",
+    "evidence": "logs/v4-docker-browser-run.log"
+  },
+  "persistence": {
+    "status": "PASS",
+    "before": {
+      "hotel": {
+        "khach_san": 11,
+        "hinh_anh_khach_san": 0,
+        "thong_tin_khach_san": 0,
+        "quy_tac_khach_san": 0,
+        "danh_muc_tien_ich": 0,
+        "chi_tiet_tien_nghi": 0,
+        "alembic_version": 1
+      },
+      "user": {
+        "tai_khoan": 21,
+        "nguoi_dung": 21
+      },
+      "room": {
+        "loai_phong": 11,
+        "phong": 45,
+        "tien_ich_phong": 0,
+        "quy_tac_phong": 0,
+        "khuyen_mai_phong": 0
+      },
+      "booking": {
+        "dat_phong": 33,
+        "chi_tiet_dat_phong": 33,
+        "thong_tin_khach_o": 33,
+        "nhat_ky_trang_thai_booking": 58
+      },
+      "payment": {
+        "thanh_toan": 16,
+        "hoan_tien": 0,
+        "giao_dich_otp": 16
+      },
+      "notification": {
+        "thong_bao": 28,
+        "noi_dung_thong_bao": 28
+      },
+      "durable_queues": [
+        "notification.booking.cancelled",
+        "notification.booking.confirmed",
+        "notification.dead-letter",
+        "notification.otp.generated",
+        "notification.payment.success"
+      ]
+    },
+    "after": {
+      "hotel": {
+        "khach_san": 11,
+        "hinh_anh_khach_san": 0,
+        "thong_tin_khach_san": 0,
+        "quy_tac_khach_san": 0,
+        "danh_muc_tien_ich": 0,
+        "chi_tiet_tien_nghi": 0,
+        "alembic_version": 1
+      },
+      "user": {
+        "tai_khoan": 21,
+        "nguoi_dung": 21
+      },
+      "room": {
+        "loai_phong": 11,
+        "phong": 45,
+        "tien_ich_phong": 0,
+        "quy_tac_phong": 0,
+        "khuyen_mai_phong": 0
+      },
+      "booking": {
+        "dat_phong": 33,
+        "chi_tiet_dat_phong": 33,
+        "thong_tin_khach_o": 33,
+        "nhat_ky_trang_thai_booking": 58
+      },
+      "payment": {
+        "thanh_toan": 16,
+        "hoan_tien": 0,
+        "giao_dich_otp": 16
+      },
+      "notification": {
+        "thong_bao": 28,
+        "noi_dung_thong_bao": 28
+      },
+      "durable_queues": [
+        "notification.booking.cancelled",
+        "notification.booking.confirmed",
+        "notification.dead-letter",
+        "notification.otp.generated",
+        "notification.payment.success"
+      ]
+    }
+  },
+  "health_after_restart": {
+    "gateway": "UP",
+    "services": {
+      "hotel-service": "UP",
+      "user-service": "UP",
+      "room-service": "UP",
+      "booking-service": "UP",
+      "payment-service": "UP",
+      "notification-service": "UP"
+    }
+  },
+  "containers": [
+    {
+      "service": "admin-dashboard",
+      "state": "running",
+      "health": "healthy",
+      "image": "luxestay-acceptance-admin-dashboard"
+    },
+    {
+      "service": "booking-service",
+      "state": "running",
+      "health": "healthy",
+      "image": "luxestay-acceptance-booking-service"
+    },
+    {
+      "service": "customer-web",
+      "state": "running",
+      "health": "healthy",
+      "image": "luxestay-acceptance-customer-web"
+    },
+    {
+      "service": "db-init",
+      "state": "exited",
+      "health": "",
+      "image": "mcr.microsoft.com/mssql/server:2022-latest"
+    },
+    {
+      "service": "gateway",
+      "state": "running",
+      "health": "healthy",
+      "image": "luxestay-acceptance-gateway"
+    },
+    {
+      "service": "hotel-service",
+      "state": "running",
+      "health": "healthy",
+      "image": "luxestay-acceptance-hotel-service"
+    },
+    {
+      "service": "notification-service",
+      "state": "running",
+      "health": "healthy",
+      "image": "luxestay-acceptance-notification-service"
+    },
+    {
+      "service": "payment-service",
+      "state": "running",
+      "health": "healthy",
+      "image": "luxestay-acceptance-payment-service"
+    },
+    {
+      "service": "rabbitmq",
+      "state": "running",
+      "health": "healthy",
+      "image": "rabbitmq:3-management"
+    },
+    {
+      "service": "room-service",
+      "state": "running",
+      "health": "healthy",
+      "image": "luxestay-acceptance-room-service"
+    },
+    {
+      "service": "sqlserver",
+      "state": "running",
+      "health": "healthy",
+      "image": "mcr.microsoft.com/mssql/server:2022-latest"
+    },
+    {
+      "service": "user-service",
+      "state": "running",
+      "health": "healthy",
+      "image": "luxestay-acceptance-user-service"
+    }
+  ],
+  "build": {
+    "applications": 9,
+    "status": "PASS",
+    "builder": "legacy, sequential",
+    "base_snapshot_recovery": "same saved layers imported into new snapshots; originals retained"
+  },
+  "api_client_tests": {
+    "status": "PASS",
+    "cases": 7
+  },
+  "frontend_lint": {
+    "customer": {
+      "exit": 0,
+      "errors": 0,
+      "warnings": 13
+    },
+    "admin": {
+      "exit": 0,
+      "errors": 0,
+      "warnings": 4
+    }
+  },
+  "source_syntax": "PASS",
+  "frontend_docker_types_build": "PASS both apps",
+  "retained_booking": {
+    "id": 28,
+    "code": "BK-202611-68F1D3",
+    "action": "untouched per user instruction"
+  },
+  "remaining": [
+    "Chrome host resource exhaustion prevents UI E2E",
+    "Default BuildKit EOF; legacy builder is verified",
+    "Not all nested Hotel/User/admin CRUD cases exhaustively covered",
+    "No external SMTP/payment/QR image acceptance",
+    "SMTP/SQL crash-window atomicity and distributed transaction limits retained"
+  ]
+}

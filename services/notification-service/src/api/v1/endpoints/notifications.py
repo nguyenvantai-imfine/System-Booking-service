@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Header
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -36,12 +36,13 @@ def internal_send_notification(
     req: SendNotificationRequest,
     db: Session = Depends(get_db),
     _: None = Depends(require_internal_service),
+    event_key: Optional[str] = Header(None, alias="X-Notification-Event-Key", pattern=r"^[0-9a-f]{64}$"),
 ):
     """
     Endpoint nội bộ dành riêng cho Booking Service & Payment Service gửi thông báo qua REST Fallback.
     Xác thực bằng Header X-Internal-Secret thay vì JWT Token người dùng.
     """
-    return NotificationService.send_notification(db, req)
+    return NotificationService.send_notification(db, req, event_key=event_key)
 
 @router.get("/stats", response_model=NotificationStats)
 def get_notification_stats(

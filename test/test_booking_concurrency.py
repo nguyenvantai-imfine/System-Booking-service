@@ -28,7 +28,8 @@ from src.models import DatPhongModel, ChiTietDatPhongModel, TrangThaiBookingEnum
 
 def test_overbooking_and_concurrency_protection():
     import jwt
-    jwt_secret = "booking_super_secret_jwt_key_2026_xyz!@#"
+    from src.core.config import settings
+    jwt_secret = settings.JWT_SECRET_KEY
     jwt_token = jwt.encode(
         {"sub": "1", "role": "CUSTOMER", "exp": datetime.utcnow() + timedelta(hours=2)},
         jwt_secret,

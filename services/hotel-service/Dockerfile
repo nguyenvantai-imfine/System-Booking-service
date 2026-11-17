@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.11-slim-bookworm
 
 # Thiết lập biến môi trường cho Python
 ENV PYTHONUNBUFFERED=1 \

@@ -1,8 +1,21 @@
 import os
+import os
 import urllib.parse
+from pathlib import Path
 from typing import List, Union
 from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings
+
+
+def _resolve_env_file() -> str:
+    """Explicit ENV_FILE, otherwise service-local dotenv. Process env wins."""
+    explicit = os.environ.get("ENV_FILE")
+    if explicit:
+        env_path = Path(explicit).expanduser()
+        if not env_path.is_absolute():
+            raise ValueError("ENV_FILE must be an absolute path.")
+        return str(env_path)
+    return str(Path(__file__).resolve().parents[2] / ".env")
 
 class Settings(BaseSettings):
     # App
@@ -91,7 +104,7 @@ class Settings(BaseSettings):
         )
 
     class Config:
-        env_file = ".env"
+        env_file = _resolve_env_file()
         env_file_encoding = "utf-8"
         extra = "ignore"
 
