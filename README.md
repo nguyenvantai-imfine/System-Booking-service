@@ -3,12 +3,14 @@
 Hệ thống đặt phòng khách sạn dùng sáu microservice FastAPI, API Gateway FastAPI/httpx,
 hai frontend Next.js, sáu database SQL Server và RabbitMQ.
 
-**V5 — 17/11/2026:** toàn bộ stack chạy trong Docker Compose; 78 unittest,
-7 API-client test và 24 nhóm API integration đạt. Chrome đã chạy đạt luồng đăng nhập,
-tìm khách sạn, chọn phòng, checkout/OTP, E-ticket và lịch sử booking xác nhận.
+**V6 — 17/11/2026:** toàn bộ stack chạy trong Docker Compose; 79 unittest,
+7 API-client test, 24 nhóm API integration và 8 nhóm lifecycle bổ sung đạt. Đã sửa lỗi
+Admin xác nhận booking bị 401; Chrome kiểm tra đạt 9 thao tác quản trị thực tế cùng
+luồng tìm phòng, checkout/OTP, E-ticket, ảnh QR và lịch sử booking. Lint còn 10 cảnh báo
+tối ưu ảnh, 0 lỗi. Booking 28 và các bản ghi liên quan được giữ nguyên.
 Build được kiểm chứng trên host phục hồi snapshot với legacy builder; môi trường
 Linux sạch/BuildKit mặc định chưa được chứng nhận. Chi tiết giới hạn và bằng chứng:
-[bàn giao V5](docs/AI_V4_HANDOVER.md) và [ma trận chức năng](docs/AS_IS_FUNCTION_MATRIX.md).
+[bàn giao V6](docs/AI_V4_HANDOVER.md) và [ma trận chức năng](docs/AS_IS_FUNCTION_MATRIX.md).
 
 | Thành phần | Port mặc định |
 |---|---:|

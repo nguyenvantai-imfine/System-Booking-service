@@ -8,6 +8,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 SUITES = [
+    "test_admin_booking_confirmation.py",
     "test_notification_transport_identity.py",
     "test_legacy_auth_fallback.py", "test_service_config_defaults.py",
     "test_service_startup_safety.py", "test_room_regression.py",

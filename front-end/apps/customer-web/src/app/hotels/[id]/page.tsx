@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, use, Suspense } from "react";
+import React, { useEffect, useCallback, useState, use, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { apiClient } from "@/lib/api";
@@ -25,8 +25,8 @@ function HotelDetailContent({ hotelId }: { hotelId: number }) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const checkIn = searchParams.get("check_in") || getTodayDateString(0);
-  const checkOut = searchParams.get("check_out") || getTodayDateString(1);
+  const checkIn = String(searchParams.get("check_in") || getTodayDateString(0));
+  const checkOut = String(searchParams.get("check_out") || getTodayDateString(1));
   const nights = calculateNights(checkIn, checkOut);
 
   const [hotel, setHotel] = useState<any>(null);
@@ -38,7 +38,7 @@ function HotelDetailContent({ hotelId }: { hotelId: number }) {
   const [roomTypeError, setRoomTypeError] = useState("");
   const [availabilityError, setAvailabilityError] = useState("");
 
-  const fetchHotelDetail = async () => {
+  const fetchHotelDetail = useCallback(async () => {
     setIsLoading(true);
     setErrorMessage("");
     setRoomTypeError("");
@@ -76,11 +76,11 @@ function HotelDetailContent({ hotelId }: { hotelId: number }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [hotelId, checkIn, checkOut]);
 
   useEffect(() => {
     fetchHotelDetail();
-  }, [hotelId, checkIn, checkOut]);
+  }, [fetchHotelDetail]);
 
   const hotelImages = [
     "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1400&q=85",

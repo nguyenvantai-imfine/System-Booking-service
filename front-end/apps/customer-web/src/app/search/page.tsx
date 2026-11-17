@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useMemo, Suspense } from "react";
+import React, { useEffect, useCallback, useState, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { SearchBar } from "@/components/SearchBar";
 import { HotelCard } from "@/components/HotelCard";
@@ -38,7 +38,7 @@ function SearchContent() {
   const [selectedPriceRange, setSelectedPriceRange] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("popular");
 
-  const fetchHotels = async () => {
+  const fetchHotels = useCallback(async () => {
     setIsLoading(true);
     setErrorMessage("");
     try {
@@ -56,11 +56,11 @@ function SearchContent() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [city, keyword]);
 
   useEffect(() => {
     fetchHotels();
-  }, [city, keyword]);
+  }, [fetchHotels]);
 
   // Client-side Filter & Sort
   const filteredHotels = useMemo(() => {

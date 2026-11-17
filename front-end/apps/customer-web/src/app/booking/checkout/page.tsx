@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { apiClient } from "@/lib/api";
@@ -86,11 +86,13 @@ function CheckoutContent() {
 
   useEffect(() => {
     if (user) {
-      if (!guestName && user.ho_ten) setGuestName(user.ho_ten);
-      if (!guestEmail && user.email) setGuestEmail(user.email);
-      if (!guestPhone && user.sdt) setGuestPhone(user.sdt);
+      setGuestName(previous => previous || user.ho_ten || "");
+      setGuestEmail(previous => previous || user.email || "");
+      setGuestPhone(previous => previous || user.sdt || "");
     }
   }, [user]);
+
+  const clearOtpError = useCallback(() => setOtpError(""), []);
 
   const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -626,7 +628,7 @@ function CheckoutContent() {
         isVerifying={isVerifyingOtp}
         isResending={isResendingOtp}
         errorMessage={otpError}
-        clearError={() => setOtpError("")}
+        clearError={clearOtpError}
       />
     </div>
   );

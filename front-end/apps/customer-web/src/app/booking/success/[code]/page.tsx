@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, use } from "react";
+import React, { useEffect, useCallback, useState, use } from "react";
 import Link from "next/link";
 import { apiClient } from "@/lib/api";
 import { QRCode } from "@/components/QRCode";
@@ -33,7 +33,7 @@ export default function BookingSuccessPage({
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const fetchBooking = async () => {
+  const fetchBooking = useCallback(async () => {
     if (!code) return;
     setIsLoading(true);
     setErrorMessage("");
@@ -47,11 +47,11 @@ export default function BookingSuccessPage({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [code]);
 
   useEffect(() => {
     fetchBooking();
-  }, [code]);
+  }, [fetchBooking]);
 
   const handlePrintTicket = () => {
     if (typeof window !== "undefined") {

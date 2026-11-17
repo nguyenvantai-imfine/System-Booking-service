@@ -202,8 +202,10 @@ def get_booking_detail(
 def confirm_booking(
     id_or_code: str,
     db: Session = Depends(get_db),
-    _: None = Depends(require_internal_service),
+    user_payload: dict = Depends(get_current_user_or_internal_service),
 ):
+    if get_user_role(user_payload) not in ("ADMIN", "SERVICE"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only admin or internal services may confirm bookings.")
     return BookingService.confirm_booking(
         db=db,
         id_or_code=id_or_code,

@@ -1,6 +1,74 @@
 # V4 handover — 17/11/2026
 
-## V5 release verification — current result
+## V6 functional closure — current result, 17/11/2026
+
+V6 starts from clean local/remote main at
+`c7b4cca7125717e6211426887e34c1e7d60cbfbc`. This section supersedes the historical
+V5/V4 acceptance gaps below. No reproducible P0/P1 remains in the exercised scope;
+the matrix records exactly which operations have evidence.
+
+- **Verified defect fixed:** Dashboard's existing manual confirmation button sent
+  an Admin JWT to a service-secret-only Booking endpoint and received 401. That
+  endpoint now accepts authenticated ADMIN or internal SERVICE; CUSTOMER/PARTNER
+  receive 403. Booking state changes remain in the existing business service.
+  Real API, actual Dashboard clicks and an offline authorization regression pass.
+- User lifecycle: registration validation/duplicates, login/refresh, profile ownership,
+  Admin create/filter/pagination/lock/unlock/delete; locked login/refresh are rejected.
+- Hotel lifecycle: owner/Admin updates, foreign Partner rejection, search, primary
+  image uniqueness and cross-hotel isolation, amenity create/delete, policy update/
+  delete, pause, soft delete and restore. All writes use newly created fixtures.
+- Room/Notification: the 24-group Docker regression rechecks batch atomicity,
+  counter races, Booking overlap/hold expiry, concurrent REST/broker dedup and owner
+  propagation. New coverage verifies linked-type deletion protection, duplicate rooms,
+  filtered pagination, INACTIVE removal preserving counters, escaped IN_APP content,
+  mark-read/delete and foreign-account isolation. No messaging architecture was added.
+- Actual Chrome Admin mutations: account lock/unlock, hotel pause, booking manual
+  confirm/cancel, sandbox payment IPN, notification read/delete and room maintenance:
+  **9 checks PASS**, with resulting state read through real APIs. Customer Golden
+  Flow and six Admin page visits: **10 checks PASS**, including QR URL booking identity.
+- External QR bitmap loaded with nonzero browser dimensions after explicit user
+  permission to send only the newly created test booking code to `api.qrserver.com`.
+  This checks image rendering and URL identity, not a physical QR scanner. Other
+  external images/fonts/media remain excluded from the constrained browser runner.
+- Final regression: **79 unittest cases / 15 suites** (including the standalone
+  Gateway script), **7 API-client tests**, both frontend typechecks/lints, all nine
+  source image builds, **24 Docker API groups**, **8 additional functional groups**,
+  both Chrome runners and post-restart persistence pass. SQL table row counts across
+  six databases and durable queue names survive the isolated infrastructure restart.
+- Lint improved from **17 to 10 warnings, zero errors**. Stable fetch callbacks now
+  track route inputs; profile prefills preserve entered values; OTP clear callback is
+  stable and autofocus timer is cleaned up. Named Next configs remove export warnings.
+  The remaining warnings are only image optimization: Customer hotel detail (3), home
+  (2), HotelCard (1), QRCode (1); Admin Hotels (2), Users (1). Moving these external
+  images to a server image proxy changes loading/caching behavior and is deferred.
+  No lint/security/typecheck rules were disabled.
+- Docker: all nine images rebuilt and deployed via the supported recovered-base /
+  legacy-builder path. Official Python registry manifest access and linux/amd64
+  metadata pass; the existing BuildKit builder still fails before application code
+  (`buildkitd-entrypoint: Exec format error`). Its failed task-owned container is
+  stopped. A clean Linux host/default BuildKit is **NOT VERIFIED**.
+
+Remaining design limits: email uses mock transport, payments use sandbox; external
+SMTP acceptance followed by a crash before SQL commit can duplicate a replay.
+Concurrent event locking does not provide exactly-once external SMTP. `SYNC_FAILED`
+remains an explicit Payment/Booking reconciliation state, covered by existing failure
+regressions, without a newly invented reconciliation workflow.
+
+All database writes target isolated acceptance fixtures. Original booking **28 /
+BK-202611-68F1D3** and its children, developer databases, dotenv files and volumes are
+untouched. No real payment/email, destructive Git operation or release tag is used.
+
+Reproduce with the commands in [runbook](DOCKER_RUNBOOK.md). Current evidence stays
+in ignored `logs/`: `offline-regression-results.json`, `docker-acceptance-results.json`,
+`v6-functional-results.json`, `v6-admin-browser-results.json`, `v4-browser-results.json`,
+`v6-qr-image-results.json`, `persistence-results.json`, and `v6-final-*`/build logs.
+Runtime outputs/secrets are excluded from the release. V6's reviewed source, test and
+documentation changes are intended for the authorized normal push to `origin/main`;
+exact post-push commit/remote/clean-tree verification is recorded in ignored
+`logs/v6-release-receipt.json` and the final response. This receipt avoids embedding
+a commit's own hash in its contents.
+
+## Historical V5 release verification
 
 V4 historical results below are superseded by the V5 evidence in
 `validation/2026-11-17-v5-results.json`. Source fingerprints matched V4 at takeover;

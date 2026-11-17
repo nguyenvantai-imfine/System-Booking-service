@@ -1,6 +1,37 @@
 # Implementation status — final checkpoint 2026-11-17
 
-## V5 release checkpoint — supersedes V4 below
+## V6 closure checkpoint — supersedes historical results below
+
+- Baseline: clean main and origin/main at `c7b4cca7125717e6211426887e34c1e7d60cbfbc`.
+  V5 source and evidence were retained; no teammate changes were overwritten.
+- Fixed the reproducible Admin Dashboard booking-confirmation 401: allow Admin JWT
+  or authenticated internal service on that existing endpoint; reject Customer/Partner.
+- Added isolated User/Hotel/nested-detail/account lifecycle, Booking/Payment, Room
+  removal/counter and Notification read/delete/ownership acceptance: 8 groups PASS.
+  Chrome now verifies 9 actual Admin mutations plus the customer Golden Flow.
+- Room/Notification concurrency, SQL locks, hold expiry, transport dedup and Payment
+  event ownership remain passing in the 24-group Docker final regression. Existing
+  SMTP/SQL crash-window and Payment SYNC_FAILED limits remain explicit.
+- 79 unittest cases across 15 suites (one standalone Gateway script), 7 API-client
+  tests, Python compilation, both frontend typechecks/lints and all 9 Docker builds
+  pass. Hook/export fixes reduce warnings 17 -> 10, all image optimization, zero errors.
+  No disabled checks. Checkout entered values and OTP lifecycle are preserved.
+- Chrome E-ticket QR identity and actual external bitmap rendering pass; transmission
+  of only a new fixture booking code was explicitly authorized by the user. Other
+  external image/font/media loading is excluded; no scanner-device certification.
+- Isolated SQL/RabbitMQ restart retains table row counts in all six databases and
+  durable queue names. Original booking 28/children and developer data remain untouched.
+- Supported recovered-base/legacy-builder deployment is rebuilt and running. Registry
+  manifest access/platform metadata pass; default BuildKit fails at its own executable
+  on this host. Clean Linux/default BuildKit acceptance remains NOT VERIFIED.
+- Existing four handover/runbook/matrix documents are updated. Ignored logs retain
+  runtime evidence; the release contains source, reusable tests and documentation only.
+  Authorized normal commit/push follows the passing checks; exact remote hash and
+  clean-tree result are in the final response and ignored `logs/v6-release-receipt.json`.
+
+Detailed evidence, lint locations and limitations: [current handover](AI_V4_HANDOVER.md).
+
+## Historical V5 release checkpoint
 
 - All V4 source fingerprints matched; modified/untracked files and complete diff
   backed up in ignored `logs/v5-baseline/` and `logs/v5-baseline.patch` before fetch.

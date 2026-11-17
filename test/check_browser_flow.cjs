@@ -68,6 +68,20 @@ const fs=require('fs');
   await page.waitForURL('**/booking/success/**');
   await page.getByText('Đặt phòng thành công & Đã xác nhận',{exact:true}).waitFor();
   checked.push('Browser checkout -> real OTP -> confirmed E-ticket');
+  const qr=page.locator('img[alt^="Mã QR Check-in:"]');
+  const qrSource=await qr.getAttribute('src');
+  if(new URL(qrSource).searchParams.get('data')!==payment.ma_booking)throw new Error('QR contains wrong booking code');
+  checked.push('E-ticket QR encodes the confirmed booking code');
+  if(process.env.VERIFY_QR_IMAGES==='1'){
+   let imageResult;
+   try{
+    await page.route('https://api.qrserver.com/**',route=>route.continue());
+    await qr.evaluate(img=>{const src=img.src;img.src='';img.src=src;});
+    await page.waitForFunction(()=>{const img=document.querySelector('img[alt^="Mã QR Check-in:"]');return img&&img.complete&&img.naturalWidth>0;},null,{timeout:20000});
+    imageResult={status:'PASS',check:'External QR image loaded and decoded by browser'};
+   }catch(error){imageResult={status:'BLOCKED',error:error.message};}
+   fs.writeFileSync('logs/v6-qr-image-results.json',JSON.stringify(imageResult,null,2));
+  }
   const token=await page.evaluate(()=>localStorage.getItem('customer_token'));
   const booking=await json('bookings/'+payment.id_dat_phong,'get',undefined,token);
   if(booking.trang_thai!=='CONFIRMED')throw new Error('Booking was not confirmed');

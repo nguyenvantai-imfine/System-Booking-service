@@ -59,11 +59,12 @@ export function OtpModal({
       setOtp(["", "", "", "", "", ""]);
       setCountdown(180);
       if (clearError) clearError();
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         inputRefs.current[0]?.focus();
       }, 100);
+      return () => clearTimeout(timer);
     }
-  }, [isOpen]);
+  }, [isOpen, clearError]);
 
   // Countdown timer: 180 seconds
   useEffect(() => {

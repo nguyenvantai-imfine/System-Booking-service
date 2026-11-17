@@ -1,5 +1,56 @@
 # Docker / local validation runbook
 
+V6 validated on 2026-11-17: all nine application images rebuild from current source
+and run via the recovered-base/legacy-builder path. The 24-group Docker regression,
+8 additional lifecycle groups, 9 Admin UI mutations, Customer Golden Flow and
+isolated SQL/RabbitMQ persistence check pass. See [current handover](AI_V4_HANDOVER.md).
+No original data, booking 28 or its children, dotenv files or volumes are removed.
+
+The official Python registry manifest is reachable and images report linux/amd64.
+The existing task-owned BuildKit builder fails before application code with
+`buildkitd-entrypoint: Exec format error`; it is stopped after the probe. No clean
+Linux runner is available, so default BuildKit/clean-host acceptance is NOT VERIFIED.
+Keep the supported deployment commands below; do not reset storage to repair it.
+
+Run these additions **only after the isolated stack is healthy**:
+
+```powershell
+python test/run_offline_regressions.py
+python test/run_functional_closure.py
+node test/check_admin_actions.cjs
+python test/run_isolated_acceptance.py --allow-test-writes --docker --browser
+python test/check_isolated_persistence.py
+```
+
+The functional runner checks acceptance SQL container identity before writing new
+fixtures. Browser runners use only fixed acceptance API/UI ports and an ignored
+Playwright installation plus installed Chrome. They create their own fixtures;
+delete actions target only those new resources. Never retarget them to production.
+No external SMTP or real payment is involved. Default browser QA blocks external
+images/fonts/media and validates QR URL identity without sending the code outside.
+
+Optional external QR rendering sends the newly created fixture booking code to
+`api.qrserver.com`. Run it only with explicit permission for that disclosure. The
+user granted that permission for V6's test, which passed browser bitmap loading;
+other external image requests remain blocked. Reproduction, if authorized:
+
+```powershell
+$env:VERIFY_QR_IMAGES = '1'
+try {
+  python test/run_isolated_acceptance.py --allow-test-writes --docker --browser
+} finally {
+  Remove-Item Env:VERIFY_QR_IMAGES
+}
+```
+
+Read `logs/v6-qr-image-results.json` separately: a blocked external load must not be
+reported as PASS merely because the core Golden Flow passes. Current evidence is
+ignored; release content must exclude runtime fixture data, environment secrets,
+browser dependencies and logs. Frontend lint now has 7 Customer + 3 Admin image
+optimization warnings, zero errors; no rules are disabled.
+
+## Historical V5 rebuild evidence
+
 V5 validated on 2026-11-17: all eleven long-running containers are healthy,
 initializer exits 0, and 24 Docker API acceptance check groups pass with mock email.
 The host needed recovery of corrupt unpacked base snapshots and the legacy builder.
@@ -193,10 +244,10 @@ This is distinct from a fully containerized or browser-driven E2E run.
 The additional `--docker` mode runs the same real business checks through the full
 Compose stack and temporarily overrides only Notification email transport to a
 protected in-memory test inbox. It restores the normal Notification command afterward.
-`--docker --browser` adds installed-Chrome UI QA. V5 passed actual login/search/room
-selection/checkout/OTP/E-ticket/history through this path. It blocks image/font/media
-requests to conserve resources; QR graphics/external image loading are not accepted
-by this test. Read the browser JSON result separately from Docker API evidence.
+`--docker --browser` adds installed-Chrome UI QA. V6 rechecks actual login/search/room
+selection/checkout/OTP/E-ticket/history after hook changes. It blocks image/font/media
+requests by default; the explicitly authorized optional QR check above enables only
+the QR provider. Read browser/QR JSON results separately from Docker API evidence.
 
 The persistence check restarts only the acceptance SQL/broker containers and compares
 all six database row counts and durable queue names. It does not test disaster
